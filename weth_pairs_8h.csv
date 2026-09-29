@@ -1,28 +1,28 @@
 name,created_time,exchange,url
-GRAPHFUND/WETH (Graph Funding),2026-09-29T18:35:11.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xa03bdeee2516350f86972155119f88a735d734aea7bd3dc14a153bbd229ba49b
-MINP/WETH (Minpentai),2026-09-29T17:52:47.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x88bd329dbc4bf63f220491227d8f7750ba6825ae
-PUNKETTES/WETH,2026-09-29T17:51:35.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x7391d3453afc8d2ba1f65bbdc506f88c11c24488
-TST/WETH,2026-09-29T17:27:23.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xbe3620a3832f0f6dfa3390fd77880065c97ca70310af48e8f3636b2c0ad145e6
-LVX/WETH (Lomavex),2026-09-29T16:52:59.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x4f85b9077eae0c9f9bce81fdfad5453d9b905c07
-TSUKI/WETH,2026-09-29T15:54:47.000Z,Uniswap V2,https://www.dextools.io/app/ether/pair-explorer/0xeca46f59cfc5de6e244d37a7c612b667c5d7a07f
-F/WETH (fff),2026-09-29T15:54:23.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xacd11e33158f91d12a94cfca1f2686d0ebd2531421afca34a08c989a16b097a8
-PAIR/WETH (paired),2026-09-29T15:46:23.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x18d6967a5f6adf4611db061701a33fab8a17eb71
-KOUR/WETH (Kourier),2026-09-29T15:08:11.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x54aba2843a70196ab61f37c6b4a45324f6cee4d3
-AAVE/WETH,2026-09-29T14:34:11.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x9c21f46e4c6a00cc7be2d6da8870e47c0db57f00
-HOODI/WETH,2026-09-29T14:30:35.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x7f1094ff71232b9ba50d344fa6b152afa0c0825226f7e73a891ff9c3149ec52c
-GLAMSTERDAM/WETH,2026-09-29T14:29:47.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xbb4f9b56067c91c871b678a9ea2e9c2f68805eaa339ccfc5979befb779ee8b6b
-HOTDOG/WETH,2026-09-29T14:11:47.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x2c7dcf6319e78f361a7a65746633a4f7c399906c5515b91911617c55063149b4
-爱/WETH (love),2026-09-29T14:10:11.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x745a0120753af650d168ec88fc83589e2c69f1a552e42e84ce2ef3658e1ef0e0
-SCAI/WETH (SecureChain AI),2026-09-29T13:46:11.000Z,Uniswap V2,https://www.dextools.io/app/ether/pair-explorer/0x433fe7cd83d08d37debcce26a484962831bfca15
-NEAR/WETH,2026-09-29T13:41:35.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x184572339de858e2e32534c61959de5246c7dcad
-A9/WETH (ALANINE),2026-09-29T13:16:59.000Z,Uniswap V2,https://www.dextools.io/app/ether/pair-explorer/0xecb2f5113ecfb16ded1d522e34c74c9904b58174
-INDEPENDEN/WETH,2026-09-29T13:08:23.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x52875da0d19152aa8690db9665dfb0ca30831063795c29bf7662c4c4b493ba43
-SRD/WETH (Sared Protocol),2026-09-29T13:03:23.000Z,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x42e0e186db11d5e82765c8021b1cbf034ce6d34a
-USDF/WETH (United States Dividend Fund),2026-09-29T12:56:23.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x9c31af3b84e5d29de8f826feb2ca81c5107a1037bca04fdef1b4a7116440d5be
-SHISHI/WETH,2026-09-29T12:15:47.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x6f6286f688f3d8efec0dbdb0f14ab097c3ca5a6cbffb9fc46fea83c9ca24c2b2
-SHAPELLA/WETH (Ethereum Owl),2026-09-29T12:09:23.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x5e5dc02ce0b1fe80a01fbe176c06be5bf21846b59713bd1473ae9431d823eff3
-AMERICA/WETH (America.gov),2026-09-29T11:43:35.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x121ede871e1ef9d823d0a8bd15e2a6f3bc65c631f50c59b692d7d053372da568
-SC/WETH (SchellingCoin),2026-09-29T11:43:11.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x483dd520e16ec5782b452643b2154fbc301ee812b5184939f4c447ff3600ec67
-ETHERIUM/WETH,2026-09-29T11:37:35.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xa156deaff4bc0d90dbe07d06c22e2eb58683811a534622fd130f4cd853a9c7d1
-RYAN/WETH,2026-09-29T11:34:59.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x417078c82773cbfcfb86bbdb85e0c1d40fffe6c56672f07b67d5d2db4ba45d2a
-SUCKER/WETH (Suckereum),2026-09-29T11:23:59.000Z,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x7f476a805bbb97a0ec21f2d0715c9f0aaaa40f577de62fba41b986936b220386
+GRAPHFUND/WETH (Graph Funding),2026-09-29 18:35:11,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xa03bdeee2516350f86972155119f88a735d734aea7bd3dc14a153bbd229ba49b
+MINP/WETH (Minpentai),2026-09-29 17:52:47,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x88bd329dbc4bf63f220491227d8f7750ba6825ae
+PUNKETTES/WETH,2026-09-29 17:51:35,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x7391d3453afc8d2ba1f65bbdc506f88c11c24488
+TST/WETH,2026-09-29 17:27:23,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xbe3620a3832f0f6dfa3390fd77880065c97ca70310af48e8f3636b2c0ad145e6
+LVX/WETH (Lomavex),2026-09-29 16:52:59,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x4f85b9077eae0c9f9bce81fdfad5453d9b905c07
+TSUKI/WETH,2026-09-29 15:54:47,Uniswap V2,https://www.dextools.io/app/ether/pair-explorer/0xeca46f59cfc5de6e244d37a7c612b667c5d7a07f
+F/WETH (fff),2026-09-29 15:54:23,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xacd11e33158f91d12a94cfca1f2686d0ebd2531421afca34a08c989a16b097a8
+PAIR/WETH (paired),2026-09-29 15:46:23,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x18d6967a5f6adf4611db061701a33fab8a17eb71
+KOUR/WETH (Kourier),2026-09-29 15:08:11,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x54aba2843a70196ab61f37c6b4a45324f6cee4d3
+AAVE/WETH,2026-09-29 14:34:11,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x9c21f46e4c6a00cc7be2d6da8870e47c0db57f00
+HOODI/WETH,2026-09-29 14:30:35,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x7f1094ff71232b9ba50d344fa6b152afa0c0825226f7e73a891ff9c3149ec52c
+GLAMSTERDAM/WETH,2026-09-29 14:29:47,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xbb4f9b56067c91c871b678a9ea2e9c2f68805eaa339ccfc5979befb779ee8b6b
+HOTDOG/WETH,2026-09-29 14:11:47,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x2c7dcf6319e78f361a7a65746633a4f7c399906c5515b91911617c55063149b4
+爱/WETH (love),2026-09-29 14:10:11,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x745a0120753af650d168ec88fc83589e2c69f1a552e42e84ce2ef3658e1ef0e0
+SCAI/WETH (SecureChain AI),2026-09-29 13:46:11,Uniswap V2,https://www.dextools.io/app/ether/pair-explorer/0x433fe7cd83d08d37debcce26a484962831bfca15
+NEAR/WETH,2026-09-29 13:41:35,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x184572339de858e2e32534c61959de5246c7dcad
+A9/WETH (ALANINE),2026-09-29 13:16:59,Uniswap V2,https://www.dextools.io/app/ether/pair-explorer/0xecb2f5113ecfb16ded1d522e34c74c9904b58174
+INDEPENDEN/WETH,2026-09-29 13:08:23,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x52875da0d19152aa8690db9665dfb0ca30831063795c29bf7662c4c4b493ba43
+SRD/WETH (Sared Protocol),2026-09-29 13:03:23,Uniswap V3,https://www.dextools.io/app/ether/pair-explorer/0x42e0e186db11d5e82765c8021b1cbf034ce6d34a
+USDF/WETH (United States Dividend Fund),2026-09-29 12:56:23,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x9c31af3b84e5d29de8f826feb2ca81c5107a1037bca04fdef1b4a7116440d5be
+SHISHI/WETH,2026-09-29 12:15:47,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x6f6286f688f3d8efec0dbdb0f14ab097c3ca5a6cbffb9fc46fea83c9ca24c2b2
+SHAPELLA/WETH (Ethereum Owl),2026-09-29 12:09:23,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x5e5dc02ce0b1fe80a01fbe176c06be5bf21846b59713bd1473ae9431d823eff3
+AMERICA/WETH (America.gov),2026-09-29 11:43:35,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x121ede871e1ef9d823d0a8bd15e2a6f3bc65c631f50c59b692d7d053372da568
+SC/WETH (SchellingCoin),2026-09-29 11:43:11,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x483dd520e16ec5782b452643b2154fbc301ee812b5184939f4c447ff3600ec67
+ETHERIUM/WETH,2026-09-29 11:37:35,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0xa156deaff4bc0d90dbe07d06c22e2eb58683811a534622fd130f4cd853a9c7d1
+RYAN/WETH,2026-09-29 11:34:59,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x417078c82773cbfcfb86bbdb85e0c1d40fffe6c56672f07b67d5d2db4ba45d2a
+SUCKER/WETH (Suckereum),2026-09-29 11:23:59,Uniswap V4,https://www.dextools.io/app/ether/pair-explorer/0x7f476a805bbb97a0ec21f2d0715c9f0aaaa40f577de62fba41b986936b220386

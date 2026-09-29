@@ -7,7 +7,7 @@ That page is a JavaScript app. The script reads the same public listing feed the
 For each pair it writes:
 
 - **name** — trading pair, for example `MINP/WETH (Minpentai)`
-- **created_time** — when the pool was created, in UTC
+- **created_time** — when the pool was created, in UTC, as `2026-09-29 17:52:47`
 - **exchange** — DEX shown on that pair’s page, for example `Uniswap V4`
 - **url** — DEXTools pair explorer link
 

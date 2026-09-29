@@ -8,7 +8,7 @@ anything older than the requested window (24 hours by default, or 8h, 24h, …).
 
 Fields written for each pair:
   name          trading pair, for example MINP/WETH (Minpentai)
-  created_time  pool creation time in UTC (ISO-8601)
+  created_time  pool creation time in UTC, for example 2026-09-29 17:52:47
   exchange      DEX shown on the pair page, for example Uniswap V4
   url           DEXTools pair explorer link
 """
@@ -48,7 +48,7 @@ class ListingError(RuntimeError):
 
 def parse_created_time(value: str) -> datetime:
     """Parse a DEXTools creation timestamp into an aware UTC datetime."""
-    text = value.strip()
+    text = value.strip().replace(" ", "T", 1)
     if text.endswith("Z"):
         text = text[:-1] + "+00:00"
     parsed = datetime.fromisoformat(text)
@@ -100,7 +100,7 @@ def to_record(pool: dict[str, Any], exchange_names: dict[str, str]) -> dict[str,
     created = parse_created_time(created_raw)
     return {
         "name": pair_name(pool),
-        "created_time": created.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+        "created_time": created.strftime("%Y-%m-%d %H:%M:%S"),
         "exchange": exchange_label(str(pool.get("exchange") or ""), exchange_names),
         "url": pair_url(address),
         "_created": created.isoformat(),
