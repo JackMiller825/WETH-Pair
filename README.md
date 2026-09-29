@@ -20,11 +20,16 @@ Requires Python 3.10 or newer. No extra packages.
 python3 scrape_weth_pairs.py
 ```
 
-JSON or CSV:
+The latest run is saved as `weth_pairs.csv` (`name`, `created_time`, `url`). Refresh it with:
+
+```bash
+python3 scrape_weth_pairs.py --format csv --output weth_pairs.csv
+```
+
+JSON instead:
 
 ```bash
 python3 scrape_weth_pairs.py --format json --output pairs.json
-python3 scrape_weth_pairs.py --format csv --output pairs.csv
 ```
 
 A different window, in hours:
