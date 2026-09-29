@@ -1,13 +1,14 @@
-# DEXTools WETH pairs (last 24 hours)
+# DEXTools WETH pairs
 
 Python script that lists Ethereum pairs involving WETH from the [DEXTools live new pairs](https://www.dextools.io/app/ether/live-new-pairs) page.
 
-That page is a JavaScript app. The script reads the same public listing feed the page uses, keeps pools where one token is canonical WETH (`0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`), and drops anything older than 24 hours.
+That page is a JavaScript app. The script reads the same public listing feed the page uses, keeps pools where one token is canonical WETH (`0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`), and drops anything older than the period you choose.
 
-For each pair it prints:
+For each pair it writes:
 
 - **name** — trading pair, for example `MINP/WETH (Minpentai)`
 - **created_time** — when the pool was created, in UTC
+- **exchange** — DEX shown on that pair’s page, for example `Uniswap V4`
 - **url** — DEXTools pair explorer link
 
 Native ETH pairs (quote token `0x000…000`, shown as `ETH` on the page) are not WETH and are left out.
@@ -16,28 +17,28 @@ Native ETH pairs (quote token `0x000…000`, shown as `ETH` on the page) are not
 
 Requires Python 3.10 or newer. No extra packages.
 
-```bash
-python3 scrape_weth_pairs.py
-```
-
-The latest run is saved as `weth_pairs.csv` (`name`, `created_time`, `url`). Refresh it with:
+Last 24 hours, saved as CSV:
 
 ```bash
-python3 scrape_weth_pairs.py --format csv --output weth_pairs.csv
+python3 scrape_weth_pairs.py --hours 24 --format csv --output weth_pairs_24h.csv
 ```
 
-JSON instead:
+Last 8 hours:
 
 ```bash
-python3 scrape_weth_pairs.py --format json --output pairs.json
+python3 scrape_weth_pairs.py --hours 8h --format csv --output weth_pairs_8h.csv
 ```
 
-A different window, in hours:
+Both windows in one pass (scans the longer period once, then writes one file per window):
 
 ```bash
-python3 scrape_weth_pairs.py --hours 6
+python3 scrape_weth_pairs.py --hours 8,24 --format csv --output weth_pairs.csv
 ```
 
-A short summary (how many pairs matched, how many pools were scanned) is printed to stderr. The pair list itself goes to stdout, or to `--output`.
+That writes `weth_pairs_8h.csv` and `weth_pairs_24h.csv`.
+
+`--hours` accepts `8`, `8h`, `24`, or `24h`. The default period is 24 hours. A short summary is printed to stderr.
+
+The checked-in files `weth_pairs_8h.csv` and `weth_pairs_24h.csv` are the latest runs.
 
 The script waits briefly between pages. Use DEXTools in line with their terms of service, and don't hammer the listing endpoint.

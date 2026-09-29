@@ -4,11 +4,12 @@
 The page https://www.dextools.io/app/ether/live-new-pairs is a JavaScript app.
 It loads pools from the public listing API below. This script pages through
 that same feed, keeps pools where one token is canonical WETH, and drops
-anything older than the requested window (24 hours by default).
+anything older than the requested window (24 hours by default, or 8h, 24h, …).
 
 Fields written for each pair:
   name          trading pair, for example MINP/WETH (Minpentai)
   created_time  pool creation time in UTC (ISO-8601)
+  exchange      DEX shown on the pair page, for example Uniswap V4
   url           DEXTools pair explorer link
 """
 
@@ -17,6 +18,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
 import time
 import urllib.error
@@ -26,6 +28,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 LISTING_API = "https://www.dextools.io/api/core"
+EXCHANGES_API = "https://www.dextools.io/shared/exchanges/v2"
 PAGE_URL = "https://www.dextools.io/app/ether/live-new-pairs"
 CHAIN = "ether"
 # Canonical WETH on Ethereum mainnet. Native ETH (the zero address) is a
@@ -34,6 +37,9 @@ WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 PAGE_SIZE = 100
 USER_AGENT = "dextools-weth-pairs/1.0"
 MAX_RETRIES = 4
+UNKNOWN_EXCHANGE = "Unknown DEX"
+COLUMNS = ("name", "created_time", "exchange", "url")
+_PERIOD = re.compile(r"^(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours)?$", re.IGNORECASE)
 
 
 class ListingError(RuntimeError):
@@ -75,8 +81,16 @@ def pair_url(address: str) -> str:
     return f"https://www.dextools.io/app/{CHAIN}/pair-explorer/{quoted}"
 
 
-def to_record(pool: dict[str, Any]) -> dict[str, str] | None:
-    """Map one pool into the three requested fields, or skip incomplete rows."""
+def exchange_label(slug: str, names: dict[str, str]) -> str:
+    """Map a pool exchange id to the name shown on the pair page."""
+    key = slug.strip().lower()
+    if not key:
+        return UNKNOWN_EXCHANGE
+    return names.get(key) or UNKNOWN_EXCHANGE
+
+
+def to_record(pool: dict[str, Any], exchange_names: dict[str, str]) -> dict[str, str] | None:
+    """Map one pool into the requested fields, or skip incomplete rows."""
     address = str(pool.get("address") or "").strip()
     created_raw = str(pool.get("creationTime") or "").strip()
     if not address or not created_raw:
@@ -87,10 +101,48 @@ def to_record(pool: dict[str, Any]) -> dict[str, str] | None:
     return {
         "name": pair_name(pool),
         "created_time": created.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+        "exchange": exchange_label(str(pool.get("exchange") or ""), exchange_names),
         "url": pair_url(address),
         "_created": created.isoformat(),
         "_address": address.lower(),
     }
+
+
+def parse_period_token(value: str) -> float:
+    """Accept 8, 8h, 24h, or 24 hours."""
+    match = _PERIOD.fullmatch(value.strip())
+    if not match:
+        raise argparse.ArgumentTypeError(
+            f"Invalid period {value!r}. Use a number of hours, for example 8, 8h, or 24h."
+        )
+    hours = float(match.group(1))
+    if hours <= 0:
+        raise argparse.ArgumentTypeError("period must be greater than 0")
+    return hours
+
+
+def parse_periods(values: list[str] | None) -> list[float]:
+    """Flatten repeated and comma-separated --hours values, preserving order."""
+    if not values:
+        return [24.0]
+    periods: list[float] = []
+    seen: set[float] = set()
+    for raw in values:
+        for part in raw.split(","):
+            if not part.strip():
+                continue
+            hours = parse_period_token(part)
+            if hours in seen:
+                continue
+            seen.add(hours)
+            periods.append(hours)
+    if not periods:
+        raise argparse.ArgumentTypeError("Provide at least one period, for example 8h or 24h.")
+    return periods
+
+
+def period_label(hours: float) -> str:
+    return f"{hours:g}h"
 
 
 def _request_json(url: str, timeout: float) -> dict[str, Any]:
@@ -128,6 +180,28 @@ def _request_json(url: str, timeout: float) -> dict[str, Any]:
     raise ListingError(f"Could not reach the DEXTools listing API: {last_error}")
 
 
+def fetch_exchange_names(timeout: float) -> dict[str, str]:
+    """Load the slug-to-name catalog the pair page uses for its DEX label."""
+    query = urllib.parse.urlencode({"allowUnknowns": "false", "chain": CHAIN})
+    payload = _request_json(f"{EXCHANGES_API}?{query}", timeout)
+    blocks = payload.get("data")
+    names: dict[str, str] = {}
+    if isinstance(blocks, list):
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            for item in block.get("exchanges") or []:
+                if not isinstance(item, dict):
+                    continue
+                slug = str(item.get("slug") or "").strip().lower()
+                name = str(item.get("name") or "").strip()
+                if slug and name:
+                    names[slug] = name
+    if not names:
+        raise ListingError("DEXTools exchange list was empty.")
+    return names
+
+
 def fetch_page(cursor: int | None, timeout: float) -> dict[str, Any]:
     """Fetch one page. The first page has no cursor; later pages pass next.ts."""
     if cursor is None:
@@ -147,6 +221,7 @@ def collect_weth_pairs(
     delay_seconds: float,
     timeout: float,
     max_pages: int,
+    exchange_names: dict[str, str],
     now: datetime | None = None,
 ) -> tuple[list[dict[str, str]], int]:
     """Page the live feed until pools fall outside the time window.
@@ -178,7 +253,7 @@ def collect_weth_pairs(
                 oldest_on_page = created
             if created is not None and created < cutoff:
                 continue
-            record = to_record(pool)
+            record = to_record(pool, exchange_names)
             if record is None or record["_address"] in seen:
                 continue
             seen.add(record["_address"])
@@ -205,15 +280,17 @@ def collect_weth_pairs(
         )
 
     matches.sort(key=lambda row: row["_created"], reverse=True)
-    public_rows = [
-        {"name": row["name"], "created_time": row["created_time"], "url": row["url"]}
-        for row in matches
-    ]
+    public_rows = [{key: row[key] for key in COLUMNS} for row in matches]
     return public_rows, scanned
 
 
+def filter_period(rows: list[dict[str, str]], hours: float, now: datetime) -> list[dict[str, str]]:
+    cutoff = now - timedelta(hours=hours)
+    return [row for row in rows if parse_created_time(row["created_time"]) >= cutoff]
+
+
 def render_table(rows: list[dict[str, str]]) -> str:
-    headers = ("name", "created_time", "url")
+    headers = COLUMNS
     if not rows:
         return "No WETH pairs were created in this window."
     widths = {
@@ -233,7 +310,7 @@ def render_csv(rows: list[dict[str, str]]) -> str:
     from io import StringIO
 
     buffer = StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=["name", "created_time", "url"])
+    writer = csv.DictWriter(buffer, fieldnames=list(COLUMNS))
     writer.writeheader()
     writer.writerows(rows)
     return buffer.getvalue()
@@ -249,18 +326,45 @@ def render(rows: list[dict[str, str]], fmt: str) -> str:
     raise ValueError(f"Unsupported format: {fmt}")
 
 
+def output_path_for(base: str | None, hours: float, multiple: bool, fmt: str) -> str | None:
+    """One period uses --output as given. Several periods get a suffix such as _8h."""
+    if not multiple:
+        return base
+    extension = {"csv": ".csv", "json": ".json", "table": ".txt"}[fmt]
+    label = period_label(hours)
+    if base is None:
+        return f"weth_pairs_{label}{extension}"
+    root, current = split_output_name(base)
+    return f"{root}_{label}{current or extension}"
+
+
+def split_output_name(path: str) -> tuple[str, str]:
+    if path.endswith(".csv"):
+        return path[:-4], ".csv"
+    if path.endswith(".json"):
+        return path[:-5], ".json"
+    if path.endswith(".txt"):
+        return path[:-4], ".txt"
+    return path, ""
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Extract name, created time, and URL for Ethereum pairs involving "
-            "WETH from the DEXTools live new pairs feed."
+            "Extract name, created time, exchange, and URL for Ethereum pairs "
+            "involving WETH from the DEXTools live new pairs feed."
         )
     )
     parser.add_argument(
         "--hours",
-        type=float,
-        default=24,
-        help="How far back to look, in hours (default: 24).",
+        action="append",
+        default=None,
+        metavar="PERIOD",
+        help=(
+            "How far back to look. Examples: 8, 24, 8h, 24h. "
+            "Pass several values (8,24 or repeated --hours) to write one file per window. "
+            "Default: 24."
+        ),
     )
     parser.add_argument(
         "--format",
@@ -293,36 +397,53 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def write_result(text: str, path: str | None) -> None:
+    if path:
+        with open(path, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+        return
+    sys.stdout.write(text)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.hours <= 0:
-        print("--hours must be greater than 0.", file=sys.stderr)
-        return 2
     if args.max_pages < 1:
         print("--max-pages must be at least 1.", file=sys.stderr)
         return 2
     try:
+        periods = parse_periods(args.hours)
+    except argparse.ArgumentTypeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    now = datetime.now(timezone.utc)
+    widest = max(periods)
+    multiple = len(periods) > 1
+    try:
+        exchange_names = fetch_exchange_names(args.timeout)
         rows, scanned = collect_weth_pairs(
-            hours=args.hours,
+            hours=widest,
             delay_seconds=max(0.0, args.delay),
             timeout=args.timeout,
             max_pages=args.max_pages,
+            exchange_names=exchange_names,
+            now=now,
         )
     except (ListingError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
-    text = render(rows, args.format)
-    if args.output:
-        with open(args.output, "w", encoding="utf-8", newline="") as handle:
-            handle.write(text)
-    else:
-        sys.stdout.write(text)
-    print(
-        f"Found {len(rows)} WETH pair(s) created in the last {args.hours:g} hour(s) "
-        f"on Ethereum. Scanned {scanned} live new pool(s).",
-        file=sys.stderr,
-    )
+    for hours in periods:
+        selected = filter_period(rows, hours, now)
+        path = output_path_for(args.output, hours, multiple, args.format)
+        write_result(render(selected, args.format), path)
+        destination = path or "stdout"
+        print(
+            f"Found {len(selected)} WETH pair(s) created in the last {period_label(hours)} "
+            f"on Ethereum. Wrote {destination}.",
+            file=sys.stderr,
+        )
+    print(f"Scanned {scanned} live new pool(s).", file=sys.stderr)
     return 0
 
 
