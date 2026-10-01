@@ -43,11 +43,19 @@ The page also shows the flame only when it recognises the exchange, so pools on 
 
 Only pools that issue LP tokens can be burnt. Uniswap V3 and V4 style pools hold liquidity as positions instead, so the button skips them, which also makes it much faster than Start. If you pressed Start for the same period first, the button reuses that data and answers instantly.
 
+## Filter and sort
+
+Above the results, **Name** filters by part of the pair name (not case sensitive) and **Exchange** limits the list to one DEX, with the number of pairs for each. **Clear filters** appears when either is set.
+
+Sort with the **Sort by** menu and its arrow, or click a column header: Created, Price, Market cap, Total liquidity, Remaining, Holders, Total Tx, or LP status. The first click sorts high to low and the next flips it. Rows with no value in the sorted column always stay at the bottom. LP status sorts burnt first (a larger burnt share ahead of a smaller one), then locked, unverified, and none.
+
+Filters and sorting work in both the table and the burnt cards, and the file you download follows the same filters and order. Filters reset when you fetch fresh data.
+
 ## Back and pagination
 
 The burnt view has a **Back to all pairs** button. It returns to the full list for the same period, instantly if Start already loaded it, otherwise it loads the list first.
 
-Both the table and the burnt cards are paginated, with a page size of 10, 25, 50, or 100 (25 for the table and 10 for the cards by default). Downloaded files always contain every row, not just the current page.
+Both the table and the burnt cards are paginated, with a page size of 10, 25, 50, or 100 (25 for the table and 10 for the cards by default). Downloaded files contain every row that matches your filters, not just the current page. The download button shows the count, for example `(8 of 181)`, whenever a filter is on.
 
 ## Download
 
