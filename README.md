@@ -51,6 +51,20 @@ Sort with the **Sort by** menu and its arrow, or click a column header: Created,
 
 Filters and sorting work in both the table and the burnt cards, and the file you download follows the same filters and order. Filters reset when you fetch fresh data.
 
+## Live updates
+
+Start and Find LP Burnt Token turn on a one-minute refresh. The page reloads the same time window, keeps your filters and sort, and stays current while the tab is open. **Stop watching** pauses it, and **Start watching** resumes it.
+
+Tokens that are already LP burnt when a search finishes are the baseline, so they do not raise an alert. A token that becomes LP burnt later does:
+
+- a card in the corner with the name, exchange, liquidity, burnt share, and a link to the pair
+- a desktop notification, including while the tab is in the background, once you allow notifications
+- two short beeps, unless you turn **Sound** off
+- a `NEW` badge on that row until you dismiss the alert
+- the browser tab title shows the number of open alerts
+
+**Test alert** plays the same sound and shows a sample card, so you can check it before a real token appears. Pools on an unknown exchange stay out of these alerts, because DEXTools does not show them as burnt.
+
 ## Back and pagination
 
 The burnt view has a **Back to all pairs** button. It returns to the full list for the same period, instantly if Start already loaded it, otherwise it loads the list first.

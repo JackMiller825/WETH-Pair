@@ -70,8 +70,8 @@ import {
 } from "@/lib/alerts"
 import {
   WATCH_INTERVAL_MS,
-  burntAddresses,
-  findNewBurnt,
+  seedBurnt,
+  takeNewBurnt,
   toAlert,
   type WatchAlert,
 } from "@/lib/watch"
@@ -370,6 +370,7 @@ export function PairFinder() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
+  const [watchEpoch, setWatchEpoch] = useState(0)
   const [watching, setWatching] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [nextAt, setNextAt] = useState<number | null>(null)
@@ -382,6 +383,7 @@ export function PairFinder() {
   const audioRef = useRef<AudioContext | null>(null)
   const busyRef = useRef(false)
   const runRef = useRef<Run | null>(null)
+  const fullRunRef = useRef<Run | null>(null)
   const soundRef = useRef(true)
   const refreshRef = useRef<() => Promise<void>>(async () => {})
   const baseTitle = useRef<string | null>(null)
@@ -516,22 +518,26 @@ export function PairFinder() {
         records: fullRun.records.filter((record) => record.lpStatus === "burnt"),
       }
       showRun(cached)
+      armWatch()
       return cached
     }
 
+    busyRef.current = true
     setRunning(mode)
     try {
       const { finished, records } = await fetchRun(mode, hours, setProgress)
       if (mode === "all") setFullRun({ ...finished, records })
       else setFullRun(null)
-      burntAddresses(records).forEach((address) => seenRef.current.add(address))
+      seedBurnt(records, seenRef.current)
       setFilters(DEFAULT_FILTERS)
       showRun(finished)
+      armWatch()
       return finished
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The pair list could not be loaded.")
       return null
     } finally {
+      busyRef.current = false
       setRunning(null)
       setProgress(null)
     }
@@ -557,18 +563,28 @@ export function PairFinder() {
     }
   }
 
+  function burntRun(finished: Run, records: PairRecord[]): Run {
+    return {
+      mode: "burnt",
+      hours: finished.hours,
+      scanned: finished.scanned,
+      checked: records.filter((record) => canBurnLp(record.exchange)).length,
+      failed: records.filter((record) => canBurnLp(record.exchange) && record.lpStatus === "unknown").length,
+      records: records.filter((record) => record.lpStatus === "burnt"),
+    }
+  }
+
   async function refresh() {
     const current = runRef.current
     if (!current || busyRef.current) return
     busyRef.current = true
     setRefreshing(true)
     try {
-      const { finished, records } = await fetchRun(current.mode, current.hours)
-      const found = findNewBurnt(records, seenRef.current)
-      burntAddresses(records).forEach((address) => seenRef.current.add(address))
-      setRun(finished)
-      if (current.mode === "all") setFullRun({ ...finished, records })
-      else setFullRun(null)
+      const { finished, records } = await fetchRun("all", current.hours)
+      const found = takeNewBurnt(records, seenRef.current)
+      const allRun: Run = { ...finished, mode: "all", records }
+      setFullRun(allRun)
+      setRun(current.mode === "burnt" ? burntRun(finished, records) : allRun)
       setLastUpdated(Date.now())
       setWatchFailed(false)
       if (found.length > 0) raiseAlerts(found)
@@ -580,23 +596,28 @@ export function PairFinder() {
     }
   }
 
-  async function startWatching() {
-    audioRef.current = createAudioContext()
+  function armWatch() {
+    const current = runRef.current
+    const full = fullRunRef.current
+    if (current) seedBurnt(current.records, seenRef.current)
+    if (full) seedBurnt(full.records, seenRef.current)
+    if (!audioRef.current) audioRef.current = createAudioContext()
     void requestNotifications().then(setDesktop)
-
-    let baseline: PairRecord[]
-    if (run) {
-      baseline = [...run.records, ...(fullRun?.records ?? [])]
-    } else {
-      const first = await execute("burnt")
-      if (!first) return
-      baseline = first.records
-    }
-    seenRef.current = new Set(burntAddresses(baseline))
     setLastUpdated(Date.now())
     setWatchFailed(false)
     setNextAt(Date.now() + WATCH_INTERVAL_MS)
+    setWatchEpoch((epoch) => epoch + 1)
     setWatching(true)
+  }
+
+  async function startWatching() {
+    if (!audioRef.current) audioRef.current = createAudioContext()
+    void requestNotifications().then(setDesktop)
+    if (!runRef.current) {
+      await execute("burnt")
+      return
+    }
+    armWatch()
   }
 
   function stopWatching() {
@@ -627,6 +648,7 @@ export function PairFinder() {
 
   useEffect(() => {
     runRef.current = run
+    fullRunRef.current = fullRun
     refreshRef.current = refresh
     soundRef.current = sound
   })
@@ -637,22 +659,27 @@ export function PairFinder() {
     let timer: ReturnType<typeof setTimeout>
     const tick = async () => {
       if (cancelled) return
+      const started = Date.now()
       await refreshRef.current()
       if (cancelled) return
-      setNextAt(Date.now() + WATCH_INTERVAL_MS)
-      timer = setTimeout(tick, WATCH_INTERVAL_MS)
+      const wait = Math.max(0, WATCH_INTERVAL_MS - (Date.now() - started))
+      setNextAt(Date.now() + wait)
+      timer = setTimeout(tick, wait)
     }
     timer = setTimeout(tick, WATCH_INTERVAL_MS)
     return () => {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [watching])
+  }, [watching, watchEpoch])
 
   useEffect(() => {
     if (baseTitle.current === null) baseTitle.current = document.title
     document.title =
       alerts.length > 0 ? `(${alerts.length}) New LP burnt token | ${baseTitle.current}` : baseTitle.current
+    return () => {
+      if (baseTitle.current) document.title = baseTitle.current
+    }
   }, [alerts.length])
 
   const newAddresses = useMemo(

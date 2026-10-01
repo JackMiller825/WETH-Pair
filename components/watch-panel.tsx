@@ -51,7 +51,7 @@ export function WatchPanel({
 }: WatchPanelProps) {
   const seconds = useCountdown(watching && !refreshing ? nextAt : null)
 
-  let status = `Checks again every ${intervalSeconds} seconds while this page stays open and alerts you to new LP burnt tokens.`
+  let status = `After Start or Find LP Burnt Token, results refresh every ${intervalSeconds} seconds and a new LP burnt token raises an alert.`
   if (watching) {
     if (refreshing) status = "Updating results..."
     else if (failed) status = `The last update failed. Trying again in ${seconds ?? intervalSeconds}s.`
@@ -73,6 +73,12 @@ export function WatchPanel({
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {status}
         </p>
+        {watching && desktop === "default" ? (
+          <p className="text-xs text-amber-300">
+            Allow notifications when the browser asks, so an alert still appears when this tab is in the
+            background.
+          </p>
+        ) : null}
         {watching && desktop === "denied" ? (
           <p className="text-xs text-amber-300">
             Desktop notifications are blocked for this site. Allow them in your browser settings to get alerts
