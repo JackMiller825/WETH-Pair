@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { ArrowLeft, Download, ExternalLink, Flame, Loader2, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AddressCell } from "@/components/address-cell"
 import { Pager } from "@/components/pager"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +23,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCount, formatUsd } from "@/lib/format"
+import {
+  formatAmount,
+  formatCount,
+  formatExactPercent,
+  formatPrice,
+  formatUsd,
+} from "@/lib/format"
 import {
   EMPTY_DETAIL,
   LOCAL_ZONE,
@@ -32,7 +39,6 @@ import {
   canBurnLp,
   filenameFor,
   formatCreated,
-  formatPercent,
   normalizeLp,
   renderFile,
   zoneDescription,
@@ -137,24 +143,59 @@ function liquidityOf(record: PairRecord): number | null {
   return record.liquidity ?? record.listingLiquidity
 }
 
-function LpBadge({ record }: { record: PairRecord }) {
+function LpCell({ record, zone }: { record: PairRecord; zone: string }) {
+  const burnt = record.lpBurntPercent
+  const details: string[] = []
+  if (record.lpStatus === "burnt" || record.lpStatus === "locked" || record.lpStatus === "unverified") {
+    details.push(`Burnt ${formatExactPercent(burnt)}`)
+  }
+  if (record.lpStatus === "burnt" && record.lpLockedPercent > 0) {
+    details.push(`Locked ${formatExactPercent(record.lpLockedPercent)}`)
+  }
+  if (record.lpStatus === "locked" && record.lpLockedPercent > 0) {
+    details.push(`Locked ${formatExactPercent(record.lpLockedPercent)}`)
+  }
+  if (record.lpUnlockAt && (record.lpStatus === "locked" || record.lpStatus === "burnt")) {
+    details.push(`Unlocks ${formatCreated(record.lpUnlockAt, zone)}`)
+  }
+
+  let head: React.ReactNode = <span className="text-muted-foreground">-</span>
   if (record.lpStatus === "burnt") {
-    return (
+    head = (
       <span className="inline-flex items-center gap-1.5 font-medium text-emerald-300">
         <Flame className="size-4" />
-        {formatPercent(record.lpBurntPercent)}
+        Burnt
       </span>
     )
-  }
-  if (record.lpStatus === "locked") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sky-300">
+  } else if (record.lpStatus === "locked") {
+    head = (
+      <span className="inline-flex items-center gap-1.5 font-medium text-sky-300">
         <Lock className="size-4" />
-        {record.lpLockedPercent > 0 ? formatPercent(record.lpLockedPercent) : "-"}
+        Locked
       </span>
     )
+  } else if (record.lpStatus === "unverified") {
+    head = (
+      <span
+        className="inline-flex items-center gap-1.5 font-medium text-amber-300"
+        title="LP tokens sit at the burn address, but DEXTools does not recognise this exchange, so its page does not show the pool as burnt."
+      >
+        <Flame className="size-4" />
+        Unverified
+      </span>
+    )
+  } else if (record.lpStatus === "unknown") {
+    head = <span className="text-muted-foreground">Unknown</span>
   }
-  return <span className="text-muted-foreground">-</span>
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {head}
+      {details.length > 0 ? (
+        <span className="text-xs text-muted-foreground">{details.join(" · ")}</span>
+      ) : null}
+    </div>
+  )
 }
 
 function BurntCard({ record, zone }: { record: PairRecord; zone: string }) {
@@ -190,14 +231,24 @@ function BurntCard({ record, zone }: { record: PairRecord; zone: string }) {
           title="LP burnt"
         >
           <Flame className="size-5" strokeWidth={1.5} />
-          <span className="text-sm font-bold text-foreground">{formatPercent(record.lpBurntPercent)}</span>
+          <span className="text-sm font-bold text-foreground">{formatExactPercent(record.lpBurntPercent)}</span>
         </div>
       </div>
 
-      <dl className="grid grid-cols-3 gap-3 text-sm">
+      <dl className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm">
+        <div>
+          <dt className="text-xs text-muted-foreground">Price</dt>
+          <dd className="font-medium">{formatPrice(record.price)}</dd>
+        </div>
         <div>
           <dt className="text-xs text-muted-foreground">Market cap</dt>
           <dd className="font-medium">{formatUsd(record.marketCap)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Remaining</dt>
+          <dd className="font-medium">
+            {record.remaining === null ? "-" : `${formatAmount(record.remaining)} ${record.remainingUnit}`}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground">Holders</dt>
@@ -207,7 +258,24 @@ function BurntCard({ record, zone }: { record: PairRecord; zone: string }) {
           <dt className="text-xs text-muted-foreground">Total Tx</dt>
           <dd className="font-medium">{formatCount(record.totalTx)}</dd>
         </div>
+        {record.lpLockedPercent > 0 ? (
+          <div>
+            <dt className="text-xs text-muted-foreground">Also locked</dt>
+            <dd className="font-medium">{formatExactPercent(record.lpLockedPercent)}</dd>
+          </div>
+        ) : null}
       </dl>
+
+      <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-3 text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Token</span>
+          <AddressCell address={record.tokenAddress} label="token address" />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Pair</span>
+          <AddressCell address={record.address} label="pair address" />
+        </div>
+      </div>
     </div>
   )
 }
@@ -541,7 +609,7 @@ export function PairFinder() {
 
           {run && run.mode === "burnt" && run.records.length > 0 ? (
             <>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {visible.map((record) => (
                   <BurntCard key={record.address} record={record} zone={zone} />
                 ))}
@@ -562,11 +630,15 @@ export function PairFinder() {
                     <TableHead>Name</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Exchange</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
                     <TableHead className="text-right">Market cap</TableHead>
-                    <TableHead className="text-right">Liquidity</TableHead>
+                    <TableHead className="text-right">Total liquidity</TableHead>
+                    <TableHead className="text-right">Remaining</TableHead>
                     <TableHead className="text-right">Holders</TableHead>
                     <TableHead className="text-right">Total Tx</TableHead>
-                    <TableHead>LP</TableHead>
+                    <TableHead>LP status</TableHead>
+                    <TableHead>Token address</TableHead>
+                    <TableHead>Pair address</TableHead>
                     <TableHead>Link</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -576,12 +648,22 @@ export function PairFinder() {
                       <TableCell className="font-medium whitespace-nowrap">{record.name}</TableCell>
                       <TableCell className="font-mono text-xs whitespace-nowrap">{formatCreated(record.created_at, zone)}</TableCell>
                       <TableCell className="whitespace-nowrap">{record.exchange}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{formatPrice(record.price)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{formatUsd(record.marketCap)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{formatUsd(liquidityOf(record))}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {record.remaining === null ? "-" : `${formatAmount(record.remaining)} ${record.remainingUnit}`}
+                      </TableCell>
                       <TableCell className="text-right whitespace-nowrap">{formatCount(record.holders)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{formatCount(record.totalTx)}</TableCell>
                       <TableCell className="whitespace-nowrap">
-                        <LpBadge record={record} />
+                        <LpCell record={record} zone={zone} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <AddressCell address={record.tokenAddress} label="token address" />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <AddressCell address={record.address} label="pair address" />
                       </TableCell>
                       <TableCell>
                         <a

@@ -19,6 +19,8 @@ type Pool = {
   exchange?: string
   address?: string
   liquidity?: number | null
+  price?: number | null
+  poolRemaining?: number | null
   mainToken?: TokenSide
   sideToken?: TokenSide
 }
@@ -62,12 +64,19 @@ function toRow(pool: Pool, exchangeNames: Map<string, string>): PairRow | null {
   if (!address || !createdRaw) return null
   if (!isWeth(pool.mainToken) && !isWeth(pool.sideToken)) return null
   const slug = (pool.exchange ?? "").trim().toLowerCase()
+  const token = isWeth(pool.mainToken) && !isWeth(pool.sideToken) ? pool.sideToken : pool.mainToken
+  const quote = token === pool.mainToken ? pool.sideToken : pool.mainToken
+  const quoteSymbol = quote?.symbol?.trim() || ""
   return {
     name: pairName(pool),
     created_at: parseCreated(createdRaw).toISOString(),
     exchange: (slug && exchangeNames.get(slug)) || UNKNOWN_EXCHANGE,
     address,
+    tokenAddress: token?.address?.trim() ?? "",
     url: pairUrl(address),
+    price: typeof pool.price === "number" ? pool.price : null,
+    remaining: typeof pool.poolRemaining === "number" ? pool.poolRemaining : null,
+    remainingUnit: !quoteSymbol || quoteSymbol.toUpperCase() === "WETH" ? "ETH" : quoteSymbol,
     listingLiquidity: typeof pool.liquidity === "number" ? pool.liquidity : null,
   }
 }

@@ -1,11 +1,17 @@
-export type LpStatus = "burnt" | "locked" | "none" | "unknown"
+import { plainNumber } from "@/lib/format"
+
+export type LpStatus = "burnt" | "locked" | "unverified" | "none" | "unknown"
 
 export type PairRow = {
   name: string
   created_at: string
   exchange: string
   address: string
+  tokenAddress: string
   url: string
+  price: number | null
+  remaining: number | null
+  remainingUnit: string
   listingLiquidity: number | null
 }
 
@@ -17,6 +23,7 @@ export type PairDetail = {
   lpStatus: LpStatus
   lpBurntPercent: number
   lpLockedPercent: number
+  lpUnlockAt: string | null
 }
 
 export type PairRecord = PairRow & PairDetail
@@ -39,6 +46,7 @@ export const EMPTY_DETAIL: PairDetail = {
   lpStatus: "unknown",
   lpBurntPercent: 0,
   lpLockedPercent: 0,
+  lpUnlockAt: null,
 }
 
 export const UNKNOWN_EXCHANGE = "Unknown DEX"
@@ -52,10 +60,14 @@ export function canBurnLp(exchange: string): boolean {
   return exchange !== UNKNOWN_EXCHANGE && !/\bv[34]\b/i.test(exchange)
 }
 
-/** Applies the pair page's own rule so the flame appears only where DEXTools shows it. */
+/**
+ * Applies the pair page's own rule so the flame appears only where DEXTools shows it. LP tokens
+ * sitting at the burn address on a pool DEXTools cannot verify are reported as "unverified", with
+ * the exact burnt percentage kept.
+ */
 export function normalizeLp<T extends PairRow & PairDetail>(record: T): T {
   if (record.lpStatus === "burnt" && !canBurnLp(record.exchange)) {
-    return { ...record, lpStatus: "none", lpBurntPercent: 0 }
+    return { ...record, lpStatus: "unverified" }
   }
   return record
 }
@@ -124,11 +136,10 @@ export function filenameFor(hours: number, format: OutputFormat, suffix = ""): s
   return `weth_pairs_${periodLabel(hours)}${suffix}.${extension}`
 }
 
-export function lpLabel(record: Pick<PairRecord, "lpStatus" | "lpBurntPercent" | "lpLockedPercent">): string {
-  if (record.lpStatus === "burnt") return `Burnt ${formatPercent(record.lpBurntPercent)}`
-  if (record.lpStatus === "locked") {
-    return record.lpLockedPercent > 0 ? `Locked ${formatPercent(record.lpLockedPercent)}` : "Locked"
-  }
+export function lpLabel(record: Pick<PairRecord, "lpStatus">): string {
+  if (record.lpStatus === "burnt") return "Burnt"
+  if (record.lpStatus === "locked") return "Locked"
+  if (record.lpStatus === "unverified") return "Unverified"
   if (record.lpStatus === "unknown") return "Unknown"
   return "None"
 }
@@ -142,27 +153,48 @@ const FILE_COLUMNS = [
   "name",
   "created_time",
   "exchange",
+  "price_usd",
   "market_cap_usd",
   "liquidity_usd",
+  "remaining",
+  "remaining_unit",
   "holders",
   "total_tx",
   "lp_status",
+  "lp_burnt_percent",
+  "lp_locked_percent",
+  "lp_unlock_time",
+  "token_address",
+  "pair_address",
   "url",
 ] as const
 
 type FileRow = Record<(typeof FILE_COLUMNS)[number], string | number | null>
 
+function percentText(value: number): number {
+  return Number(value.toFixed(4))
+}
+
 function toFileRow(record: PairRecord, zone: string): FileRow {
   const liquidity = record.liquidity ?? record.listingLiquidity
+  const known = record.lpStatus !== "unknown"
   return {
     name: record.name,
     created_time: formatCreated(record.created_at, zone),
     exchange: record.exchange,
+    price_usd: record.price === null ? null : plainNumber(record.price),
     market_cap_usd: record.marketCap === null ? null : Math.round(record.marketCap),
     liquidity_usd: liquidity === null ? null : Math.round(liquidity),
+    remaining: record.remaining === null ? null : Number(record.remaining.toFixed(4)),
+    remaining_unit: record.remaining === null ? null : record.remainingUnit,
     holders: record.holders,
     total_tx: record.totalTx,
     lp_status: lpLabel(record),
+    lp_burnt_percent: known ? percentText(record.lpBurntPercent) : null,
+    lp_locked_percent: known ? percentText(record.lpLockedPercent) : null,
+    lp_unlock_time: record.lpUnlockAt ? formatCreated(record.lpUnlockAt, zone) : null,
+    token_address: record.tokenAddress,
+    pair_address: record.address,
     url: record.url,
   }
 }

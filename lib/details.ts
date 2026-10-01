@@ -43,19 +43,21 @@ export function burntPercent(balance: number | null, burned: number | null): num
   return (burned * 100) / balance
 }
 
-export type LockSummary = { percent: number; active: boolean }
+export type LockSummary = { percent: number; active: boolean; unlockAt: string | null }
 
 /** Active locks only. A lock with no known percentage still counts as locked. */
 export function summarizeLocks(locks: RawLock[] | undefined, totalSupply: number | null): LockSummary {
-  if (!Array.isArray(locks) || locks.length === 0) return { percent: 0, active: false }
+  if (!Array.isArray(locks) || locks.length === 0) return { percent: 0, active: false, unlockAt: null }
   const now = Date.now()
   let pairTotal = 0
   let tokenTotal = 0
   let active = false
+  let unlockAt: number | null = null
   for (const lock of locks) {
     if (lock.unlockDate) {
       const unlock = new Date(lock.unlockDate).getTime()
       if (Number.isFinite(unlock) && unlock <= now) continue
+      if (Number.isFinite(unlock) && (unlockAt === null || unlock > unlockAt)) unlockAt = unlock
     }
     active = true
     const amount = num(lock.amount)
@@ -67,7 +69,11 @@ export function summarizeLocks(locks: RawLock[] | undefined, totalSupply: number
     if (lock.type === "token") tokenTotal += percent
     else pairTotal += percent
   }
-  return { percent: Math.max(0, Math.min(100, Math.max(pairTotal, tokenTotal))), active }
+  return {
+    percent: Math.max(0, Math.min(100, Math.max(pairTotal, tokenTotal))),
+    active,
+    unlockAt: unlockAt === null ? null : new Date(unlockAt).toISOString(),
+  }
 }
 
 /** The pair page shows the flame when burnt liquidity exceeds locked liquidity. */
@@ -96,6 +102,7 @@ export function parseDetail(raw: RawPair): PairDetail {
   const locked: LockSummary = {
     percent: Math.max(pairLocks.percent, tokenLocks.percent),
     active: pairLocks.active || tokenLocks.active,
+    unlockAt: [pairLocks.unlockAt, tokenLocks.unlockAt].filter((value): value is string => value !== null).sort().at(-1) ?? null,
   }
 
   return {
@@ -106,6 +113,7 @@ export function parseDetail(raw: RawPair): PairDetail {
     lpStatus: classifyLp(lpBurntPercent, locked),
     lpBurntPercent,
     lpLockedPercent: locked.percent,
+    lpUnlockAt: locked.unlockAt,
   }
 }
 
