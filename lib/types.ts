@@ -2,7 +2,7 @@ export type LpStatus = "burnt" | "locked" | "none" | "unknown"
 
 export type PairRow = {
   name: string
-  created_time: string
+  created_at: string
   exchange: string
   address: string
   url: string
@@ -49,6 +49,61 @@ export function canBurnLp(exchange: string): boolean {
   return !/\bv[34]\b/i.test(exchange)
 }
 
+export const LOCAL_ZONE = "local"
+
+export const TIME_ZONES: { id: string; label: string }[] = [
+  { id: LOCAL_ZONE, label: "This device" },
+  { id: "UTC", label: "UTC" },
+  { id: "America/New_York", label: "New York" },
+  { id: "America/Chicago", label: "Chicago" },
+  { id: "America/Los_Angeles", label: "Los Angeles" },
+  { id: "America/Sao_Paulo", label: "Sao Paulo" },
+  { id: "Europe/London", label: "London" },
+  { id: "Europe/Berlin", label: "Berlin" },
+  { id: "Europe/Moscow", label: "Moscow" },
+  { id: "Asia/Dubai", label: "Dubai" },
+  { id: "Asia/Kolkata", label: "India" },
+  { id: "Asia/Bangkok", label: "Bangkok" },
+  { id: "Asia/Shanghai", label: "China" },
+  { id: "Asia/Singapore", label: "Singapore" },
+  { id: "Asia/Seoul", label: "Seoul" },
+  { id: "Asia/Tokyo", label: "Tokyo" },
+  { id: "Australia/Sydney", label: "Sydney" },
+]
+
+export function resolveZone(zone: string): string {
+  if (zone !== LOCAL_ZONE) return zone
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+}
+
+/** Formats a UTC instant as `YYYY-MM-DD HH:MM:SS` in the given zone. */
+export function formatCreated(iso: string, zone: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: resolveZone(zone),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date)
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "00"
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`
+}
+
+export function zoneDescription(zone: string): string {
+  const resolved = resolveZone(zone)
+  const offset =
+    new Intl.DateTimeFormat("en-US", { timeZone: resolved, timeZoneName: "longOffset" })
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value ?? ""
+  const label = offset === "GMT" ? "UTC+00:00" : offset.replace("GMT", "UTC")
+  return resolved === "UTC" ? "UTC" : `${label} (${resolved.replaceAll("_", " ")})`
+}
+
 export function periodLabel(hours: number): string {
   return `${Number(hours.toFixed(2)).toString().replace(/\.0$/, "")}h`
 }
@@ -86,11 +141,11 @@ const FILE_COLUMNS = [
 
 type FileRow = Record<(typeof FILE_COLUMNS)[number], string | number | null>
 
-function toFileRow(record: PairRecord): FileRow {
+function toFileRow(record: PairRecord, zone: string): FileRow {
   const liquidity = record.liquidity ?? record.listingLiquidity
   return {
     name: record.name,
-    created_time: record.created_time,
+    created_time: formatCreated(record.created_at, zone),
     exchange: record.exchange,
     market_cap_usd: record.marketCap === null ? null : Math.round(record.marketCap),
     liquidity_usd: liquidity === null ? null : Math.round(liquidity),
@@ -108,8 +163,8 @@ function csvCell(value: string | number | null): string {
   return text
 }
 
-export function renderFile(records: PairRecord[], format: OutputFormat): string {
-  const rows = records.map(toFileRow)
+export function renderFile(records: PairRecord[], format: OutputFormat, zone: string): string {
+  const rows = records.map((record) => toFileRow(record, zone))
   if (format === "json") return `${JSON.stringify(rows, null, 2)}\n`
   if (format === "csv") {
     const lines = [FILE_COLUMNS.join(",")]

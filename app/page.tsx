@@ -10,7 +10,7 @@ export default function HomePage() {
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">WETH live pairs</h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
           List new Ethereum pools that include WETH. Set how far back to look, pick CSV, JSON, or
-          text, and press Start. The file saves when the list is ready.
+          text, and press Start. When the list is ready, use the download button to save the file.
         </p>
       </header>
       <PairFinder />

@@ -2,12 +2,12 @@
 
 Web app for listing new Ethereum pools that include WETH from the [DEXTools live new pairs](https://www.dextools.io/app/ether/live-new-pairs) page, with market data and LP burn status for each pair.
 
-Pick a time window (last 1, 8, 24, or 48 hours, or a custom number up to 72), choose a file type, and press **Start**. The file downloads and the pairs show in the page.
+Pick a time window (last 1, 8, 24, or 48 hours, or a custom number up to 72), choose a file type, and press **Start**. The pairs show in the page. Nothing downloads on its own; press the download button above the results to save the file.
 
 Each row has:
 
-- **name** — trading pair, for example `MINP/WETH (Minpentai)`
-- **created_time** — when the pool was created, in UTC, as `2026-09-29 17:52:47`
+- **name** — the token and its full name, without the WETH side, for example `MINP(Minpentai)`
+- **created_time** — when the pool was created, as `2026-09-29 17:52:47`, in the time zone you pick
 - **exchange** — DEX shown on that pair’s page, for example `Uniswap V4`
 - **market_cap_usd** — market cap from DEXTools. When DEXTools has none, fully diluted value is used, then price times total supply. Empty if the price is unknown.
 - **liquidity_usd** — pool liquidity in USD
@@ -16,13 +16,15 @@ Each row has:
 - **lp_status** — `Burnt 100%`, `Locked 80%` (or `Locked` when the share is not published), or `None`
 - **url** — DEXTools pair explorer link
 
+Time zone: DEXTools shows pool times in your device's time zone, so the **Time zone** setting defaults to **This device** and matches what you see on the DEXTools pair page. Choose UTC or another city to change it. The same zone is used in the downloaded file. The sample CSVs in this folder use New York time.
+
 File types: CSV (`.csv`), JSON (`.json`), and text (`.txt`).
 
 Native ETH pairs (quote token `0x000…000`) are not WETH and are left out.
 
 ## Find LP Burnt Token
 
-The **Find LP Burnt Token** button shows only pairs whose liquidity is burnt, as cards that match the DEXTools liquidity panel: liquidity value, flame icon, and burnt percentage. It does not download a file on its own. Use the download button in the results header to save the list in the chosen file type.
+The **Find LP Burnt Token** button shows only pairs whose liquidity is burnt, as cards that match the DEXTools liquidity panel: liquidity value, flame icon, and burnt percentage. Use the download button in the results header to save the list in the chosen file type.
 
 A pair counts as burnt when the share of its LP tokens held by the burn address is above the share that is locked, which is the rule the DEXTools pair page uses to show the flame instead of the padlock. Locks that have already expired do not count.
 

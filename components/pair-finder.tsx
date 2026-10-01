@@ -24,12 +24,16 @@ import {
 import { formatCount, formatUsd } from "@/lib/format"
 import {
   EMPTY_DETAIL,
+  LOCAL_ZONE,
   MAX_HOURS,
   OUTPUT_FORMATS,
+  TIME_ZONES,
   canBurnLp,
   filenameFor,
+  formatCreated,
   formatPercent,
   renderFile,
+  zoneDescription,
   type OutputFormat,
   type PairDetail,
   type PairRecord,
@@ -149,14 +153,14 @@ function LpBadge({ record }: { record: PairRecord }) {
   return <span className="text-muted-foreground">-</span>
 }
 
-function BurntCard({ record }: { record: PairRecord }) {
+function BurntCard({ record, zone }: { record: PairRecord; zone: string }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium">{record.name}</p>
           <p className="text-xs text-muted-foreground">
-            {record.exchange} · <span className="font-mono">{record.created_time}</span>
+            {record.exchange} · <span className="font-mono">{formatCreated(record.created_at, zone)}</span>
           </p>
         </div>
         <a
@@ -208,6 +212,7 @@ export function PairFinder() {
   const [periodId, setPeriodId] = useState("24")
   const [customHours, setCustomHours] = useState("12")
   const [format, setFormat] = useState<OutputFormat>("csv")
+  const [zone, setZone] = useState(LOCAL_ZONE)
   const [running, setRunning] = useState<Mode | null>(null)
   const [progress, setProgress] = useState<Progress | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -223,7 +228,7 @@ export function PairFinder() {
     const suffix = target.mode === "burnt" ? "_lp_burnt" : ""
     return {
       filename: filenameFor(target.hours, format, suffix),
-      contents: renderFile(target.records, format),
+      contents: renderFile(target.records, format, zone),
     }
   }
 
@@ -273,14 +278,7 @@ export function PairFinder() {
         failed,
       }
 
-      if (mode === "all") {
-        setFullRun({ ...finished, records })
-        const { filename, contents } = {
-          filename: filenameFor(hours, format),
-          contents: renderFile(records, format),
-        }
-        downloadFile(filename, contents, format)
-      }
+      if (mode === "all") setFullRun({ ...finished, records })
       setRun(finished)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The pair list could not be loaded.")
@@ -298,11 +296,11 @@ export function PairFinder() {
         <CardHeader>
           <CardTitle>Run a search</CardTitle>
           <CardDescription>
-            Pairs that include WETH on Ethereum, created inside the window you pick. Times are UTC.
+            Pairs that include WETH on Ethereum, created inside the window you pick. Times follow the time zone you choose.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="period">Time period</Label>
               <Select
@@ -343,6 +341,26 @@ export function PairFinder() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="zone">Time zone</Label>
+              <Select
+                value={zone}
+                onValueChange={(value) => {
+                  if (value) setZone(value)
+                }}
+              >
+                <SelectTrigger id="zone" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_ZONES.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {selectedPeriod.id === "custom" ? (
@@ -367,7 +385,7 @@ export function PairFinder() {
                 ? progress.total > 0
                   ? `${progress.label}: ${progress.done} of ${progress.total}`
                   : `${progress.label}...`
-                : "Start saves every pair with its market data. Find LP Burnt Token shows only pairs whose liquidity is burnt."}
+                : "Start lists every pair with its market data. Find LP Burnt Token lists only pairs whose liquidity is burnt."}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
@@ -424,9 +442,9 @@ export function PairFinder() {
             <CardDescription>
               {run
                 ? run.mode === "burnt"
-                  ? `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.checked} pools with LP tokens checked out of ${run.scanned.toLocaleString()} new pools scanned.`
-                  : `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.scanned.toLocaleString()} new pools scanned.`
-                : "Nothing fetched yet. Choose a period and a file type, then press Start or Find LP Burnt Token."}
+                  ? `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.checked} pools with LP tokens checked out of ${run.scanned.toLocaleString()} new pools scanned. Times in ${zoneDescription(zone)}.`
+                  : `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.scanned.toLocaleString()} new pools scanned. Times in ${zoneDescription(zone)}.`
+                : "Nothing fetched yet. Choose a period, then press Start or Find LP Burnt Token. Press the download button to save the file."}
             </CardDescription>
           </div>
           {download ? (
@@ -458,7 +476,7 @@ export function PairFinder() {
           {run && run.mode === "burnt" && run.records.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
               {run.records.map((record) => (
-                <BurntCard key={record.address} record={record} />
+                <BurntCard key={record.address} record={record} zone={zone} />
               ))}
             </div>
           ) : null}
@@ -486,7 +504,7 @@ export function PairFinder() {
                 {run.records.map((record) => (
                   <TableRow key={record.address}>
                     <TableCell className="font-medium whitespace-nowrap">{record.name}</TableCell>
-                    <TableCell className="font-mono text-xs whitespace-nowrap">{record.created_time}</TableCell>
+                    <TableCell className="font-mono text-xs whitespace-nowrap">{formatCreated(record.created_at, zone)}</TableCell>
                     <TableCell className="whitespace-nowrap">{record.exchange}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">{formatUsd(record.marketCap)}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">{formatUsd(liquidityOf(record))}</TableCell>

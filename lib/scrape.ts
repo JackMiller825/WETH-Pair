@@ -39,23 +39,18 @@ function parseCreated(value: string): Date {
   return date
 }
 
-function formatCreated(date: Date): string {
-  return date.toISOString().slice(0, 19).replace("T", " ")
-}
-
 function isWeth(token: TokenSide | undefined): boolean {
   return (token?.address ?? "").toLowerCase() === WETH_ADDRESS
 }
 
 function pairName(pool: Pool): string {
-  const baseSymbol = pool.mainToken?.symbol?.trim() || "?"
-  const quoteSymbol = pool.sideToken?.symbol?.trim() || "?"
-  const label = `${baseSymbol}/${quoteSymbol}`
-  const tokenName = pool.mainToken?.name?.trim() ?? ""
-  if (tokenName && tokenName.toLowerCase() !== baseSymbol.toLowerCase()) {
-    return `${label} (${tokenName})`
+  const token = isWeth(pool.mainToken) && !isWeth(pool.sideToken) ? pool.sideToken : pool.mainToken
+  const symbol = token?.symbol?.trim() || "?"
+  const tokenName = token?.name?.trim() ?? ""
+  if (tokenName && tokenName.toLowerCase() !== symbol.toLowerCase()) {
+    return `${symbol}(${tokenName})`
   }
-  return label
+  return symbol
 }
 
 function pairUrl(address: string): string {
@@ -70,7 +65,7 @@ function toRow(pool: Pool, exchangeNames: Map<string, string>): PairRow | null {
   const slug = (pool.exchange ?? "").trim().toLowerCase()
   return {
     name: pairName(pool),
-    created_time: formatCreated(parseCreated(createdRaw)),
+    created_at: parseCreated(createdRaw).toISOString(),
     exchange: (slug && exchangeNames.get(slug)) || UNKNOWN_EXCHANGE,
     address,
     url: pairUrl(address),
@@ -151,6 +146,6 @@ export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]
     if (page < maxPages - 1) await sleep(PAGE_DELAY_MS)
   }
 
-  matches.sort((a, b) => (a.created_time < b.created_time ? 1 : -1))
+  matches.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   return { rows: matches, scanned }
 }

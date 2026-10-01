@@ -1,67 +1,67 @@
 name,created_time,exchange,market_cap_usd,liquidity_usd,holders,total_tx,lp_status,url
-SC/WETH (SchellingCoin),2026-10-01 14:59:11,Uniswap V4,3950,4222,2,18,None,https://www.dextools.io/app/ether/pair-explorer/0x2ec7f0449a3fae30f86e64db98e531ec0e5566744119274833d9af9ef33b2969
-VROOM/WETH (VroomVroom),2026-10-01 14:54:47,Unknown DEX,,10700,19,1,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0xa47b332014b332194616057f0fd82cf1152c74e1
-EF/WETH (Ethereum Researcher),2026-10-01 14:50:35,Uniswap V4,3940,4050,2,20,None,https://www.dextools.io/app/ether/pair-explorer/0x1bc27b7b6f79d2ed56c6dc314f8d02a1bd3eedd859d0a18f8066dad7ab4d5eb9
-TRAITS/WETH (traitsdotfun),2026-10-01 14:35:23,Uniswap V4,3969,5703,2,20,None,https://www.dextools.io/app/ether/pair-explorer/0x1b3f51b6a1331ff952d5ad25a19f5fd999dacc91171cab6d117325074083a6be
-APPLT/WETH (Apple Tokenization),2026-10-01 14:33:47,Uniswap V2,3109,4896,17,17,None,https://www.dextools.io/app/ether/pair-explorer/0x16655c405e8bca12d1012bfea5644e114d716f53
-CYRF/WETH (Cyber Rhino Finance),2026-10-01 14:26:47,Uniswap V2,0,0,6,9,None,https://www.dextools.io/app/ether/pair-explorer/0x6a00ad046be12c2db4dbdf439fd1c255b6cb8cb7
-DMC/WETH (Daimler Company),2026-10-01 14:17:35,Uniswap V2,0,0,13,16,None,https://www.dextools.io/app/ether/pair-explorer/0xc2e9f0ee1dc6f50fd971dd0ee937e5c2482bb2d6
-BUCKME/WETH,2026-10-01 14:11:23,Uniswap V4,4031,4232,2,7,None,https://www.dextools.io/app/ether/pair-explorer/0x86e683e75df9c377833a561017c68d74cd7e225ad596623c513f24abfcb83571
-B/WETH (bankme),2026-10-01 14:09:47,Uniswap V4,3950,4476,2,8,None,https://www.dextools.io/app/ether/pair-explorer/0x40bf071bf9e95bc02ed5ae1f7c68c1116c0f5355b769d4a20fac8bce35876da3
-B/WETH (bankme),2026-10-01 14:07:35,Uniswap V4,4752,4723,6,52,None,https://www.dextools.io/app/ether/pair-explorer/0x9d711aebfe16200c0a5f2833e4e78147079693b642a3f8c183396c60d9ffe3dc
-FOCIL/WETH (FOCIL devnet-0),2026-10-01 14:03:47,Uniswap V4,5167,5096,3,3,None,https://www.dextools.io/app/ether/pair-explorer/0xcfef3d5073348d37e87061e1e554ec126e6b3ed7e910d5a7c667c0e9c7016ef6
-LOCKEY/WETH (Lockey Privacy),2026-10-01 13:57:59,Uniswap V4,4093,4091,6,22,None,https://www.dextools.io/app/ether/pair-explorer/0x0d5c96ac4f75cb6f6c06be804454e91c9df11119108dc437050b247207d20ace
-PAID/WETH,2026-10-01 13:50:47,Uniswap V3,6187261,,5,3,None,https://www.dextools.io/app/ether/pair-explorer/0xf3a72850443d2565a15613fd724c3aad2e997415
-ATH/WETH (ath.market),2026-10-01 13:49:47,Uniswap V4,53156,24809,115,538,None,https://www.dextools.io/app/ether/pair-explorer/0xe5803e78f349dfab0102b4ec6f38217ccefd3b45e12e2d43cf57051d39d82b38
-XDP/WETH (Doppler Finance),2026-10-01 13:47:35,Uniswap V3,13295612,,4,3,None,https://www.dextools.io/app/ether/pair-explorer/0xe959e9a980541c75c75fa81950b3dab5e4154aad
-TIMELESS/WETH,2026-10-01 13:40:23,Uniswap V2,12453,8794,26,39,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x462f9d5948c71f258a851f9193211fee0a830235
-GM/WETH (General Motors Holdings),2026-10-01 13:29:23,Uniswap V2,5,0,23,25,None,https://www.dextools.io/app/ether/pair-explorer/0xdebc7876b548ce85d6887e4ded9ad48c199dcd7e
-BUBS/WETH (MR DJ),2026-10-01 13:07:11,Uniswap V4,5762,5607,5,17,None,https://www.dextools.io/app/ether/pair-explorer/0x1f67026c32685b3585f43d9d474b74102fc4a6ac4e40b6e228f3e69e255e0590
-INITIATE/WETH,2026-10-01 13:06:11,Uniswap V2,6,0,26,30,None,https://www.dextools.io/app/ether/pair-explorer/0x813634c8ccc370fe83bedc37483392ab3268ef7f
-"REGN/WETH (Regeneron Pharmaceuticals, Inc.)",2026-10-01 12:52:47,Uniswap V2,8940,14324,22,24,None,https://www.dextools.io/app/ether/pair-explorer/0x369d5fc7e184040dca3b1b237acec69708532c94
-TEST/WETH (TESTES),2026-10-01 12:50:59,Uniswap V4,4278,4275,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0xc45b3eaa0f2f593c90f6d1ec0af9f437dd8717f70aef33625cf10fce514ae4fb
-✴️FRKT/WETH (FOMO Rocket✴️),2026-10-01 12:50:11,Uniswap V2,4,0,16,17,None,https://www.dextools.io/app/ether/pair-explorer/0x725088e07422a88565512e487cd0f798d55af6ef
-AERO/WETH,2026-10-01 12:45:35,Uniswap V2,0,0,6,9,None,https://www.dextools.io/app/ether/pair-explorer/0xb8f4dc60da3cd3bc09fffcbbdd13232ac398ea80
-"LCID/WETH (Lucid Group, Inc.)",2026-10-01 12:36:47,Uniswap V2,7,0,25,32,None,https://www.dextools.io/app/ether/pair-explorer/0x7cc58205201cdafd21e4d3506b1c39b9bf05b3c8
-MEPLE/WETH (Meme Temple),2026-10-01 12:29:59,Uniswap V2,7,0,16,19,None,https://www.dextools.io/app/ether/pair-explorer/0xe63357e3a4b20d7d32b6cc7cb687db794d57b455
-DEEP/WETH (大肥鱼),2026-10-01 12:20:11,Uniswap V2,,90,5,1,None,https://www.dextools.io/app/ether/pair-explorer/0x98abcadb379a8a1e711d380138cec77c08e5eac8
-RR.L/WETH (Rolls-Royce Holdings plc),2026-10-01 12:17:47,Uniswap V2,11,0,33,45,None,https://www.dextools.io/app/ether/pair-explorer/0xf50b8925e9a288e9fb2a4b915df1d4aa3859689b
-INK/WETH (Inkon Chain),2026-10-01 12:17:35,Pancakeswap,911574,35552,5,3,None,https://www.dextools.io/app/ether/pair-explorer/0x927fbf452e1bcb6678b33bd6404090c6c7917594
-AF/WETH (America First),2026-10-01 12:11:23,Uniswap V4,3965,,2,4,None,https://www.dextools.io/app/ether/pair-explorer/0xd24345875decb99231c0730c65c232699b78933f4ea3d363511bd592ac5799aa
-JBM/WETH (Jim Beam Motors),2026-10-01 12:09:11,Uniswap V2,2,0,9,10,None,https://www.dextools.io/app/ether/pair-explorer/0xd46e5a06e2ce863a1b573bee2c4987b92fb28a15
-FROG/WETH (Redit Frog),2026-10-01 11:58:11,Uniswap V4,3968,5309,3,10,None,https://www.dextools.io/app/ether/pair-explorer/0x1d68bb90087378114dd024eab15417eb0014eee99436925aa0efb5e72639f7c6
-PTGB/WETH (Press The Green Button),2026-10-01 11:52:59,Uniswap V2,8,0,1,22,None,https://www.dextools.io/app/ether/pair-explorer/0x319129f114d00403fe260eec33bfc44da1baf437
-SLASHA/WETH (Vitalik's first Game),2026-10-01 11:36:23,Uniswap V4,3944,4231,3,15,None,https://www.dextools.io/app/ether/pair-explorer/0xe647c719c1ac1fd116465467119609f9eea7a467c163d62c5666cde4629357b9
-Nickelback/WETH,2026-10-01 11:28:23,Uniswap V2,8,0,1,24,None,https://www.dextools.io/app/ether/pair-explorer/0x75e5ac12467d9153b807edf98dd41b54b7d299e3
-test/WETH,2026-10-01 11:22:11,Uniswap V2,5402,0,1,5,None,https://www.dextools.io/app/ether/pair-explorer/0xe1ef619e783bd128b3b9a9a31ec9edcc120b052f
-LNR/WETH (Long & Rich),2026-10-01 11:21:11,Uniswap V2,3,0,1,14,None,https://www.dextools.io/app/ether/pair-explorer/0x9c216efc68fdfadec9cbad80899e4fb1cd122528
-INITIATE/WETH,2026-10-01 11:13:11,Uniswap V2,27,0,36,65,None,https://www.dextools.io/app/ether/pair-explorer/0xfee7636f8dfcca4f2695f8bbc2d20c50b8f2b655
-"BTL/WETH (Bentley, Ltd.)",2026-10-01 11:12:59,Uniswap V2,0,0,1,9,None,https://www.dextools.io/app/ether/pair-explorer/0xc778a0bdca6c0ef4e006f2eece68141d70b49dc4
-GCG/WETH (Gaming Cat Guild),2026-10-01 11:06:35,Uniswap V2,13408,18311,1,57,None,https://www.dextools.io/app/ether/pair-explorer/0x10024d19e79f829d11b462bedd2c5c40381b72b8
-LROVER/WETH (Land Rover Enterprises),2026-10-01 11:02:23,Uniswap V2,0,0,1,22,None,https://www.dextools.io/app/ether/pair-explorer/0x86f3c1622bbbde2c1660d286a3def6a49ed1dde7
-Behemoth/WETH (Ethereum's New Mascot),2026-10-01 10:55:47,Uniswap V2,19705,10887,1,108,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x8fdb0c4bb5ef0814df6a292c48edb8ed804c823c
-CLLMT/WETH (Claude LLM Token),2026-10-01 10:48:23,Uniswap V2,3365,1,15,19,None,https://www.dextools.io/app/ether/pair-explorer/0x0dd5ba48f98180f7da07a455c00eb03392a9d240
-PURR/WETH,2026-10-01 10:39:35,Uniswap V3,137483077,,10,40,None,https://www.dextools.io/app/ether/pair-explorer/0x1e350ec8e100e00efde2a3d63f6c7d12ceda57af
-"LARAVEL/WETH (Laravel Holdings, Inc)",2026-10-01 10:35:59,Uniswap V2,8,0,1,21,None,https://www.dextools.io/app/ether/pair-explorer/0xdb4bb0a8498533f825a4beac5fa6cbcd33669db5
-ZAP/WETH (ZipZap),2026-10-01 10:29:47,Uniswap V4,49379,23993,143,862,None,https://www.dextools.io/app/ether/pair-explorer/0x0fccb6745eba41b41d631403c7cccd531999e7f64ab5a8329643a87a12844bf8
-test/WETH,2026-10-01 10:21:59,Uniswap V2,5387,0,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0x6d27185429a3af28c3002d6dffcab681a32ffc3c
-wARC/WETH (ARC Wrapped Token),2026-10-01 10:17:23,Uniswap V2,9,0,19,22,None,https://www.dextools.io/app/ether/pair-explorer/0x35eb43e1aa4ebaf9fd642e9e7ee2fcd06a7a5b98
-BARM/WETH (Buy ALARM),2026-10-01 10:09:47,Uniswap V2,3,0,12,13,None,https://www.dextools.io/app/ether/pair-explorer/0x6753c751629467c1d1f5cf528eda7446c1ca8835
-JDD/WETH (Jack Daniel Distillery),2026-10-01 09:52:35,Uniswap V2,7,0,17,20,None,https://www.dextools.io/app/ether/pair-explorer/0x0a5cf7888b1fce91ab3e92f17a496a0190067350
-ELG/WETH (Escoin),2026-10-01 09:49:59,Uniswap V3,47605872,,2,4,None,https://www.dextools.io/app/ether/pair-explorer/0x0387d3863d55ff84581cdac92522278fbc8bf56e
-test/WETH,2026-10-01 09:40:47,Uniswap V2,5402,0,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0x96f7d434b02bb318554012b9a8ce878ecdf2b969
-RRS/WETH (Rocket Rich Seat),2026-10-01 09:33:47,Uniswap V2,7,0,19,22,None,https://www.dextools.io/app/ether/pair-explorer/0x532275ad2613e8742ece77c5e4881246825f8c51
-BLACK/WETH (BlackRock Enterprise),2026-10-01 09:28:35,Uniswap V2,1,0,7,8,None,https://www.dextools.io/app/ether/pair-explorer/0x1ca40619a84bcdbba7ec2af11f5c65d726f95f99
-test/WETH,2026-10-01 09:20:59,Uniswap V2,5394,0,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0x7394853fbac682df528e3f6a7dffe8555ab44a66
-PigGrunt/WETH (Elon's New Game Character),2026-10-01 09:16:59,Uniswap V2,14700,8550,39,70,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x138576027d0c8239bc829adcaf9af9eca84814df
-🦏CYRH/WETH (Cyber Rhino),2026-10-01 09:15:23,Uniswap V2,6,0,16,19,None,https://www.dextools.io/app/ether/pair-explorer/0xfce69613af9128165a5641f2a7189315a1e8c4fa
-MSI/WETH (Mathematical Super Inu),2026-10-01 09:09:11,Uniswap V2,26,0,38,72,None,https://www.dextools.io/app/ether/pair-explorer/0xf0499787330734e7227023fb1f9d0c5c76e3615b
-MGM/WETH (Metro-Goldwyn-Mayer),2026-10-01 08:57:35,Uniswap V2,9,0,20,22,None,https://www.dextools.io/app/ether/pair-explorer/0x044b0772de1beb445e7f8a2ce81a9cef984ba377
-UPTOBER/WETH,2026-10-01 08:56:47,Uniswap V4,2994,3255,2,4,None,https://www.dextools.io/app/ether/pair-explorer/0x4b1aba4b72d4f91ae92881b608ea63fd14a9085dac9bafe1defdfb3ee5b78ff3
-TMM/WETH (Turbo Monkey Muscle),2026-10-01 08:43:47,Uniswap V2,14,0,39,57,None,https://www.dextools.io/app/ether/pair-explorer/0x4d5605bf37ce4e398005070c339f43bb2377e116
-Hubert/WETH (Vitalik's New Dog),2026-10-01 08:31:59,Uniswap V2,28229,12218,42,66,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x8930faed2868ee1754af5d01077e27a5459358a1
-BAVAR/WETH (Bavarian Commercial),2026-10-01 08:12:11,Uniswap V2,7,0,16,19,None,https://www.dextools.io/app/ether/pair-explorer/0x88f138ad1b2515b0871317a753ea0bf1ef4d2110
-KNYA/WETH (Kenya),2026-10-01 07:52:47,Uniswap V3,,,2,2,None,https://www.dextools.io/app/ether/pair-explorer/0x1416ce2a5b3f8ba17772839120bf2d8b8054fd18
-DMC/WETH (Daimler Company),2026-10-01 07:45:47,Uniswap V2,8,0,16,18,None,https://www.dextools.io/app/ether/pair-explorer/0x38aa635dc37a1f3c9bf833181443a1e95efd3684
-WLMB/WETH (Wallmart Bonus Token),2026-10-01 07:27:23,Uniswap V2,18,0,19,22,None,https://www.dextools.io/app/ether/pair-explorer/0x17a7ab341f5627f30f92d857157af3f1f899c746
-VOE/WETH (Velvet Orchid Empire),2026-10-01 07:18:59,Uniswap V2,12,0,41,54,None,https://www.dextools.io/app/ether/pair-explorer/0x91c78d231b61d18838a156c92536b6040bd894a9
+SC(SchellingCoin),2026-10-01 10:59:11,Uniswap V4,3950,4222,2,18,None,https://www.dextools.io/app/ether/pair-explorer/0x2ec7f0449a3fae30f86e64db98e531ec0e5566744119274833d9af9ef33b2969
+VROOM(VroomVroom),2026-10-01 10:54:47,Unknown DEX,,10700,19,1,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0xa47b332014b332194616057f0fd82cf1152c74e1
+EF(Ethereum Researcher),2026-10-01 10:50:35,Uniswap V4,3940,4050,2,20,None,https://www.dextools.io/app/ether/pair-explorer/0x1bc27b7b6f79d2ed56c6dc314f8d02a1bd3eedd859d0a18f8066dad7ab4d5eb9
+TRAITS(traitsdotfun),2026-10-01 10:35:23,Uniswap V4,3969,5703,2,20,None,https://www.dextools.io/app/ether/pair-explorer/0x1b3f51b6a1331ff952d5ad25a19f5fd999dacc91171cab6d117325074083a6be
+APPLT(Apple Tokenization),2026-10-01 10:33:47,Uniswap V2,3109,4896,17,17,None,https://www.dextools.io/app/ether/pair-explorer/0x16655c405e8bca12d1012bfea5644e114d716f53
+CYRF(Cyber Rhino Finance),2026-10-01 10:26:47,Uniswap V2,0,0,6,9,None,https://www.dextools.io/app/ether/pair-explorer/0x6a00ad046be12c2db4dbdf439fd1c255b6cb8cb7
+DMC(Daimler Company),2026-10-01 10:17:35,Uniswap V2,0,0,13,16,None,https://www.dextools.io/app/ether/pair-explorer/0xc2e9f0ee1dc6f50fd971dd0ee937e5c2482bb2d6
+BUCKME,2026-10-01 10:11:23,Uniswap V4,4031,4232,2,7,None,https://www.dextools.io/app/ether/pair-explorer/0x86e683e75df9c377833a561017c68d74cd7e225ad596623c513f24abfcb83571
+B(bankme),2026-10-01 10:09:47,Uniswap V4,3950,4476,2,8,None,https://www.dextools.io/app/ether/pair-explorer/0x40bf071bf9e95bc02ed5ae1f7c68c1116c0f5355b769d4a20fac8bce35876da3
+B(bankme),2026-10-01 10:07:35,Uniswap V4,4752,4723,6,52,None,https://www.dextools.io/app/ether/pair-explorer/0x9d711aebfe16200c0a5f2833e4e78147079693b642a3f8c183396c60d9ffe3dc
+FOCIL(FOCIL devnet-0),2026-10-01 10:03:47,Uniswap V4,5167,5096,3,3,None,https://www.dextools.io/app/ether/pair-explorer/0xcfef3d5073348d37e87061e1e554ec126e6b3ed7e910d5a7c667c0e9c7016ef6
+LOCKEY(Lockey Privacy),2026-10-01 09:57:59,Uniswap V4,4093,4091,6,22,None,https://www.dextools.io/app/ether/pair-explorer/0x0d5c96ac4f75cb6f6c06be804454e91c9df11119108dc437050b247207d20ace
+PAID,2026-10-01 09:50:47,Uniswap V3,6187261,,5,3,None,https://www.dextools.io/app/ether/pair-explorer/0xf3a72850443d2565a15613fd724c3aad2e997415
+ATH(ath.market),2026-10-01 09:49:47,Uniswap V4,49225,23918,115,549,None,https://www.dextools.io/app/ether/pair-explorer/0xe5803e78f349dfab0102b4ec6f38217ccefd3b45e12e2d43cf57051d39d82b38
+XDP(Doppler Finance),2026-10-01 09:47:35,Uniswap V3,13295612,,4,3,None,https://www.dextools.io/app/ether/pair-explorer/0xe959e9a980541c75c75fa81950b3dab5e4154aad
+TIMELESS,2026-10-01 09:40:23,Uniswap V2,12453,8794,26,39,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x462f9d5948c71f258a851f9193211fee0a830235
+GM(General Motors Holdings),2026-10-01 09:29:23,Uniswap V2,5,0,23,25,None,https://www.dextools.io/app/ether/pair-explorer/0xdebc7876b548ce85d6887e4ded9ad48c199dcd7e
+BUBS(MR DJ),2026-10-01 09:07:11,Uniswap V4,5762,5607,5,17,None,https://www.dextools.io/app/ether/pair-explorer/0x1f67026c32685b3585f43d9d474b74102fc4a6ac4e40b6e228f3e69e255e0590
+INITIATE,2026-10-01 09:06:11,Uniswap V2,6,0,26,30,None,https://www.dextools.io/app/ether/pair-explorer/0x813634c8ccc370fe83bedc37483392ab3268ef7f
+"REGN(Regeneron Pharmaceuticals, Inc.)",2026-10-01 08:52:47,Uniswap V2,8940,14324,22,24,None,https://www.dextools.io/app/ether/pair-explorer/0x369d5fc7e184040dca3b1b237acec69708532c94
+TEST(TESTES),2026-10-01 08:50:59,Uniswap V4,4278,4275,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0xc45b3eaa0f2f593c90f6d1ec0af9f437dd8717f70aef33625cf10fce514ae4fb
+✴️FRKT(FOMO Rocket✴️),2026-10-01 08:50:11,Uniswap V2,4,0,16,17,None,https://www.dextools.io/app/ether/pair-explorer/0x725088e07422a88565512e487cd0f798d55af6ef
+AERO,2026-10-01 08:45:35,Uniswap V2,0,0,6,9,None,https://www.dextools.io/app/ether/pair-explorer/0xb8f4dc60da3cd3bc09fffcbbdd13232ac398ea80
+"LCID(Lucid Group, Inc.)",2026-10-01 08:36:47,Uniswap V2,7,0,25,32,None,https://www.dextools.io/app/ether/pair-explorer/0x7cc58205201cdafd21e4d3506b1c39b9bf05b3c8
+MEPLE(Meme Temple),2026-10-01 08:29:59,Uniswap V2,7,0,16,19,None,https://www.dextools.io/app/ether/pair-explorer/0xe63357e3a4b20d7d32b6cc7cb687db794d57b455
+DEEP(大肥鱼),2026-10-01 08:20:11,Uniswap V2,,90,5,1,None,https://www.dextools.io/app/ether/pair-explorer/0x98abcadb379a8a1e711d380138cec77c08e5eac8
+RR.L(Rolls-Royce Holdings plc),2026-10-01 08:17:47,Uniswap V2,11,0,33,45,None,https://www.dextools.io/app/ether/pair-explorer/0xf50b8925e9a288e9fb2a4b915df1d4aa3859689b
+INK(Inkon Chain),2026-10-01 08:17:35,Pancakeswap,911574,35552,5,3,None,https://www.dextools.io/app/ether/pair-explorer/0x927fbf452e1bcb6678b33bd6404090c6c7917594
+AF(America First),2026-10-01 08:11:23,Uniswap V4,3965,,2,4,None,https://www.dextools.io/app/ether/pair-explorer/0xd24345875decb99231c0730c65c232699b78933f4ea3d363511bd592ac5799aa
+JBM(Jim Beam Motors),2026-10-01 08:09:11,Uniswap V2,2,0,9,10,None,https://www.dextools.io/app/ether/pair-explorer/0xd46e5a06e2ce863a1b573bee2c4987b92fb28a15
+FROG(Redit Frog),2026-10-01 07:58:11,Uniswap V4,3968,5309,3,10,None,https://www.dextools.io/app/ether/pair-explorer/0x1d68bb90087378114dd024eab15417eb0014eee99436925aa0efb5e72639f7c6
+PTGB(Press The Green Button),2026-10-01 07:52:59,Uniswap V2,8,0,1,22,None,https://www.dextools.io/app/ether/pair-explorer/0x319129f114d00403fe260eec33bfc44da1baf437
+SLASHA(Vitalik's first Game),2026-10-01 07:36:23,Uniswap V4,3944,4231,3,15,None,https://www.dextools.io/app/ether/pair-explorer/0xe647c719c1ac1fd116465467119609f9eea7a467c163d62c5666cde4629357b9
+Nickelback,2026-10-01 07:28:23,Uniswap V2,8,0,1,24,None,https://www.dextools.io/app/ether/pair-explorer/0x75e5ac12467d9153b807edf98dd41b54b7d299e3
+test,2026-10-01 07:22:11,Uniswap V2,5402,0,1,5,None,https://www.dextools.io/app/ether/pair-explorer/0xe1ef619e783bd128b3b9a9a31ec9edcc120b052f
+LNR(Long & Rich),2026-10-01 07:21:11,Uniswap V2,3,0,1,14,None,https://www.dextools.io/app/ether/pair-explorer/0x9c216efc68fdfadec9cbad80899e4fb1cd122528
+INITIATE,2026-10-01 07:13:11,Uniswap V2,27,0,36,65,None,https://www.dextools.io/app/ether/pair-explorer/0xfee7636f8dfcca4f2695f8bbc2d20c50b8f2b655
+"BTL(Bentley, Ltd.)",2026-10-01 07:12:59,Uniswap V2,0,0,1,9,None,https://www.dextools.io/app/ether/pair-explorer/0xc778a0bdca6c0ef4e006f2eece68141d70b49dc4
+GCG(Gaming Cat Guild),2026-10-01 07:06:35,Uniswap V2,13408,18311,1,57,None,https://www.dextools.io/app/ether/pair-explorer/0x10024d19e79f829d11b462bedd2c5c40381b72b8
+LROVER(Land Rover Enterprises),2026-10-01 07:02:23,Uniswap V2,0,0,1,22,None,https://www.dextools.io/app/ether/pair-explorer/0x86f3c1622bbbde2c1660d286a3def6a49ed1dde7
+Behemoth(Ethereum's New Mascot),2026-10-01 06:55:47,Uniswap V2,19705,10887,1,108,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x8fdb0c4bb5ef0814df6a292c48edb8ed804c823c
+CLLMT(Claude LLM Token),2026-10-01 06:48:23,Uniswap V2,3365,1,15,19,None,https://www.dextools.io/app/ether/pair-explorer/0x0dd5ba48f98180f7da07a455c00eb03392a9d240
+PURR,2026-10-01 06:39:35,Uniswap V3,137483077,,10,40,None,https://www.dextools.io/app/ether/pair-explorer/0x1e350ec8e100e00efde2a3d63f6c7d12ceda57af
+"LARAVEL(Laravel Holdings, Inc)",2026-10-01 06:35:59,Uniswap V2,8,0,1,21,None,https://www.dextools.io/app/ether/pair-explorer/0xdb4bb0a8498533f825a4beac5fa6cbcd33669db5
+ZAP(ZipZap),2026-10-01 06:29:47,Uniswap V4,49082,23867,143,863,None,https://www.dextools.io/app/ether/pair-explorer/0x0fccb6745eba41b41d631403c7cccd531999e7f64ab5a8329643a87a12844bf8
+test,2026-10-01 06:21:59,Uniswap V2,5387,0,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0x6d27185429a3af28c3002d6dffcab681a32ffc3c
+wARC(ARC Wrapped Token),2026-10-01 06:17:23,Uniswap V2,9,0,19,22,None,https://www.dextools.io/app/ether/pair-explorer/0x35eb43e1aa4ebaf9fd642e9e7ee2fcd06a7a5b98
+BARM(Buy ALARM),2026-10-01 06:09:47,Uniswap V2,3,0,12,13,None,https://www.dextools.io/app/ether/pair-explorer/0x6753c751629467c1d1f5cf528eda7446c1ca8835
+JDD(Jack Daniel Distillery),2026-10-01 05:52:35,Uniswap V2,7,0,17,20,None,https://www.dextools.io/app/ether/pair-explorer/0x0a5cf7888b1fce91ab3e92f17a496a0190067350
+ELG(Escoin),2026-10-01 05:49:59,Uniswap V3,47605872,,2,4,None,https://www.dextools.io/app/ether/pair-explorer/0x0387d3863d55ff84581cdac92522278fbc8bf56e
+test,2026-10-01 05:40:47,Uniswap V2,5402,0,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0x96f7d434b02bb318554012b9a8ce878ecdf2b969
+RRS(Rocket Rich Seat),2026-10-01 05:33:47,Uniswap V2,7,0,19,22,None,https://www.dextools.io/app/ether/pair-explorer/0x532275ad2613e8742ece77c5e4881246825f8c51
+BLACK(BlackRock Enterprise),2026-10-01 05:28:35,Uniswap V2,1,0,7,8,None,https://www.dextools.io/app/ether/pair-explorer/0x1ca40619a84bcdbba7ec2af11f5c65d726f95f99
+test,2026-10-01 05:20:59,Uniswap V2,5394,0,3,5,None,https://www.dextools.io/app/ether/pair-explorer/0x7394853fbac682df528e3f6a7dffe8555ab44a66
+PigGrunt(Elon's New Game Character),2026-10-01 05:16:59,Uniswap V2,14700,8550,39,70,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x138576027d0c8239bc829adcaf9af9eca84814df
+🦏CYRH(Cyber Rhino),2026-10-01 05:15:23,Uniswap V2,6,0,16,19,None,https://www.dextools.io/app/ether/pair-explorer/0xfce69613af9128165a5641f2a7189315a1e8c4fa
+MSI(Mathematical Super Inu),2026-10-01 05:09:11,Uniswap V2,26,0,38,72,None,https://www.dextools.io/app/ether/pair-explorer/0xf0499787330734e7227023fb1f9d0c5c76e3615b
+MGM(Metro-Goldwyn-Mayer),2026-10-01 04:57:35,Uniswap V2,9,0,20,22,None,https://www.dextools.io/app/ether/pair-explorer/0x044b0772de1beb445e7f8a2ce81a9cef984ba377
+UPTOBER,2026-10-01 04:56:47,Uniswap V4,2994,3255,2,4,None,https://www.dextools.io/app/ether/pair-explorer/0x4b1aba4b72d4f91ae92881b608ea63fd14a9085dac9bafe1defdfb3ee5b78ff3
+TMM(Turbo Monkey Muscle),2026-10-01 04:43:47,Uniswap V2,14,0,39,57,None,https://www.dextools.io/app/ether/pair-explorer/0x4d5605bf37ce4e398005070c339f43bb2377e116
+Hubert(Vitalik's New Dog),2026-10-01 04:31:59,Uniswap V2,28229,12218,42,66,Burnt 100%,https://www.dextools.io/app/ether/pair-explorer/0x8930faed2868ee1754af5d01077e27a5459358a1
+BAVAR(Bavarian Commercial),2026-10-01 04:12:11,Uniswap V2,7,0,16,19,None,https://www.dextools.io/app/ether/pair-explorer/0x88f138ad1b2515b0871317a753ea0bf1ef4d2110
+KNYA(Kenya),2026-10-01 03:52:47,Uniswap V3,,,2,2,None,https://www.dextools.io/app/ether/pair-explorer/0x1416ce2a5b3f8ba17772839120bf2d8b8054fd18
+DMC(Daimler Company),2026-10-01 03:45:47,Uniswap V2,8,0,16,18,None,https://www.dextools.io/app/ether/pair-explorer/0x38aa635dc37a1f3c9bf833181443a1e95efd3684
+WLMB(Wallmart Bonus Token),2026-10-01 03:27:23,Uniswap V2,18,0,19,22,None,https://www.dextools.io/app/ether/pair-explorer/0x17a7ab341f5627f30f92d857157af3f1f899c746
+VOE(Velvet Orchid Empire),2026-10-01 03:18:59,Uniswap V2,12,0,41,54,None,https://www.dextools.io/app/ether/pair-explorer/0x91c78d231b61d18838a156c92536b6040bd894a9
