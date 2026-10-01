@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowDown,
   ArrowLeft,
@@ -15,8 +15,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddressCell } from "@/components/address-cell"
+import { AlertStack } from "@/components/alert-stack"
 import { Pager } from "@/components/pager"
 import { ResultsToolbar } from "@/components/results-toolbar"
+import { WatchPanel } from "@/components/watch-panel"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -58,6 +61,20 @@ import {
   type PairRecord,
   type PairRow,
 } from "@/lib/types"
+import {
+  createAudioContext,
+  playAlertTone,
+  requestNotifications,
+  sendDesktopNotification,
+  type NotificationState,
+} from "@/lib/alerts"
+import {
+  WATCH_INTERVAL_MS,
+  burntAddresses,
+  findNewBurnt,
+  toAlert,
+  type WatchAlert,
+} from "@/lib/watch"
 import {
   ALL_EXCHANGES,
   DEFAULT_FILTERS,
@@ -251,12 +268,19 @@ function SortableHead({
   )
 }
 
-function BurntCard({ record, zone }: { record: PairRecord; zone: string }) {
+function BurntCard({ record, zone, isNew }: { record: PairRecord; zone: string; isNew: boolean }) {
   return (
-    <div className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+    <div
+      className={`flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ${
+        isNew ? "ring-2 ring-emerald-400/60" : "ring-foreground/10"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium">{record.name}</p>
+          <p className="flex items-center gap-2 font-medium">
+            <span className="truncate">{record.name}</span>
+            {isNew ? <Badge className="bg-emerald-400/20 text-emerald-300">NEW</Badge> : null}
+          </p>
           <p className="text-xs text-muted-foreground">
             {record.exchange} · <span className="font-mono">{formatCreated(record.created_at, zone)}</span>
           </p>
@@ -346,13 +370,28 @@ export function PairFinder() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
+  const [watching, setWatching] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [nextAt, setNextAt] = useState<number | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null)
+  const [watchFailed, setWatchFailed] = useState(false)
+  const [sound, setSound] = useState(true)
+  const [desktop, setDesktop] = useState<NotificationState>("default")
+  const [alerts, setAlerts] = useState<WatchAlert[]>([])
+  const seenRef = useRef<Set<string>>(new Set())
+  const audioRef = useRef<AudioContext | null>(null)
+  const busyRef = useRef(false)
+  const runRef = useRef<Run | null>(null)
+  const soundRef = useRef(true)
+  const refreshRef = useRef<() => Promise<void>>(async () => {})
+  const baseTitle = useRef<string | null>(null)
   const [pageSizes, setPageSizes] = useState(DEFAULT_PAGE_SIZE)
   const resultsRef = useRef<HTMLDivElement>(null)
 
   const selectedPeriod = PERIODS.find((period) => period.id === periodId) ?? PERIODS[2]
   const selectedHours = selectedPeriod.hours ?? Number(customHours)
   const hoursValid = Number.isFinite(selectedHours) && selectedHours > 0 && selectedHours <= MAX_HOURS
-  const busy = running !== null
+  const busy = running !== null || refreshing
 
   const exchanges = useMemo(() => (run ? exchangeOptions(run.records) : []), [run])
   const activeFilters = useMemo<Filters>(
@@ -424,64 +463,202 @@ export function PairFinder() {
     void execute("all", run.hours)
   }
 
-  async function execute(mode: Mode, hoursOverride?: number) {
+  async function fetchRun(
+    mode: Mode,
+    hours: number,
+    onProgress?: (progress: Progress) => void,
+  ): Promise<{ finished: Run; records: PairRecord[] }> {
+    onProgress?.({ label: "Reading the live new pairs feed", done: 0, total: 0 })
+    const listing = await postJson<{ rows: PairRow[]; scanned: number }>("/api/pairs", { hours })
+    const targets = mode === "burnt" ? listing.rows.filter((row) => canBurnLp(row.exchange)) : listing.rows
+
+    onProgress?.({
+      label: mode === "burnt" ? "Checking LP status" : "Loading market data",
+      done: 0,
+      total: targets.length,
+    })
+    const details =
+      targets.length > 0
+        ? await loadDetails(targets, (done) =>
+            onProgress?.({
+              label: mode === "burnt" ? "Checking LP status" : "Loading market data",
+              done,
+              total: targets.length,
+            }),
+          )
+        : new Map<string, PairDetail>()
+
+    const records = merge(targets, details)
+    const finished: Run = {
+      mode,
+      hours,
+      scanned: listing.scanned,
+      records: mode === "burnt" ? records.filter((record) => record.lpStatus === "burnt") : records,
+      checked: targets.length,
+      failed: records.filter((record) => record.lpStatus === "unknown").length,
+    }
+    return { finished, records }
+  }
+
+  async function execute(mode: Mode, hoursOverride?: number): Promise<Run | null> {
     const hours = hoursOverride ?? selectedHours
     if (!Number.isFinite(hours) || hours <= 0 || hours > MAX_HOURS) {
       setError(`Enter a period from 1 to ${MAX_HOURS} hours.`)
-      return
+      return null
     }
     setError(null)
 
     if (mode === "burnt" && fullRun && fullRun.hours === hours) {
-      showRun({
+      const cached: Run = {
         ...fullRun,
         mode: "burnt",
         checked: fullRun.records.filter((record) => canBurnLp(record.exchange)).length,
         records: fullRun.records.filter((record) => record.lpStatus === "burnt"),
-      })
-      return
+      }
+      showRun(cached)
+      return cached
     }
 
     setRunning(mode)
-    setProgress({ label: "Reading the live new pairs feed", done: 0, total: 0 })
     try {
-      const listing = await postJson<{ rows: PairRow[]; scanned: number }>("/api/pairs", { hours })
-      const targets = mode === "burnt" ? listing.rows.filter((row) => canBurnLp(row.exchange)) : listing.rows
-
-      setProgress({
-        label: mode === "burnt" ? "Checking LP status" : "Loading market data",
-        done: 0,
-        total: targets.length,
-      })
-      const details =
-        targets.length > 0
-          ? await loadDetails(targets, (done) =>
-              setProgress((current) => (current ? { ...current, done } : current)),
-            )
-          : new Map<string, PairDetail>()
-
-      const checkedRows = mode === "burnt" ? targets : listing.rows
-      const records = merge(checkedRows, details)
-      const failed = records.filter((record) => record.lpStatus === "unknown").length
-      const finished: Run = {
-        mode,
-        hours,
-        scanned: listing.scanned,
-        records: mode === "burnt" ? records.filter((record) => record.lpStatus === "burnt") : records,
-        checked: targets.length,
-        failed,
-      }
-
+      const { finished, records } = await fetchRun(mode, hours, setProgress)
       if (mode === "all") setFullRun({ ...finished, records })
+      else setFullRun(null)
+      burntAddresses(records).forEach((address) => seenRef.current.add(address))
       setFilters(DEFAULT_FILTERS)
       showRun(finished)
+      return finished
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The pair list could not be loaded.")
+      return null
     } finally {
       setRunning(null)
       setProgress(null)
     }
   }
+
+  function raiseAlerts(found: PairRecord[]) {
+    const now = Date.now()
+    setAlerts((current) => [...found.map((record) => toAlert(record, now)), ...current])
+    if (soundRef.current) playAlertTone(audioRef.current)
+    found.slice(0, 3).forEach((record) => {
+      sendDesktopNotification(
+        `New LP burnt token: ${record.name}`,
+        `${record.exchange} · Liquidity ${formatUsd(record.liquidity ?? record.listingLiquidity)} · Burnt ${formatExactPercent(record.lpBurntPercent)}`,
+        record.address.toLowerCase(),
+      )
+    })
+    if (found.length > 3) {
+      sendDesktopNotification(
+        `${found.length - 3} more new LP burnt tokens`,
+        "Open the page to see them all.",
+        "watch-summary",
+      )
+    }
+  }
+
+  async function refresh() {
+    const current = runRef.current
+    if (!current || busyRef.current) return
+    busyRef.current = true
+    setRefreshing(true)
+    try {
+      const { finished, records } = await fetchRun(current.mode, current.hours)
+      const found = findNewBurnt(records, seenRef.current)
+      burntAddresses(records).forEach((address) => seenRef.current.add(address))
+      setRun(finished)
+      if (current.mode === "all") setFullRun({ ...finished, records })
+      else setFullRun(null)
+      setLastUpdated(Date.now())
+      setWatchFailed(false)
+      if (found.length > 0) raiseAlerts(found)
+    } catch {
+      setWatchFailed(true)
+    } finally {
+      busyRef.current = false
+      setRefreshing(false)
+    }
+  }
+
+  async function startWatching() {
+    audioRef.current = createAudioContext()
+    void requestNotifications().then(setDesktop)
+
+    let baseline: PairRecord[]
+    if (run) {
+      baseline = [...run.records, ...(fullRun?.records ?? [])]
+    } else {
+      const first = await execute("burnt")
+      if (!first) return
+      baseline = first.records
+    }
+    seenRef.current = new Set(burntAddresses(baseline))
+    setLastUpdated(Date.now())
+    setWatchFailed(false)
+    setNextAt(Date.now() + WATCH_INTERVAL_MS)
+    setWatching(true)
+  }
+
+  function stopWatching() {
+    setWatching(false)
+    setNextAt(null)
+  }
+
+  function testAlert() {
+    const now = Date.now()
+    setAlerts((current) => [
+      {
+        id: `test-${now}`,
+        address: `test-${now}`,
+        name: "TEST(Example Token)",
+        exchange: "Uniswap V2",
+        url: "https://www.dextools.io/app/ether/live-new-pairs",
+        liquidity: 8790,
+        marketCap: 12450,
+        burntPercent: 100,
+        foundAt: now,
+        test: true,
+      },
+      ...current,
+    ])
+    if (soundRef.current) playAlertTone(audioRef.current)
+    sendDesktopNotification("Test alert", "This is how a new LP burnt token will be announced.", `test-${now}`)
+  }
+
+  useEffect(() => {
+    runRef.current = run
+    refreshRef.current = refresh
+    soundRef.current = sound
+  })
+
+  useEffect(() => {
+    if (!watching) return
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+    const tick = async () => {
+      if (cancelled) return
+      await refreshRef.current()
+      if (cancelled) return
+      setNextAt(Date.now() + WATCH_INTERVAL_MS)
+      timer = setTimeout(tick, WATCH_INTERVAL_MS)
+    }
+    timer = setTimeout(tick, WATCH_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [watching])
+
+  useEffect(() => {
+    if (baseTitle.current === null) baseTitle.current = document.title
+    document.title =
+      alerts.length > 0 ? `(${alerts.length}) New LP burnt token | ${baseTitle.current}` : baseTitle.current
+  }, [alerts.length])
+
+  const newAddresses = useMemo(
+    () => new Set(alerts.filter((alert) => !alert.test).map((alert) => alert.address)),
+    [alerts],
+  )
 
   const download = run ? fileFor(run) : null
   const pageSize = run ? pageSizes[run.mode] : DEFAULT_PAGE_SIZE.all
@@ -640,6 +817,21 @@ export function PairFinder() {
               {error}
             </p>
           ) : null}
+
+          <WatchPanel
+            watching={watching}
+            refreshing={refreshing}
+            nextAt={nextAt}
+            lastUpdated={lastUpdated}
+            failed={watchFailed}
+            sound={sound}
+            desktop={desktop}
+            disabled={running !== null || (!watching && !hoursValid && !run)}
+            onToggle={() => (watching ? stopWatching() : void startWatching())}
+            onSoundChange={setSound}
+            onTest={testAlert}
+            intervalSeconds={WATCH_INTERVAL_MS / 1000}
+          />
         </CardContent>
       </Card>
 
@@ -719,7 +911,7 @@ export function PairFinder() {
             <>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {visible.map((record) => (
-                  <BurntCard key={record.address} record={record} zone={zone} />
+                  <BurntCard key={record.address} record={record} zone={zone} isNew={newAddresses.has(record.address.toLowerCase())} />
                 ))}
               </div>
               {pager}
@@ -753,7 +945,12 @@ export function PairFinder() {
                 <TableBody>
                   {visible.map((record) => (
                     <TableRow key={record.address}>
-                      <TableCell className="font-medium whitespace-nowrap">{record.name}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {record.name}
+                        {newAddresses.has(record.address.toLowerCase()) ? (
+                          <Badge className="ml-2 bg-emerald-400/20 text-emerald-300">NEW</Badge>
+                        ) : null}
+                      </TableCell>
                       <TableCell className="font-mono text-xs whitespace-nowrap">{formatCreated(record.created_at, zone)}</TableCell>
                       <TableCell className="whitespace-nowrap">{record.exchange}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{formatPrice(record.price)}</TableCell>
@@ -792,6 +989,11 @@ export function PairFinder() {
           ) : null}
         </CardContent>
       </Card>
+      <AlertStack
+        alerts={alerts}
+        onDismiss={(id) => setAlerts((current) => current.filter((alert) => alert.id !== id))}
+        onDismissAll={() => setAlerts([])}
+      />
     </div>
   )
 }
