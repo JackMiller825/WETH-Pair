@@ -28,7 +28,15 @@ The **Find LP Burnt Token** button shows only pairs whose liquidity is burnt, as
 
 A pair counts as burnt when the share of its LP tokens held by the burn address is above the share that is locked, which is the rule the DEXTools pair page uses to show the flame instead of the padlock. Locks that have already expired do not count.
 
+The page also shows the flame only when it recognises the exchange, so pools on an "Unknown DEX" are never counted, even when their LP tokens went to the burn address. DEXTools shows a plain padlock with "-" for those pools, which means it has no burn or lock record it trusts for them.
+
 Only pools that issue LP tokens can be burnt. Uniswap V3 and V4 style pools hold liquidity as positions instead, so the button skips them, which also makes it much faster than Start. If you pressed Start for the same period first, the button reuses that data and answers instantly.
+
+## Back and pagination
+
+The burnt view has a **Back to all pairs** button. It returns to the full list for the same period, instantly if Start already loaded it, otherwise it loads the list first.
+
+Both the table and the burnt cards are paginated, with a page size of 10, 25, 50, or 100 (25 for the table and 10 for the cards by default). Downloaded files always contain every row, not just the current page.
 
 ## Download
 
