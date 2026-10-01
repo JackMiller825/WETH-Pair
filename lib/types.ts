@@ -185,7 +185,7 @@ function toFileRow(record: PairRecord, zone: string): FileRow {
     price_usd: record.price === null ? null : plainNumber(record.price),
     market_cap_usd: record.marketCap === null ? null : Math.round(record.marketCap),
     liquidity_usd: liquidity === null ? null : Math.round(liquidity),
-    remaining: record.remaining === null ? null : Number(record.remaining.toFixed(4)),
+    remaining: record.remaining === null ? null : plainNumber(record.remaining),
     remaining_unit: record.remaining === null ? null : record.remainingUnit,
     holders: record.holders,
     total_tx: record.totalTx,

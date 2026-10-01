@@ -9,11 +9,16 @@ Each row has:
 - **name** — the token and its full name, without the WETH side, for example `MINP(Minpentai)`
 - **created_time** — when the pool was created, as `2026-09-29 17:52:47`, in the time zone you pick
 - **exchange** — DEX shown on that pair’s page, for example `Uniswap V4`
+- **price_usd** — token price in USD
 - **market_cap_usd** — market cap from DEXTools. When DEXTools has none, fully diluted value is used, then price times total supply. Empty if the price is unknown.
-- **liquidity_usd** — pool liquidity in USD
+- **liquidity_usd** — total pool liquidity in USD
+- **remaining**, **remaining_unit** — how much of the quote token (ETH for WETH pools) is left in the pool
 - **holders** — token holder count
 - **total_tx** — total transactions in the pool
-- **lp_status** — `Burnt 100%`, `Locked 80%` (or `Locked` when the share is not published), or `None`
+- **lp_status** — `Burnt`, `Locked`, `Unverified`, or `None`. `Unverified` means the LP tokens sit at the burn address but DEXTools does not recognise the exchange, so it does not show the pool as burnt.
+- **lp_burnt_percent** — exact share of LP tokens burnt, up to four decimals (for example `99.9533`)
+- **lp_locked_percent**, **lp_unlock_time** — share of LP currently locked and the latest unlock time, in the chosen time zone. Empty when nothing is locked.
+- **token_address**, **pair_address** — full contract addresses
 - **url** — DEXTools pair explorer link
 
 Time zone: DEXTools shows pool times in your device's time zone, so the **Time zone** setting defaults to **This device** and matches what you see on the DEXTools pair page. Choose UTC or another city to change it. The same zone is used in the downloaded file. The sample CSVs in this folder use New York time.
@@ -21,6 +26,12 @@ Time zone: DEXTools shows pool times in your device's time zone, so the **Time z
 File types: CSV (`.csv`), JSON (`.json`), and text (`.txt`).
 
 Native ETH pairs (quote token `0x000…000`) are not WETH and are left out.
+
+## Reading the table
+
+The results use the full width of the screen. Price uses DEXTools-style subscripts for long runs of zeros, so `$0.0₅4957` means `$0.000004957`. Token and pair addresses are shortened, and the copy icon beside each copies the full address.
+
+The LP status column shows the state (Burnt, Locked, or Unverified) with the exact burnt percentage under it. A locked pool shows its locked share and unlock time as well. Pools with no burn or lock record show `-`.
 
 ## Find LP Burnt Token
 
