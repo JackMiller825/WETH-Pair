@@ -1,11 +1,22 @@
 "use client"
 
-import { useRef, useState } from "react"
-import { ArrowLeft, Download, ExternalLink, Flame, Loader2, Lock } from "lucide-react"
+import { useMemo, useRef, useState } from "react"
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  ArrowUpDown,
+  Download,
+  ExternalLink,
+  Flame,
+  Loader2,
+  Lock,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddressCell } from "@/components/address-cell"
 import { Pager } from "@/components/pager"
+import { ResultsToolbar } from "@/components/results-toolbar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -47,6 +58,18 @@ import {
   type PairRecord,
   type PairRow,
 } from "@/lib/types"
+import {
+  ALL_EXCHANGES,
+  DEFAULT_FILTERS,
+  DEFAULT_SORT,
+  applyView,
+  exchangeOptions,
+  isFiltered,
+  liquidityOf,
+  type Filters,
+  type SortKey,
+  type SortState,
+} from "@/lib/view"
 
 const PERIODS = [
   { id: "1", label: "Last 1 hour", hours: 1 },
@@ -139,10 +162,6 @@ function merge(rows: PairRow[], details: Map<string, PairDetail>): PairRecord[] 
   return rows.map((row) => normalizeLp({ ...row, ...(details.get(row.address.toLowerCase()) ?? EMPTY_DETAIL) }))
 }
 
-function liquidityOf(record: PairRecord): number | null {
-  return record.liquidity ?? record.listingLiquidity
-}
-
 function LpCell({ record, zone }: { record: PairRecord; zone: string }) {
   const burnt = record.lpBurntPercent
   const details: string[] = []
@@ -195,6 +214,40 @@ function LpCell({ record, zone }: { record: PairRecord; zone: string }) {
         <span className="text-xs text-muted-foreground">{details.join(" · ")}</span>
       ) : null}
     </div>
+  )
+}
+
+function SortableHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align = "left",
+}: {
+  label: string
+  sortKey: SortKey
+  sort: SortState
+  onSort: (key: SortKey) => void
+  align?: "left" | "right"
+}) {
+  const active = sort.key === sortKey
+  const Icon = !active ? ArrowUpDown : sort.direction === "desc" ? ArrowDown : ArrowUp
+  return (
+    <TableHead
+      aria-sort={!active ? "none" : sort.direction === "desc" ? "descending" : "ascending"}
+      className={align === "right" ? "text-right" : undefined}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 rounded-sm font-medium whitespace-nowrap transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+          align === "right" ? "flex-row-reverse" : ""
+        } ${active ? "text-foreground" : ""}`}
+      >
+        {label}
+        <Icon className={`size-3.5 ${active ? "" : "opacity-50"}`} />
+      </button>
+    </TableHead>
   )
 }
 
@@ -291,6 +344,8 @@ export function PairFinder() {
   const [run, setRun] = useState<Run | null>(null)
   const [fullRun, setFullRun] = useState<Run | null>(null)
   const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
   const [pageSizes, setPageSizes] = useState(DEFAULT_PAGE_SIZE)
   const resultsRef = useRef<HTMLDivElement>(null)
 
@@ -299,17 +354,49 @@ export function PairFinder() {
   const hoursValid = Number.isFinite(selectedHours) && selectedHours > 0 && selectedHours <= MAX_HOURS
   const busy = running !== null
 
+  const exchanges = useMemo(() => (run ? exchangeOptions(run.records) : []), [run])
+  const activeFilters = useMemo<Filters>(
+    () =>
+      exchanges.some((item) => item.name === filters.exchange)
+        ? filters
+        : { ...filters, exchange: ALL_EXCHANGES },
+    [exchanges, filters],
+  )
+  const rows = useMemo(
+    () => (run ? applyView(run.records, activeFilters, sort) : []),
+    [run, activeFilters, sort],
+  )
+  const filtered = isFiltered(activeFilters)
+
   function fileFor(target: Run) {
     const suffix = target.mode === "burnt" ? "_lp_burnt" : ""
     return {
       filename: filenameFor(target.hours, format, suffix),
-      contents: renderFile(target.records, format, zone),
+      contents: renderFile(rows, format, zone),
     }
   }
 
   function showRun(next: Run) {
     setRun(next)
     setPage(1)
+  }
+
+  function changeFilters(next: Filters) {
+    setFilters(next)
+    setPage(1)
+  }
+
+  function changeSort(next: SortState) {
+    setSort(next)
+    setPage(1)
+  }
+
+  function sortByColumn(key: SortKey) {
+    changeSort(
+      sort.key === key
+        ? { key, direction: sort.direction === "desc" ? "asc" : "desc" }
+        : { key, direction: "desc" },
+    )
   }
 
   function changePage(next: number) {
@@ -386,6 +473,7 @@ export function PairFinder() {
       }
 
       if (mode === "all") setFullRun({ ...finished, records })
+      setFilters(DEFAULT_FILTERS)
       showRun(finished)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The pair list could not be loaded.")
@@ -397,14 +485,14 @@ export function PairFinder() {
 
   const download = run ? fileFor(run) : null
   const pageSize = run ? pageSizes[run.mode] : DEFAULT_PAGE_SIZE.all
-  const lastPage = run ? Math.max(1, Math.ceil(run.records.length / pageSize)) : 1
+  const lastPage = Math.max(1, Math.ceil(rows.length / pageSize))
   const currentPage = Math.min(page, lastPage)
-  const visible = run ? run.records.slice((currentPage - 1) * pageSize, currentPage * pageSize) : []
+  const visible = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const pager = run ? (
     <Pager
       idPrefix={run.mode}
-      total={run.records.length}
+      total={rows.length}
       page={currentPage}
       pageSize={pageSize}
       pageSizes={PAGE_SIZES}
@@ -561,8 +649,8 @@ export function PairFinder() {
             <CardTitle>
               {run
                 ? run.mode === "burnt"
-                  ? `${run.records.length} LP burnt ${run.records.length === 1 ? "token" : "tokens"}`
-                  : `${run.records.length} pairs`
+                  ? `${filtered ? `${rows.length} of ${run.records.length}` : run.records.length} LP burnt ${run.records.length === 1 ? "token" : "tokens"}`
+                  : `${filtered ? `${rows.length} of ${run.records.length}` : run.records.length} pairs`
                 : "Results"}
             </CardTitle>
             <CardDescription>
@@ -588,6 +676,7 @@ export function PairFinder() {
               >
                 <Download />
                 {download.filename}
+                {filtered ? ` (${rows.length} of ${run?.records.length})` : ""}
               </Button>
             ) : null}
           </div>
@@ -600,6 +689,25 @@ export function PairFinder() {
             </p>
           ) : null}
 
+          {run && run.records.length > 0 ? (
+            <ResultsToolbar
+              filters={activeFilters}
+              sort={sort}
+              exchanges={exchanges}
+              onFiltersChange={changeFilters}
+              onSortChange={changeSort}
+            />
+          ) : null}
+
+          {run && run.records.length > 0 && rows.length === 0 ? (
+            <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+              <p>No {run.mode === "burnt" ? "LP burnt tokens" : "pairs"} match these filters.</p>
+              <Button type="button" variant="outline" onClick={() => changeFilters(DEFAULT_FILTERS)}>
+                Clear filters
+              </Button>
+            </div>
+          ) : null}
+
           {run && run.mode === "burnt" && run.records.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No LP burnt tokens were found in this window. Uniswap V3 and V4 pools hold liquidity as positions
@@ -607,7 +715,7 @@ export function PairFinder() {
             </p>
           ) : null}
 
-          {run && run.mode === "burnt" && run.records.length > 0 ? (
+          {run && run.mode === "burnt" && rows.length > 0 ? (
             <>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {visible.map((record) => (
@@ -622,21 +730,21 @@ export function PairFinder() {
             <p className="text-sm text-muted-foreground">No WETH pairs were created in this window.</p>
           ) : null}
 
-          {run && run.mode === "all" && run.records.length > 0 ? (
+          {run && run.mode === "all" && rows.length > 0 ? (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Created</TableHead>
+                    <SortableHead label="Created" sortKey="created" sort={sort} onSort={sortByColumn} />
                     <TableHead>Exchange</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Market cap</TableHead>
-                    <TableHead className="text-right">Total liquidity</TableHead>
-                    <TableHead className="text-right">Remaining</TableHead>
-                    <TableHead className="text-right">Holders</TableHead>
-                    <TableHead className="text-right">Total Tx</TableHead>
-                    <TableHead>LP status</TableHead>
+                    <SortableHead label="Price" sortKey="price" sort={sort} onSort={sortByColumn} align="right" />
+                    <SortableHead label="Market cap" sortKey="marketCap" sort={sort} onSort={sortByColumn} align="right" />
+                    <SortableHead label="Total liquidity" sortKey="liquidity" sort={sort} onSort={sortByColumn} align="right" />
+                    <SortableHead label="Remaining" sortKey="remaining" sort={sort} onSort={sortByColumn} align="right" />
+                    <SortableHead label="Holders" sortKey="holders" sort={sort} onSort={sortByColumn} align="right" />
+                    <SortableHead label="Total Tx" sortKey="totalTx" sort={sort} onSort={sortByColumn} align="right" />
+                    <SortableHead label="LP status" sortKey="lp" sort={sort} onSort={sortByColumn} />
                     <TableHead>Token address</TableHead>
                     <TableHead>Pair address</TableHead>
                     <TableHead>Link</TableHead>
