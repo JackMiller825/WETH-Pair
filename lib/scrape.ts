@@ -1,12 +1,11 @@
 import { ListingError, requestJson, sleep } from "@/lib/http"
-import { MAX_HOURS, type PairRow } from "@/lib/types"
+import { MAX_HOURS, UNKNOWN_EXCHANGE, type PairRow } from "@/lib/types"
 
 const LISTING_API = "https://www.dextools.io/api/core"
 const EXCHANGES_API = "https://www.dextools.io/shared/exchanges/v2"
 const CHAIN = "ether"
 const WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const PAGE_SIZE = 100
-const UNKNOWN_EXCHANGE = "Unknown DEX"
 const PAGE_DELAY_MS = 120
 
 type TokenSide = {

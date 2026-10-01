@@ -41,12 +41,23 @@ export const EMPTY_DETAIL: PairDetail = {
   lpLockedPercent: 0,
 }
 
+export const UNKNOWN_EXCHANGE = "Unknown DEX"
+
 /**
- * Concentrated-liquidity pools (Uniswap V3/V4 and forks) hold positions as NFTs or in a
- * singleton contract, so they have no fungible LP token that could be burnt.
+ * Only pools that issue fungible LP tokens can be burnt. Concentrated-liquidity pools
+ * (Uniswap V3/V4 and forks) hold positions instead. The DEXTools pair page also only shows
+ * the burnt flame when it recognises the exchange, so pools on an unknown DEX never count.
  */
 export function canBurnLp(exchange: string): boolean {
-  return !/\bv[34]\b/i.test(exchange)
+  return exchange !== UNKNOWN_EXCHANGE && !/\bv[34]\b/i.test(exchange)
+}
+
+/** Applies the pair page's own rule so the flame appears only where DEXTools shows it. */
+export function normalizeLp<T extends PairRow & PairDetail>(record: T): T {
+  if (record.lpStatus === "burnt" && !canBurnLp(record.exchange)) {
+    return { ...record, lpStatus: "none", lpBurntPercent: 0 }
+  }
+  return record
 }
 
 export const LOCAL_ZONE = "local"

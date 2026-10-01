@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { Download, ExternalLink, Flame, Loader2, Lock } from "lucide-react"
+import { useRef, useState } from "react"
+import { ArrowLeft, Download, ExternalLink, Flame, Loader2, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Pager } from "@/components/pager"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -32,6 +33,7 @@ import {
   filenameFor,
   formatCreated,
   formatPercent,
+  normalizeLp,
   renderFile,
   zoneDescription,
   type OutputFormat,
@@ -48,6 +50,8 @@ const PERIODS = [
   { id: "custom", label: "Custom", hours: null },
 ] as const
 
+const PAGE_SIZES = [10, 25, 50, 100]
+const DEFAULT_PAGE_SIZE: Record<Mode, number> = { all: 25, burnt: 10 }
 const BATCH_SIZE = 20
 const PARALLEL_BATCHES = 3
 
@@ -126,7 +130,7 @@ async function loadDetails(
 }
 
 function merge(rows: PairRow[], details: Map<string, PairDetail>): PairRecord[] {
-  return rows.map((row) => ({ ...row, ...(details.get(row.address.toLowerCase()) ?? EMPTY_DETAIL) }))
+  return rows.map((row) => normalizeLp({ ...row, ...(details.get(row.address.toLowerCase()) ?? EMPTY_DETAIL) }))
 }
 
 function liquidityOf(record: PairRecord): number | null {
@@ -218,10 +222,13 @@ export function PairFinder() {
   const [error, setError] = useState<string | null>(null)
   const [run, setRun] = useState<Run | null>(null)
   const [fullRun, setFullRun] = useState<Run | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSizes, setPageSizes] = useState(DEFAULT_PAGE_SIZE)
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   const selectedPeriod = PERIODS.find((period) => period.id === periodId) ?? PERIODS[2]
-  const hours = selectedPeriod.hours ?? Number(customHours)
-  const hoursValid = Number.isFinite(hours) && hours > 0 && hours <= MAX_HOURS
+  const selectedHours = selectedPeriod.hours ?? Number(customHours)
+  const hoursValid = Number.isFinite(selectedHours) && selectedHours > 0 && selectedHours <= MAX_HOURS
   const busy = running !== null
 
   function fileFor(target: Run) {
@@ -232,15 +239,46 @@ export function PairFinder() {
     }
   }
 
-  async function execute(mode: Mode) {
-    if (!hoursValid) {
+  function showRun(next: Run) {
+    setRun(next)
+    setPage(1)
+  }
+
+  function changePage(next: number) {
+    setPage(next)
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  function selectHours(value: number) {
+    const preset = PERIODS.find((period) => period.hours === value)
+    if (preset) {
+      setPeriodId(preset.id)
+    } else {
+      setPeriodId("custom")
+      setCustomHours(String(value))
+    }
+  }
+
+  function backToAll() {
+    if (!run || busy) return
+    if (fullRun && fullRun.hours === run.hours) {
+      showRun(fullRun)
+      return
+    }
+    selectHours(run.hours)
+    void execute("all", run.hours)
+  }
+
+  async function execute(mode: Mode, hoursOverride?: number) {
+    const hours = hoursOverride ?? selectedHours
+    if (!Number.isFinite(hours) || hours <= 0 || hours > MAX_HOURS) {
       setError(`Enter a period from 1 to ${MAX_HOURS} hours.`)
       return
     }
     setError(null)
 
     if (mode === "burnt" && fullRun && fullRun.hours === hours) {
-      setRun({
+      showRun({
         ...fullRun,
         mode: "burnt",
         checked: fullRun.records.filter((record) => canBurnLp(record.exchange)).length,
@@ -280,7 +318,7 @@ export function PairFinder() {
       }
 
       if (mode === "all") setFullRun({ ...finished, records })
-      setRun(finished)
+      showRun(finished)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The pair list could not be loaded.")
     } finally {
@@ -290,6 +328,25 @@ export function PairFinder() {
   }
 
   const download = run ? fileFor(run) : null
+  const pageSize = run ? pageSizes[run.mode] : DEFAULT_PAGE_SIZE.all
+  const lastPage = run ? Math.max(1, Math.ceil(run.records.length / pageSize)) : 1
+  const currentPage = Math.min(page, lastPage)
+  const visible = run ? run.records.slice((currentPage - 1) * pageSize, currentPage * pageSize) : []
+
+  const pager = run ? (
+    <Pager
+      idPrefix={run.mode}
+      total={run.records.length}
+      page={currentPage}
+      pageSize={pageSize}
+      pageSizes={PAGE_SIZES}
+      onPageChange={changePage}
+      onPageSizeChange={(size) => {
+        setPageSizes((current) => ({ ...current, [run.mode]: size }))
+        setPage(1)
+      }}
+    />
+  ) : null
 
   return (
     <div className="flex flex-col gap-6">
@@ -430,7 +487,7 @@ export function PairFinder() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card ref={resultsRef} className="scroll-mt-4">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-1">
             <CardTitle>
@@ -448,16 +505,24 @@ export function PairFinder() {
                 : "Nothing fetched yet. Choose a period, then press Start or Find LP Burnt Token. Press the download button to save the file."}
             </CardDescription>
           </div>
-          {download ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => downloadFile(download.filename, download.contents, format)}
-            >
-              <Download />
-              {download.filename}
-            </Button>
-          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {run && run.mode === "burnt" ? (
+              <Button type="button" variant="ghost" onClick={backToAll} disabled={busy}>
+                {running === "all" ? <Loader2 className="animate-spin" /> : <ArrowLeft />}
+                Back to all pairs
+              </Button>
+            ) : null}
+            {download ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => downloadFile(download.filename, download.contents, format)}
+              >
+                <Download />
+                {download.filename}
+              </Button>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {run && run.failed > 0 ? (
@@ -475,11 +540,14 @@ export function PairFinder() {
           ) : null}
 
           {run && run.mode === "burnt" && run.records.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {run.records.map((record) => (
-                <BurntCard key={record.address} record={record} zone={zone} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {visible.map((record) => (
+                  <BurntCard key={record.address} record={record} zone={zone} />
+                ))}
+              </div>
+              {pager}
+            </>
           ) : null}
 
           {run && run.mode === "all" && run.records.length === 0 ? (
@@ -487,47 +555,50 @@ export function PairFinder() {
           ) : null}
 
           {run && run.mode === "all" && run.records.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Exchange</TableHead>
-                  <TableHead className="text-right">Market cap</TableHead>
-                  <TableHead className="text-right">Liquidity</TableHead>
-                  <TableHead className="text-right">Holders</TableHead>
-                  <TableHead className="text-right">Total Tx</TableHead>
-                  <TableHead>LP</TableHead>
-                  <TableHead>Link</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {run.records.map((record) => (
-                  <TableRow key={record.address}>
-                    <TableCell className="font-medium whitespace-nowrap">{record.name}</TableCell>
-                    <TableCell className="font-mono text-xs whitespace-nowrap">{formatCreated(record.created_at, zone)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{record.exchange}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">{formatUsd(record.marketCap)}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">{formatUsd(liquidityOf(record))}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">{formatCount(record.holders)}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">{formatCount(record.totalTx)}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <LpBadge record={record} />
-                    </TableCell>
-                    <TableCell>
-                      <a
-                        href={record.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary underline-offset-4 hover:underline"
-                      >
-                        Open
-                      </a>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Exchange</TableHead>
+                    <TableHead className="text-right">Market cap</TableHead>
+                    <TableHead className="text-right">Liquidity</TableHead>
+                    <TableHead className="text-right">Holders</TableHead>
+                    <TableHead className="text-right">Total Tx</TableHead>
+                    <TableHead>LP</TableHead>
+                    <TableHead>Link</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {visible.map((record) => (
+                    <TableRow key={record.address}>
+                      <TableCell className="font-medium whitespace-nowrap">{record.name}</TableCell>
+                      <TableCell className="font-mono text-xs whitespace-nowrap">{formatCreated(record.created_at, zone)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{record.exchange}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{formatUsd(record.marketCap)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{formatUsd(liquidityOf(record))}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{formatCount(record.holders)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{formatCount(record.totalTx)}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <LpBadge record={record} />
+                      </TableCell>
+                      <TableCell>
+                        <a
+                          href={record.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary underline-offset-4 hover:underline"
+                        >
+                          Open
+                        </a>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {pager}
+            </>
           ) : null}
         </CardContent>
       </Card>
