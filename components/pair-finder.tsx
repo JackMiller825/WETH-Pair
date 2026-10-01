@@ -243,6 +243,7 @@ export function PairFinder() {
       setRun({
         ...fullRun,
         mode: "burnt",
+        checked: fullRun.records.filter((record) => canBurnLp(record.exchange)).length,
         records: fullRun.records.filter((record) => record.lpStatus === "burnt"),
       })
       return
