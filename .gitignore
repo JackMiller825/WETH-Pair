@@ -19,6 +19,7 @@ pairs.json
 # next.js
 /.next/
 /out/
+/public/data/snapshot.json
 # production
 /build
 # misc

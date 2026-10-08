@@ -110,6 +110,7 @@ type Run = {
   records: PairRecord[]
   checked: number
   failed: number
+  publishedAt: string | null
 }
 
 type Progress = { label: string; done: number; total: number }
@@ -130,6 +131,29 @@ function downloadFile(filename: string, contents: string, format: OutputFormat) 
   link.click()
   link.remove()
   URL.revokeObjectURL(url)
+}
+
+type PublishedSnapshot = {
+  generatedAt?: string
+  rows?: PairRecord[]
+}
+
+async function loadPublishedWindow(hours: number): Promise<{
+  rows: PairRecord[]
+  publishedAt: string | null
+}> {
+  const response = await fetch(`/data/snapshot.json?ts=${Date.now()}`, { cache: "no-store" })
+  if (!response.ok) throw new Error("The pair list could not be loaded.")
+  const payload = (await response.json()) as PublishedSnapshot
+  const rows = Array.isArray(payload.rows) ? payload.rows : []
+  const cutoff = Date.now() - hours * 60 * 60 * 1000
+  return {
+    rows: rows.filter((row) => {
+      const created = Date.parse(row.created_at)
+      return Number.isFinite(created) && created >= cutoff
+    }),
+    publishedAt: typeof payload.generatedAt === "string" ? payload.generatedAt : null,
+  }
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -471,6 +495,22 @@ export function PairFinder() {
     onProgress?: (progress: Progress) => void,
   ): Promise<{ finished: Run; records: PairRecord[] }> {
     onProgress?.({ label: "Reading the live new pairs feed", done: 0, total: 0 })
+    if (process.env.NEXT_PUBLIC_PAGES === "1") {
+      const listing = await loadPublishedWindow(hours)
+      const targets = mode === "burnt" ? listing.rows.filter((row) => canBurnLp(row.exchange)) : listing.rows
+      const records = mode === "burnt" ? targets.filter((row) => row.lpStatus === "burnt") : targets
+      const finished: Run = {
+        mode,
+        hours,
+        scanned: listing.rows.length,
+        records,
+        checked: targets.length,
+        failed: records.filter((record) => record.lpStatus === "unknown").length,
+        publishedAt: listing.publishedAt,
+      }
+      return { finished, records }
+    }
+
     const listing = await postJson<{ rows: PairRow[]; scanned: number }>("/api/pairs", { hours })
     const targets = mode === "burnt" ? listing.rows.filter((row) => canBurnLp(row.exchange)) : listing.rows
 
@@ -498,6 +538,7 @@ export function PairFinder() {
       records: mode === "burnt" ? records.filter((record) => record.lpStatus === "burnt") : records,
       checked: targets.length,
       failed: records.filter((record) => record.lpStatus === "unknown").length,
+      publishedAt: null,
     }
     return { finished, records }
   }
@@ -571,6 +612,7 @@ export function PairFinder() {
       checked: records.filter((record) => canBurnLp(record.exchange)).length,
       failed: records.filter((record) => canBurnLp(record.exchange) && record.lpStatus === "unknown").length,
       records: records.filter((record) => record.lpStatus === "burnt"),
+      publishedAt: finished.publishedAt,
     }
   }
 
@@ -875,8 +917,8 @@ export function PairFinder() {
             <CardDescription>
               {run
                 ? run.mode === "burnt"
-                  ? `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.checked} pools with LP tokens checked out of ${run.scanned.toLocaleString()} new pools scanned. Times in ${zoneDescription(zone)}.`
-                  : `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.scanned.toLocaleString()} new pools scanned. Times in ${zoneDescription(zone)}.`
+                  ? `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.checked} pools with LP tokens checked out of ${run.scanned.toLocaleString()} new pools scanned. Times in ${zoneDescription(zone)}.${run.publishedAt ? ` Updated ${formatCreated(run.publishedAt, zone)}.` : ""}`
+                  : `Last ${run.hours} hour${run.hours === 1 ? "" : "s"}. ${run.scanned.toLocaleString()} new pools scanned. Times in ${zoneDescription(zone)}.${run.publishedAt ? ` Updated ${formatCreated(run.publishedAt, zone)}.` : ""}`
                 : "Nothing fetched yet. Choose a period, then press Start or Find LP Burnt Token. Press the download button to save the file."}
             </CardDescription>
           </div>
