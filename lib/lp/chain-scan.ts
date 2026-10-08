@@ -13,12 +13,7 @@ import {
   type TransferLog,
 } from "@/lib/lp/burn-logic"
 
-const DEFAULT_RPCS = [
-  "https://1rpc.io/eth",
-  "https://rpc.ankr.com/eth",
-  "https://ethereum-rpc.publicnode.com",
-  "https://eth.drpc.org",
-]
+const DEFAULT_RPCS = ["https://eth.drpc.org", "https://rpc.mevblocker.io"]
 const TOTAL_SUPPLY = "0x18160ddd"
 const BALANCE_OF = "0x70a08231"
 
@@ -58,7 +53,7 @@ function hex(value: number): string {
 
 async function rpcCall(url: string, method: string, params: unknown[]): Promise<unknown> {
   let last = "RPC failed"
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -73,7 +68,7 @@ async function rpcCall(url: string, method: string, params: unknown[]): Promise<
     } catch (error) {
       last = error instanceof Error ? error.message : "RPC error"
       console.warn(`[LP-MONITOR] ${method} failed (attempt ${attempt}): ${last}`)
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 400))
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 400))
     }
   }
   throw new Error(last)
@@ -196,23 +191,6 @@ async function collectRange(url: string, pairs: string[], from: number, to: numb
   return { burns: await enrich(url, transfers), through, error: null }
 }
 
-async function chooseRpc(candidates: string[]): Promise<string> {
-  let last = "No Ethereum RPC responded"
-  for (const url of candidates) {
-    try {
-      const hexHead = (await rpcCall(url, "eth_blockNumber", [])) as string
-      const head = Number.parseInt(hexHead, 16)
-      if (!Number.isInteger(head)) throw new Error("Block number was unreadable")
-      console.log(`[LP-MONITOR] Ethereum RPC ${rpcHost(url)} head ${head}`)
-      return url
-    } catch (error) {
-      last = error instanceof Error ? error.message : "RPC error"
-      console.warn(`[LP-MONITOR] ${rpcHost(url)} was not usable: ${last}`)
-    }
-  }
-  throw new Error(last)
-}
-
 export async function scanChain(records: PairRecord[], previous: ChainCheckpoint | null, now = new Date()): Promise<ChainScanResult> {
   const candidates = [process.env.ETH_RPC_URL, ...DEFAULT_RPCS].filter((url): url is string => Boolean(url))
   let url = candidates[0]
@@ -232,29 +210,40 @@ export async function scanChain(records: PairRecord[], previous: ChainCheckpoint
     rpcHost: host,
   }
 
-  let head: number
-  try {
-    url = await chooseRpc(candidates)
-    host = rpcHost(url)
-    const hexHead = (await rpcCall(url, "eth_blockNumber", [])) as string
-    head = Number.parseInt(hexHead, 16)
-    if (!Number.isInteger(head)) throw new Error("Block number was unreadable")
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "RPC error"
-    console.warn(`[LP-MONITOR] Head block was not read. Checkpoint held. ${message}`)
-    return { checkpoint: { ...base, rpcHost: host, lastError: message }, burns: [] }
-  }
-
-  const from = scanStart(previous?.lpMonitorBlock ?? null, head)
-  if (from == null) {
-    return {
-      checkpoint: { ...base, rpcHost: host, headBlock: head, blocksBehind: 0, lastError: null, lastSuccessAt: now.toISOString() },
-      burns: [],
+  let head = 0
+  let live: { burns: ChainBurn[]; through: number | null; error: string | null } = { burns: [], through: null, error: "No Ethereum RPC accepted the log scan" }
+  let connected = false
+  for (const candidate of candidates) {
+    try {
+      const hexHead = (await rpcCall(candidate, "eth_blockNumber", [])) as string
+      const candidateHead = Number.parseInt(hexHead, 16)
+      if (!Number.isInteger(candidateHead)) throw new Error("Block number was unreadable")
+      head = candidateHead
+      connected = true
+      url = candidate
+      host = rpcHost(candidate)
+      const from = scanStart(previous?.lpMonitorBlock ?? null, head)
+      if (from == null) {
+        return {
+          checkpoint: { ...base, rpcHost: host, headBlock: head, blocksBehind: 0, lastError: null, lastSuccessAt: now.toISOString() },
+          burns: [],
+        }
+      }
+      console.log(`[LP-MONITOR] Scanning blocks ${from} → ${head} via ${host}`)
+      const attempt = await collectRange(candidate, pairs, from, head)
+      live = attempt
+      if (attempt.error == null || attempt.through != null) break
+      console.warn(`[LP-MONITOR] ${host} did not return logs: ${attempt.error}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "RPC error"
+      live = { burns: [], through: null, error: message }
+      console.warn(`[LP-MONITOR] ${rpcHost(candidate)} was not usable: ${message}`)
     }
   }
-
-  console.log(`[LP-MONITOR] Scanning blocks ${from} → ${head}`)
-  const live = await collectRange(url, pairs, from, head)
+  if (!connected) {
+    console.warn(`[LP-MONITOR] Head block was not read. Checkpoint held. ${live.error}`)
+    return { checkpoint: { ...base, rpcHost: host, lastError: live.error }, burns: [] }
+  }
   let burns = live.burns
   const backfillFrom = Number(process.env.BACKFILL_FROM_BLOCK)
   const backfillTo = Number(process.env.BACKFILL_TO_BLOCK)
