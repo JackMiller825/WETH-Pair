@@ -10,6 +10,9 @@ import { isInsidePrevious, isInsideRange } from "@/lib/time-range"
 import { formatUsd } from "@/lib/format"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
+import { HistoryPanel } from "@/components/progress/history-panel"
+import { comparisonReady } from "@/lib/history/plan"
+import { rangeById } from "@/lib/time-range"
 import { LpWatchSummary } from "@/components/lp/watch-view"
 import { DataGate, EmptyState, PageFrame, Section, TrendCard, WindowPicker, growthLabel } from "@/components/trends/widgets"
 
@@ -36,6 +39,16 @@ export function Dashboard() {
               <Kpi href={fastest ? `/trends/${fastest.slug}` : "/trends"} label="Fastest rising" value={fastest?.name ?? "None yet"} detail={fastest ? `${fastest.previousCount} → ${fastest.count} launches` : "No acceleration yet"} />
               <Kpi href="/pairs" label="Total liquidity" value={formatUsd(pulse.liquidity)} detail="Across pairs in this window" />
             </section>
+            <HistoryPanel
+              backfill={snapshot.backfill}
+              oldestPair={oldestTime(snapshot.rows.map((row) => row.created_at))}
+              pairCount={snapshot.rows.length}
+              oldestBurn={oldestTime((snapshot.lpBurns ?? []).map((event) => event.burnAt ?? ""))}
+              burnCount={snapshot.lpBurns?.length ?? 0}
+              requestedMs={rangeById(windowId).ms}
+              now={Date.parse(snapshot.generatedAt)}
+            />
+            {comparisonReady(oldestTime(snapshot.rows.map((row) => row.created_at)), windowId, Date.parse(snapshot.generatedAt)) ? null : <p className="text-sm text-muted-foreground">Comparison unavailable: the stored history does not cover the previous window of the same length. A 7-day comparison needs 14 days of pairs.</p>}
             <LpWatchSummary />
             <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Insight kicker="Top name pattern" title={topName?.name ?? "No repeated name"} body={topName ? `${topName.count} launches · ${growthLabel(topName)} vs previous window` : `${pulse.pairs} pairs were checked. No name appeared often enough.`} meta={topName ? DIRECTION_LABEL[topName.direction] : "Observed data only"} href={topName ? `/trends/${topName.slug}` : "/trends"} />
@@ -83,6 +96,11 @@ export function Dashboard() {
       </DataGate>
     </PageFrame>
   )
+}
+
+function oldestTime(values: string[]): number | null {
+  const times = values.map((value) => Date.parse(value)).filter(Number.isFinite)
+  return times.length ? Math.min(...times) : null
 }
 
 function pulseFor(rows: { created_at: string; lpStatus: string; liquidity: number | null; listingLiquidity: number | null; marketCap: number | null; name: string; address: string; tokenAddress: string }[], events: { burnAt?: string | null }[], windowId: string, generatedAt: string) {

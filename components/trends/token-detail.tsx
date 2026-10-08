@@ -7,6 +7,7 @@ import { buildTokenReport, type ChainFacts, type TokenReport } from "@/lib/analy
 import { buildIntelligence } from "@/lib/narrative/engine"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
+import { ProgressMeter } from "@/components/progress/history-panel"
 import { DataGate, PageFrame, money } from "@/components/trends/widgets"
 
 const TABS = ["Overview", "Liquidity", "Deployer", "Narrative", "News", "Related", "Timeline", "Sources", "Contract"] as const
@@ -68,6 +69,7 @@ export function TokenDetail({ address }: { address: string }) {
   return (
     <PageFrame eyebrow="Full analysis" title={token ? `${token.tokenName} · $${token.symbol}` : "Token"} lede="This report uses the published pair list, fetched headlines, and a live Ethereum read. Missing holder, tax, and social figures stay missing. The scorecard is not investment advice.">
       <DataGate loading={loading} error={error} ready={Boolean(snapshot)}>
+        <ProgressMeter label="Full analysis" value={report ? (chainSettled ? 100 : 70) : null} detail={chainState === "running" ? "Reading the contract from Ethereum. Published pair, liquidity, deployer, and headline sections are already available." : chainState === "failed" ? "The contract read failed. The published-record sections are still shown." : report ? "Published record and contract read are in the report." : "Loading the published pair record."} />
         <Progress step={step} chainState={chainState} />
         {token && report && snapshot ? (
           <>

@@ -6,6 +6,8 @@ import { fetchNews } from "../lib/narrative/rss"
 import type { HistoryPoint, SnapshotFile } from "../lib/narrative/types"
 import { scanChain } from "../lib/lp/chain-scan"
 import { applyChainBurns, buildLpBurns } from "../lib/lp/monitor"
+import { HISTORY_RETAIN_MS, HISTORY_SCOPE, openHistoryJob } from "../lib/history/plan"
+import { enrichIdentity, readHead, scanHistoricalBurns, scanHistoricalPairs } from "../lib/history/scan"
 import { collectWethPairs } from "../lib/scrape"
 import { COLLECTION_MAX_HOURS, EMPTY_DETAIL, normalizeLp, type PairRecord } from "../lib/types"
 
@@ -21,7 +23,11 @@ async function main() {
       : COLLECTION_MAX_HOURS
 
   console.log(`Collecting WETH pairs for the last ${hours} hours...`)
-  const { rows, scanned } = await collectWethPairs(hours)
+  const listing = await collectWethPairs(hours)
+  const { rows, scanned } = listing
+  if (!listing.listingComplete) {
+    console.warn(`[HISTORY] DEXTools live listing ended at ${listing.listingOldestAt ?? "unknown"} before the ${hours}h cutoff. Older pairs require the Ethereum backfill.`)
+  }
   console.log(`Matched ${rows.length} WETH pairs after scanning ${scanned} pools. Loading details...`)
   const details = await fetchPairDetails(rows.map((row) => row.address))
   const records: PairRecord[] = rows.map((row) =>
@@ -31,7 +37,7 @@ async function main() {
   const generatedAt = new Date().toISOString()
   const generatedMs = Date.parse(generatedAt)
   const [news, previous] = await Promise.all([fetchNews(generatedMs), loadPrevious()])
-  const retained = retainPairs(records, previous?.rows, generatedMs)
+  const retained = retainPairs(records.map((row) => ({ ...row, listingSource: row.listingSource ?? "dextools" })), previous?.rows, generatedMs)
   let chain = previous?.chain
   let chainBurns: Awaited<ReturnType<typeof scanChain>>["burns"] = []
   try {
@@ -43,9 +49,34 @@ async function main() {
   } catch (error) {
     console.warn(`[LP-MONITOR] Scan stopped. Checkpoint kept. ${error instanceof Error ? error.message : "unknown error"}`)
   }
-  const withChain = applyChainBurns(retained, chainBurns)
+  let backfill = previous?.backfill
+  let historicalRows = retained
+  let historicalBurns = chainBurns
+  try {
+    const head = chain?.headBlock ?? await readHead()
+    const pairJob = openHistoryJob("weth-pairs", head, generatedAt, previous?.backfill?.pairs)
+    const burnJob = previous?.backfill?.burns
+      ? openHistoryJob("lp-burns", head, generatedAt, previous.backfill.burns)
+      : { ...pairJob, id: "lp-burns" as const, status: "running" as const, phase: "recent" as const, cursor: pairJob.recentStart, blocksDone: 0, pairsFound: 0, burnsFound: 0, error: null, stage: "Scanning historical LP transfers to burn addresses", startedAt: generatedAt, updatedAt: generatedAt }
+    const pairScan = pairJob.status === "completed" ? { job: pairJob, pairs: [] as PairRecord[] } : await scanHistoricalPairs(pairJob, new Date(generatedAt))
+    historicalRows = mergePairs(retained, pairScan.pairs)
+    historicalRows = await enrichIdentity(historicalRows)
+    const knownPairs = new Set(historicalRows.filter((row) => row.exchange !== "Unknown DEX").map((row) => row.address.toLowerCase()))
+    const burnScan = burnJob.status === "completed" ? { job: burnJob, burns: [] as typeof chainBurns } : await scanHistoricalBurns(burnJob, knownPairs, new Date(generatedAt))
+    historicalBurns = [...chainBurns, ...burnScan.burns]
+    backfill = {
+      pairs: { ...pairScan.job, pairsFound: historicalRows.filter((row) => row.listingSource === "ethereum-pair-created").length },
+      burns: burnScan.job,
+      scope: HISTORY_SCOPE,
+      providerNote: listing.listingComplete ? null : `DEXTools live listing oldest pool: ${listing.listingOldestAt ?? "unknown"}.`,
+    }
+    console.log(`[HISTORY] Pairs ${pairScan.job.phase} ${pairScan.job.blocksDone}/${pairScan.job.blocksTotal}. Burns ${burnScan.job.phase} ${burnScan.job.blocksDone}/${burnScan.job.blocksTotal}.`)
+  } catch (error) {
+    console.warn(`[HISTORY] Backfill paused. Live snapshot still publishes. ${error instanceof Error ? error.message : "unknown error"}`)
+  }
+  const withChain = applyChainBurns(historicalRows, historicalBurns)
   const history = trimHistory([...(previous?.history ?? []), captureHistory(withChain, generatedAt)], generatedMs)
-  const lp = buildLpBurns(withChain, previous, generatedAt, chainBurns)
+  const lp = buildLpBurns(withChain, previous, generatedAt, historicalBurns)
   for (const event of lp.events.filter((event) => event.kind === "newly-burned" && event.detectedAt === generatedAt)) {
     console.log(`[LP-BURN] New event saved ${event.pair} ${event.burnTx ?? "no-tx"}`)
   }
@@ -59,6 +90,7 @@ async function main() {
     lpBurns: lp.events,
     lpScan: lp.scan,
     chain,
+    backfill,
   }
   const file = path.join("public", "data", "snapshot.json")
   await mkdir(path.dirname(file), { recursive: true })
@@ -84,10 +116,19 @@ function retainPairs(current: PairRecord[], previous: PairRecord[] | undefined, 
   const seen = new Set(current.map((row) => row.address.toLowerCase()))
   const extra = (previous ?? []).filter((row) => {
     const at = Date.parse(row.created_at)
-    return !seen.has(row.address.toLowerCase()) && Number.isFinite(at) && now - at <= COLLECTION_MAX_HOURS * 60 * 60 * 1000
+    return !seen.has(row.address.toLowerCase()) && Number.isFinite(at) && now - at <= HISTORY_RETAIN_MS
   })
   if (extra.length > 0) console.log(`[LP-MONITOR] Kept ${extra.length} stored pairs that this listing page did not return`)
   return [...current, ...extra]
+}
+
+function mergePairs(current: PairRecord[], extra: PairRecord[]): PairRecord[] {
+  const map = new Map(current.map((row) => [row.address.toLowerCase(), row]))
+  for (const row of extra) {
+    const key = row.address.toLowerCase()
+    if (!map.has(key)) map.set(key, row)
+  }
+  return [...map.values()]
 }
 
 function trimHistory(points: HistoryPoint[], now: number): HistoryPoint[] {

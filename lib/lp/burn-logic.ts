@@ -176,6 +176,11 @@ export function passesNotifyFilter(
   return true
 }
 
+/** Historical backfill is stored, but it must not buzz as a new live burn. */
+export function isLiveBurnAlert(event: { kind?: string; detectionSource?: string | null }): boolean {
+  return event.kind === "newly-burned" && event.detectionSource !== "backfill"
+}
+
 /** A zero result is the Uniswap minimum-liquidity lock, not a burned LP position. */
 export function isReportedBurn(percent: number | null | undefined): boolean {
   return percent == null || percent > 0

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Activity as ActivityIcon, Bell, Flame, LayoutDashboard, Menu, Monitor, Moon, Newspaper, Search, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
+import { BackfillLink } from "@/components/progress/history-panel"
 import { applyTheme, isThemeId, type ThemeId } from "@/lib/theme"
 import { ago, eventsOf } from "@/lib/lp/monitor"
 import { useLpMonitor } from "@/components/lp/monitor-context"
@@ -126,6 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>LP burn store {snapshot?.lpScan?.scannedAt && now ? ago(now - Date.parse(snapshot.lpScan.scannedAt)) : "waiting"}</span>
           <span>Trend data {snapshot && now ? ago(now - Date.parse(snapshot.generatedAt)) : "waiting"}</span>
           <span>Last monitor check {lastCheck && now ? ago(now - lastCheck) : "waiting"}</span>
+          <BackfillLink backfill={snapshot?.backfill} />
           <button type="button" className="ml-auto text-foreground underline" onClick={() => { const next = !feed; setFeed(next); localStorage.setItem("weth-activity-feed", next ? "on" : "off") }}>{feed ? "Hide activity feed" : "Show activity feed"}</button>
         </div>
       </header>

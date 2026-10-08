@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createAudioContext, notificationState, playNamedTone, requestNotifications } from "@/lib/alerts"
-import { notificationCopy, passesNotifyFilter } from "@/lib/lp/burn-logic"
+import { isLiveBurnAlert, notificationCopy, passesNotifyFilter } from "@/lib/lp/burn-logic"
 import {
   DEFAULT_CONFIG,
   PAIR_AGE_FILTERS,
@@ -181,7 +181,7 @@ export function LpMonitor({ children }: { children: ReactNode }) {
   const considerAlerts = useCallback((data: SnapshotFile) => {
     const current = configRef.current
     const now = Date.now()
-    const events = eventsOf(data).filter((event) => event.kind === "newly-burned")
+    const events = eventsOf(data).filter((event) => isLiveBurnAlert(event))
     const seen = readSeen()
     if (seen == null) {
       writeSeen(new Set(eventsOf(data).map((event) => event.id)))

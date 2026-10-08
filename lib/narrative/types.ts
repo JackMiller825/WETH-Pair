@@ -1,3 +1,4 @@
+import type { BackfillState } from "@/lib/history/plan"
 import type { ChainCheckpoint } from "@/lib/lp/burn-logic"
 import type { LpBurnEvent, LpScan } from "@/lib/lp/monitor"
 import type { PairRecord } from "@/lib/types"
@@ -50,6 +51,7 @@ export type SnapshotFile = {
   lpBurns?: LpBurnEvent[]
   lpScan?: LpScan
   chain?: ChainCheckpoint
+  backfill?: BackfillState
 }
 
 export type TokenRef = {

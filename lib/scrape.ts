@@ -112,7 +112,7 @@ async function fetchPage(cursor: number | null): Promise<ListingPage> {
   return payload.data
 }
 
-export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]; scanned: number }> {
+export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]; scanned: number; listingOldestAt: string | null; listingComplete: boolean }> {
   if (!Number.isFinite(hours) || hours <= 0 || hours > COLLECTION_MAX_HOURS) {
     throw new ListingError(`Choose a period between 1 and ${COLLECTION_MAX_HOURS} hours.`)
   }
@@ -124,6 +124,8 @@ export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]
   let scanned = 0
   let cursor: number | null = null
   let previousCursor: number | null = null
+  let listingOldest = Number.POSITIVE_INFINITY
+  let listingComplete = false
 
   const exchangeNames = await fetchExchangeNames()
 
@@ -146,8 +148,13 @@ export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]
       matches.push(row)
     }
 
+    if (oldestOnPage < listingOldest) listingOldest = oldestOnPage
     const nextTs = data.next?.ts
-    if (oldestOnPage < cutoff || nextTs === undefined || nextTs === null) break
+    if (oldestOnPage < cutoff) {
+      listingComplete = true
+      break
+    }
+    if (nextTs === undefined || nextTs === null) break
     if (previousCursor !== null && nextTs >= previousCursor) break
     previousCursor = nextTs
     cursor = nextTs
@@ -155,5 +162,10 @@ export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]
   }
 
   matches.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-  return { rows: matches, scanned }
+  return {
+    rows: matches,
+    scanned,
+    listingOldestAt: Number.isFinite(listingOldest) ? new Date(listingOldest).toISOString() : null,
+    listingComplete,
+  }
 }

@@ -28,6 +28,7 @@ export type ChainBurn = {
   percent: number | null
   supply: number | null
   burnedTokens: number | null
+  detectionSource?: "live" | "backfill"
 }
 
 export type { ChainCheckpoint }

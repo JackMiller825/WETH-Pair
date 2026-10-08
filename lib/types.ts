@@ -47,6 +47,9 @@ export type PairDetail = {
   lpBurnFrom?: string | null
   /** ethereum-transfer is a chain Transfer log. dextools is the pair-page balance. */
   lpSource?: "ethereum-transfer" | "dextools" | null
+  /** dextools is the live listing. ethereum-pair-created is a factory log older than that listing. */
+  listingSource?: "dextools" | "ethereum-pair-created" | null
+  identityResolved?: boolean
 }
 
 export type PairRecord = PairRow & PairDetail

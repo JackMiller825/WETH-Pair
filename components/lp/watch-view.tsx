@@ -24,8 +24,14 @@ import {
   watchStatus,
   type LpBurnEvent,
 } from "@/lib/lp/monitor"
+import { HistoryPanel } from "@/components/progress/history-panel"
 import { useLpMonitor } from "@/components/lp/monitor-context"
 import type { PairRecord } from "@/lib/types"
+
+function oldestOf(values: string[]): number | null {
+  const times = values.map((value) => Date.parse(value)).filter(Number.isFinite)
+  return times.length ? Math.min(...times) : null
+}
 
 export function LpWatchSummary() {
   const { config, mode, snapshot, lastCheck, nextCheck, scanNow } = useLpMonitor()
@@ -110,6 +116,17 @@ export function LpBurnWatch() {
         </p>
       </header>
 
+      {snapshot && now != null ? (
+        <HistoryPanel
+          backfill={snapshot.backfill}
+          oldestPair={oldestOf(snapshot.rows.map((row) => row.created_at))}
+          pairCount={snapshot.rows.length}
+          oldestBurn={oldestOf(events.map((event) => event.burnAt ?? ""))}
+          burnCount={events.length}
+          requestedMs={bounds && !("error" in bounds) ? bounds.end - bounds.start : undefined}
+          now={now}
+        />
+      ) : null}
       <section className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-medium">Refresh interval</h2>

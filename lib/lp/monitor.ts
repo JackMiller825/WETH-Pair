@@ -50,6 +50,8 @@ export type LpBurnEvent = {
   burnFrom: string | null
   logIndex?: number | null
   source?: "ethereum-transfer" | "dextools"
+  /** Backfill burns are stored and are not live alerts. */
+  detectionSource?: "live" | "backfill"
   percentKnown?: boolean
   burnTo?: string | null
 }
@@ -239,8 +241,10 @@ export function buildLpBurns(
       seenIds.add(placeholder.id)
       continue
     }
-    newBurns += 1
-    const created = eventFromChain(record, burn, scannedAt, "newly-burned")
+    const backfill = burn.detectionSource === "backfill"
+    if (!backfill) newBurns += 1
+    const created = eventFromChain(record, burn, scannedAt, backfill ? "previously-burned" : "newly-burned")
+    created.detectionSource = backfill ? "backfill" : "live"
     fresh.push(created)
     seenIds.add(created.id)
   }

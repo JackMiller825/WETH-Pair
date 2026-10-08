@@ -19,6 +19,7 @@ import { AddressCell } from "@/components/address-cell"
 import { AlertStack } from "@/components/alert-stack"
 import { Pager } from "@/components/pager"
 import { ResultsToolbar } from "@/components/results-toolbar"
+import { HistoryPanel } from "@/components/progress/history-panel"
 import { WatchPanel } from "@/components/watch-panel"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -118,6 +119,12 @@ type Run = {
   checked: number
   failed: number
   publishedAt: string | null
+  coverage?: {
+    backfill: import("@/lib/history/plan").BackfillState | null
+    oldestPair: number | null
+    stored: number
+    requestedMs: number
+  }
 }
 
 type Progress = { label: string; done: number; total: number }
@@ -143,24 +150,43 @@ function downloadFile(filename: string, contents: string, format: OutputFormat) 
 type PublishedSnapshot = {
   generatedAt?: string
   rows?: PairRecord[]
+  backfill?: import("@/lib/history/plan").BackfillState
 }
 
-async function loadPublishedWindow(hours: number): Promise<{
+async function loadPublishedWindow(start: number, end: number): Promise<{
   rows: PairRecord[]
   publishedAt: string | null
+  backfill: import("@/lib/history/plan").BackfillState | null
+  oldestPair: number | null
+  stored: number
 }> {
   const response = await fetch(`/data/snapshot.json?ts=${Date.now()}`, { cache: "no-store" })
   if (!response.ok) throw new Error("The pair list could not be loaded.")
   const payload = (await response.json()) as PublishedSnapshot
   const rows = Array.isArray(payload.rows) ? payload.rows : []
-  const cutoff = Date.now() - hours * 60 * 60 * 1000
+  const times = rows.map((row) => Date.parse(row.created_at)).filter(Number.isFinite)
   return {
     rows: rows.filter((row) => {
       const created = Date.parse(row.created_at)
-      return Number.isFinite(created) && created >= cutoff
+      return Number.isFinite(created) && created >= start && created <= end
     }),
     publishedAt: typeof payload.generatedAt === "string" ? payload.generatedAt : null,
+    backfill: payload.backfill ?? null,
+    oldestPair: times.length ? Math.min(...times) : null,
+    stored: rows.length,
   }
+}
+
+function windowBounds(hours: number, startText: string, endText: string): { start: number; end: number } | { error: string } {
+  if (startText && endText) {
+    const start = Date.parse(startText)
+    const end = Date.parse(endText)
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return { error: "The custom start and end could not be read." }
+    if (start >= end) return { error: "The start must be before the end." }
+    if (end - start > 30 * 24 * 60 * 60 * 1000) return { error: "A custom range cannot be longer than 30 days." }
+    return { start, end }
+  }
+  return { start: Date.now() - hours * 60 * 60 * 1000, end: Date.now() }
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -390,6 +416,8 @@ function BurntCard({ record, zone, isNew }: { record: PairRecord; zone: string; 
 
 export function PairFinder() {
   const [periodId, setPeriodId] = useState("24")
+  const [customStart, setCustomStart] = useState("")
+  const [customEnd, setCustomEnd] = useState("")
   const [customHours, setCustomHours] = useState("12")
   const [format, setFormat] = useState<OutputFormat>("csv")
   const [zone, setZone] = useState(LOCAL_ZONE)
@@ -423,7 +451,8 @@ export function PairFinder() {
 
   const selectedPeriod = PERIODS.find((period) => period.id === periodId) ?? PERIODS[2]
   const selectedHours = selectedPeriod.hours ?? Number(customHours)
-  const hoursValid = Number.isFinite(selectedHours) && selectedHours > 0 && selectedHours <= MAX_HOURS
+  const datedCustom = selectedPeriod.id === "custom" && Boolean(customStart && customEnd)
+  const hoursValid = datedCustom || (Number.isFinite(selectedHours) && selectedHours > 0 && selectedHours <= MAX_HOURS)
   const busy = running !== null || refreshing
 
   const exchanges = useMemo(() => (run ? exchangeOptions(run.records) : []), [run])
@@ -501,19 +530,27 @@ export function PairFinder() {
     hours: number,
     onProgress?: (progress: Progress) => void,
   ): Promise<{ finished: Run; records: PairRecord[] }> {
-    onProgress?.({ label: "Reading the live new pairs feed", done: 0, total: 0 })
+    onProgress?.({ label: "Reading the published pair history", done: 0, total: 0 })
+    const bounds = windowBounds(hours, customStart, customEnd)
+    if ("error" in bounds) throw new Error(bounds.error)
     if (process.env.NEXT_PUBLIC_PAGES === "1") {
-      const listing = await loadPublishedWindow(hours)
+      const listing = await loadPublishedWindow(bounds.start, bounds.end)
       const targets = mode === "burnt" ? listing.rows.filter((row) => canBurnLp(row.exchange)) : listing.rows
       const records = mode === "burnt" ? targets.filter((row) => row.lpStatus === "burnt") : targets
       const finished: Run = {
         mode,
         hours,
-        scanned: listing.rows.length,
+        scanned: listing.stored,
         records,
         checked: targets.length,
         failed: records.filter((record) => record.lpStatus === "unknown").length,
         publishedAt: listing.publishedAt,
+        coverage: {
+          backfill: listing.backfill,
+          oldestPair: listing.oldestPair,
+          stored: listing.stored,
+          requestedMs: bounds.end - bounds.start,
+        },
       }
       return { finished, records }
     }
@@ -552,8 +589,9 @@ export function PairFinder() {
 
   async function execute(mode: Mode, hoursOverride?: number): Promise<Run | null> {
     const hours = hoursOverride ?? selectedHours
-    if (!Number.isFinite(hours) || hours <= 0 || hours > MAX_HOURS) {
-      setError(`Enter a period from 1 to ${MAX_HOURS} hours.`)
+    const dated = Boolean(customStart && customEnd)
+    if (!dated && (!Number.isFinite(hours) || hours <= 0 || hours > MAX_HOURS)) {
+      setError(`Enter a period from 1 to ${MAX_HOURS} hours, or a custom start and end.`)
       return null
     }
     setError(null)
@@ -831,8 +869,19 @@ export function PairFinder() {
           </div>
 
           {selectedPeriod.id === "custom" ? (
-            <div className="flex max-w-xs flex-col gap-2">
-              <Label htmlFor="custom-hours">Hours</Label>
+            <div className="flex max-w-xl flex-col gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="custom-start">Start</Label>
+                  <Input id="custom-start" type="datetime-local" value={customStart} onChange={(event) => setCustomStart(event.target.value)} disabled={busy} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="custom-end">End</Label>
+                  <Input id="custom-end" type="datetime-local" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} disabled={busy} />
+                </div>
+              </div>
+              <div className="flex max-w-xs flex-col gap-2">
+              <Label htmlFor="custom-hours">Or last N hours</Label>
               <Input
                 id="custom-hours"
                 type="number"
@@ -843,6 +892,7 @@ export function PairFinder() {
                 onChange={(event) => setCustomHours(event.target.value)}
                 disabled={busy}
               />
+              </div>
             </div>
           ) : null}
 
@@ -911,6 +961,7 @@ export function PairFinder() {
         </CardContent>
       </Card>
 
+      {run?.coverage ? <HistoryPanel backfill={run.coverage.backfill} oldestPair={run.coverage.oldestPair} pairCount={run.coverage.stored} oldestBurn={null} burnCount={0} requestedMs={run.coverage.requestedMs} now={Date.now()} /> : null}
       <Card ref={resultsRef} className="scroll-mt-4">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-1">
