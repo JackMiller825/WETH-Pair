@@ -10,9 +10,15 @@ type RawLock = {
   percent?: number
   amount?: number
   unlockDate?: string
+  lockDate?: string
+  tx?: string
+  hash?: string
+  transaction?: string
+  address?: string
 }
 
 type RawPair = {
+  creationBlock?: number
   locks?: RawLock[]
   metrics?: {
     liquidity?: number | null
@@ -143,7 +149,33 @@ export function parseDetail(raw: RawPair): PairDetail {
     tokenCreatedAt: text(raw.token?.creationTime),
     symbol: text(raw.token?.symbol),
     tokenName: text(raw.token?.name),
+    lpSupply: num(raw.metrics?.balanceLpToken),
+    lpBurnedTokens: num(raw.metrics?.balanceLpTokenBurned),
+    creationBlock: num(raw.creationBlock),
+    ...burnMeta(raw),
   }
+}
+
+const BURN_ADDRESSES = new Set([
+  "0x0000000000000000000000000000000000000000",
+  "0x000000000000000000000000000000000000dead",
+])
+
+function isBurnLock(lock: RawLock): boolean {
+  const type = (lock.type ?? "").toLowerCase()
+  const address = (lock.address ?? "").toLowerCase()
+  return type.includes("burn") || BURN_ADDRESSES.has(address)
+}
+
+function burnMeta(raw: RawPair): Pick<PairDetail, "lpBurnTx" | "lpBurnAt" | "lpBurnBlock" | "lpBurnFrom"> {
+  const locks = [...(raw.locks ?? []), ...(raw.token?.locks ?? [])]
+  for (const lock of locks) {
+    if (!isBurnLock(lock)) continue
+    const tx = text(lock.tx) || text(lock.hash) || text(lock.transaction)
+    const at = text(lock.lockDate)
+    if (tx || at) return { lpBurnTx: tx, lpBurnAt: at, lpBurnBlock: null, lpBurnFrom: text(lock.address) }
+  }
+  return { lpBurnTx: null, lpBurnAt: null, lpBurnBlock: null, lpBurnFrom: null }
 }
 
 export async function fetchPairDetail(address: string): Promise<PairDetail> {

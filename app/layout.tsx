@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AlertWatcher } from "@/components/alert-watcher";
+import { LpMonitor } from "@/components/lp/monitor-context";
 import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "WETH live pairs",
-  description: "Live WETH pairs and name, ticker, and narrative trends for newly launched Ethereum tokens.",
+  description: "Live WETH pairs, LP burn monitoring, and name, ticker, and narrative trends for newly launched Ethereum tokens.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -27,8 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <SiteNav />
-        <AlertWatcher />
-        {children}
+        <LpMonitor>
+          <AlertWatcher />
+          {children}
+        </LpMonitor>
       </body>
     </html>
   );

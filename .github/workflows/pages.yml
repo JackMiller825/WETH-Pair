@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
   schedule:
-    # Refresh the published pair list. GitHub may delay scheduled runs.
-    - cron: "*/15 * * * *"
+    # Shortest schedule GitHub allows. The browser refresh interval is separate and can be faster.
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:

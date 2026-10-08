@@ -38,6 +38,13 @@ export type PairDetail = {
   tokenCreatedAt?: string | null
   symbol?: string | null
   tokenName?: string | null
+  lpSupply?: number | null
+  lpBurnedTokens?: number | null
+  creationBlock?: number | null
+  lpBurnTx?: string | null
+  lpBurnAt?: string | null
+  lpBurnBlock?: number | null
+  lpBurnFrom?: string | null
 }
 
 export type PairRecord = PairRow & PairDetail

@@ -4,6 +4,7 @@ import { fetchPairDetails } from "../lib/details"
 import { captureHistory } from "../lib/narrative/engine"
 import { fetchNews } from "../lib/narrative/rss"
 import type { HistoryPoint, SnapshotFile } from "../lib/narrative/types"
+import { buildLpBurns } from "../lib/lp/monitor"
 import { collectWethPairs } from "../lib/scrape"
 import { COLLECTION_MAX_HOURS, EMPTY_DETAIL, normalizeLp, type PairRecord } from "../lib/types"
 
@@ -29,11 +30,23 @@ async function main() {
   const generatedAt = new Date().toISOString()
   const [news, previous] = await Promise.all([fetchNews(Date.parse(generatedAt)), loadPrevious()])
   const history = trimHistory([...(previous?.history ?? []), captureHistory(records, generatedAt)], Date.parse(generatedAt))
-  const snapshot: SnapshotFile = { generatedAt, hours, scanned, rows: records, news, history }
+  const lp = buildLpBurns(records, previous, generatedAt)
+  const snapshot: SnapshotFile = {
+    generatedAt,
+    hours,
+    scanned,
+    rows: records,
+    news,
+    history,
+    lpBurns: lp.events,
+    lpScan: lp.scan,
+  }
   const file = path.join("public", "data", "snapshot.json")
   await mkdir(path.dirname(file), { recursive: true })
   await writeFile(file, JSON.stringify(snapshot))
-  console.log(`Wrote ${file} (${records.length} rows, ${news.length} headlines, ${history.length} history points).`)
+  console.log(
+    `Wrote ${file} (${records.length} rows, ${news.length} headlines, ${history.length} history points, ${lp.events.length} LP burns).`,
+  )
 }
 
 async function loadPrevious(): Promise<SnapshotFile | null> {

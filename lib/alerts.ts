@@ -13,12 +13,24 @@ export function createAudioContext(): AudioContext | null {
   }
 }
 
+export type AlertSound = "beep" | "chime" | "pulse"
+
+const ALERT_TONES: Record<AlertSound, number[]> = {
+  beep: [880, 1320],
+  chime: [523, 659, 784],
+  pulse: [220, 330, 220],
+}
+
 /** Two short rising beeps. */
 export function playAlertTone(context: AudioContext | null) {
+  playNamedTone(context, "beep")
+}
+
+export function playNamedTone(context: AudioContext | null, name: AlertSound) {
   if (!context) return
   void context.resume()
   const start = context.currentTime
-  ;[880, 1320].forEach((frequency, index) => {
+  ALERT_TONES[name].forEach((frequency, index) => {
     const oscillator = context.createOscillator()
     const gain = context.createGain()
     const at = start + index * 0.22

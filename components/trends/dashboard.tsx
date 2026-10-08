@@ -6,6 +6,7 @@ import { buildIntelligence } from "@/lib/narrative/engine"
 import type { WindowId } from "@/lib/narrative/types"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
+import { LpWatchSummary } from "@/components/lp/watch-view"
 import { DataGate, PageFrame, Section, TrendCard, WindowPicker, growthLabel } from "@/components/trends/widgets"
 import { DIRECTION_LABEL } from "@/lib/narrative/types"
 
@@ -20,6 +21,7 @@ export function Dashboard() {
   return (
     <PageFrame title="What is being named right now" lede="Names, tickers, and shared narratives from newly launched Ethereum/WETH pairs. Counts come from the published pair list. A reason is shown only when a fetched headline supports it.">
       <WindowPicker value={windowId} onChange={setWindowId} />
+      <LpWatchSummary />
       <DataGate loading={loading} error={error} ready={Boolean(intel)}>
         {intel && snapshot ? (
           <>

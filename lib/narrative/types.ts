@@ -1,3 +1,4 @@
+import type { LpBurnEvent, LpScan } from "@/lib/lp/monitor"
 import type { PairRecord } from "@/lib/types"
 import type { ConceptHit } from "@/lib/narrative/text"
 
@@ -55,6 +56,8 @@ export type SnapshotFile = {
   rows: PairRecord[]
   news?: NewsItem[]
   history?: HistoryPoint[]
+  lpBurns?: LpBurnEvent[]
+  lpScan?: LpScan
 }
 
 export type TokenRef = {

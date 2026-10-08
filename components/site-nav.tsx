@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 const LINKS = [
   ["/", "Dashboard"],
   ["/pairs", "New Pairs"],
+  ["/lp-burns", "🔥 LP Burn Watch"],
   ["/trends", "Trends"],
   ["/narratives", "Narratives"],
   ["/news", "News → Tokens"],
