@@ -167,13 +167,18 @@ export function passesNotifyFilter(
   now: number,
 ): boolean {
   if (event.percentKnown === false) return settings.minBurnPercent <= 0
-  if (event.lpBurntPercent < settings.minBurnPercent) return false
+  if (event.lpBurntPercent <= 0 || event.lpBurntPercent < settings.minBurnPercent) return false
   if (settings.minLiquidity > 0 && (event.liquidity == null || event.liquidity < settings.minLiquidity)) return false
   if (settings.maxPairAgeMinutes != null) {
     const age = pairAgeMs(event.createdAt, now)
     if (age == null || age > settings.maxPairAgeMinutes * 60_000) return false
   }
   return true
+}
+
+/** A zero result is the Uniswap minimum-liquidity lock, not a burned LP position. */
+export function isReportedBurn(percent: number | null | undefined): boolean {
+  return percent == null || percent > 0
 }
 
 export function formatBurnPercent(value: number | null | undefined, percentKnown = true): string {

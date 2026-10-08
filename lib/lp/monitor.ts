@@ -1,6 +1,6 @@
 import type { AlertSound } from "@/lib/alerts"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
-import { burnTimeMs, formatBurnPercent } from "@/lib/lp/burn-logic"
+import { burnTimeMs, formatBurnPercent, isReportedBurn } from "@/lib/lp/burn-logic"
 import { matchConcepts, parseIdentity } from "@/lib/narrative/text"
 import { RANGES, rangeById } from "@/lib/time-range"
 import type { PairRecord } from "@/lib/types"
@@ -133,7 +133,7 @@ export function applyChainBurns(records: PairRecord[], burns: ChainBurn[]): Pair
   }
   return records.map((record) => {
     const burn = byPair.get(record.address.toLowerCase())
-    if (!burn) return record
+    if (!burn || !isReportedBurn(burn.percent)) return record
     const percent = burn.percent
     const next: PairRecord = {
       ...record,
@@ -213,7 +213,7 @@ export function buildLpBurns(
 
   for (const burn of chainBurns) {
     const record = recordsByPair.get(burn.pair)
-    if (!record) continue
+    if (!record || !isReportedBurn(burn.percent)) continue
     pairsWithChain.add(burn.pair)
     const id = burnEventId(burn.pair, burn.tx, burn.logIndex)
     const stored = previousById.get(id)
@@ -266,6 +266,7 @@ export function buildLpBurns(
 
   for (const event of previousById.values()) {
     if (seenIds.has(event.id)) continue
+    if (event.source === "ethereum-transfer" && !isReportedBurn(event.lpBurntPercent)) continue
     const at = Date.parse(event.burnAt ?? event.detectedAt)
     if (Number.isFinite(at) && now - at <= EVENT_MAX_AGE_MS) fresh.push(event)
   }

@@ -10,6 +10,7 @@ import {
   createdInRange,
   filterBurnEvents,
   formatBurnPercent,
+  isReportedBurn,
   notificationCopy,
   parseTransferLog,
   passesNotifyFilter,
@@ -38,6 +39,9 @@ test("burn percent sums every burn address and does not round 99.8 up to 100", (
   assert.equal(formatBurnPercent(percent), "99.8%")
   assert.equal(burnPercent(supply, [BigInt(10000)]), 100)
   assert.equal(burnPercent(BigInt(0), [BigInt(1)]), null)
+  assert.equal(isReportedBurn(0), false)
+  assert.equal(isReportedBurn(0.01), true)
+  assert.equal(isReportedBurn(null), true)
 })
 
 test("case A: a two-minute-old pair burned one minute ago is inside every short burn window", () => {
