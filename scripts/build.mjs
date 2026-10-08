@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const required=['index.html','styles.css','app.js','site-config.json','assets/logo.webp','assets/banner.webp','assets/banner.png','assets/meme-01.png','assets/meme-02.png','assets/favicon.png'];
+for(const file of required) if(!fs.existsSync(file))throw Error('Missing required file: '+file);
+const c=JSON.parse(fs.readFileSync('site-config.json','utf8'));
+if(c.chainId!==1)throw Error('These independent concepts target Ethereum mainnet, chain ID 1.');
+if(c.contractAddress && (!/^0x[0-9a-fA-F]{40}$/.test(c.contractAddress) || /^0x0{40}$/i.test(c.contractAddress)))throw Error('Invalid contract address');
+for(const [key,value] of Object.entries(c.links||{})) if(value && (new URL(value)).protocol!=='https:')throw Error('Use HTTPS for '+key);
+fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist');
+for(const file of ['index.html','styles.css','app.js','site-config.json'])fs.copyFileSync(file,path.join('dist',file));
+fs.cpSync('assets','dist/assets',{recursive:true});
+if(fs.existsSync('CNAME'))fs.copyFileSync('CNAME',path.join('dist','CNAME'));
+console.log('Build complete. Publish the contents of dist/.');

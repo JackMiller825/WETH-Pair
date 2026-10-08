@@ -1,0 +1,10 @@
+{
+  "name": "Spud Panic",
+  "ticker": "SPUDP",
+  "tagline": "Maximum starch. Minimum composure.",
+  "chainId": 1,
+  "contractAddress": null,
+  "siteUrl": null,
+  "links": {"buy": null, "x": null, "telegram": null, "dexscreener": null, "dextools": null},
+  "tokenomics": {"supply": null, "tax": null, "liquidity": null, "ownership": null}
+}

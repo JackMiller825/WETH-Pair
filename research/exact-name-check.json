@@ -1,0 +1,8 @@
+{
+  "fetched_at": "2026-10-08T20:26:16.802Z",
+  "scope": "Additional exact joined-name check; not exhaustive namespace clearance",
+  "query": "SpudPanic",
+  "url": "https://api.dexscreener.com/latest/dex/search?q=SpudPanic",
+  "schemaVersion": "1.0.0",
+  "pairs": []
+}

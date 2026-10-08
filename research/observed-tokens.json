@@ -1,0 +1,2283 @@
+[
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/2uyvcbtgmswj2nx2b54ubcypsca8qteest7nmbseepxw",
+    "pairAddress": "2UYVCbTGMsWJ2nX2B54uBCypsca8QTeesT7nMBSEePxw",
+    "baseToken": {
+      "address": "CDRS9jzt7qjJkZmhyWiDrtJbJkMacSUXt1VGmNK69dRc",
+      "name": "hot potato",
+      "symbol": "potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002795",
+    "priceUsd": "0.000003246",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 219,
+        "sells": 187
+      }
+    },
+    "volume": {
+      "h24": 22306.27,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -22.15
+    },
+    "fdv": 3246.32,
+    "marketCap": 3246.32,
+    "pairCreatedAt": 1791425414000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "meteora",
+    "url": "https://dexscreener.com/solana/bomz2no9tjzznqectpfghbx7rsbdfvmcug7aivwphu2v",
+    "pairAddress": "Bomz2No9tJZznqECTPfghbX7RsBDfvmCUG7AivWpHU2V",
+    "labels": [
+      "DYN2"
+    ],
+    "baseToken": {
+      "address": "A6Lqzj2rCSexRUcryNNWzSoxbGLP1ZiXJJwWe5SJZM9R",
+      "name": "Hot Potato",
+      "symbol": "HOT"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002199",
+    "priceUsd": "0.000002529",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 1.2,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -1.07
+    },
+    "liquidity": {
+      "usd": 5037.71,
+      "base": 995690798,
+      "quote": 21.9111
+    },
+    "fdv": 2529,
+    "marketCap": 2529,
+    "pairCreatedAt": 1791230466000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/dfeekycibpmhzs9kan9vsuvqb4p4suyvarrfpkcamjv7",
+    "pairAddress": "DFEEKyciBPMHZs9KAN9VsUVqB4P4suYvaRrFpKCAmjV7",
+    "baseToken": {
+      "address": "E8Q4rFdX98byYoTKkwiJdx2MmBN6JbkKXiKsmHkTPNi5",
+      "name": "hot potato",
+      "symbol": "potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002795",
+    "priceUsd": "0.000003034",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 4,
+        "sells": 14
+      },
+      "h24": {
+        "buys": 4,
+        "sells": 14
+      }
+    },
+    "volume": {
+      "h24": 1530.84,
+      "h6": 1530.84,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h6": -40.71,
+      "h24": -40.71
+    },
+    "fdv": 3034.39,
+    "marketCap": 3034.39,
+    "pairCreatedAt": 1791477439000
+  },
+  {
+    "chainId": "base",
+    "dexId": "flapsh",
+    "url": "https://dexscreener.com/base/0xc6283aec45f10b3cfb305d16105124d4089fbba3",
+    "pairAddress": "0xc6283aec45F10b3cfb305d16105124D4089fBBA3",
+    "baseToken": {
+      "address": "0x597be99c22760ecaaDA13fC1433B7b05E76B7777",
+      "name": "Hot Potato",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "0x4200000000000000000000000000000000000006",
+      "name": "Wrapped Ether",
+      "symbol": "WETH"
+    },
+    "priceNative": "0.000000001733",
+    "priceUsd": "0.000004464",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 0
+      }
+    },
+    "volume": {
+      "h24": 0,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 9884.81,
+      "base": 1107036644,
+      "quote": 1.9189
+    },
+    "fdv": 4465,
+    "marketCap": 4465,
+    "pairCreatedAt": 1791425591000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/96me3a8v7egbkymaycqhohqxfycdsljvttemercmwzaw",
+    "pairAddress": "96me3A8V7EgBKyMayCQHohqXFYcDsLJVtteMErCMwzaW",
+    "baseToken": {
+      "address": "HgW4xcRUwFtVDycaEkmYZUr17GrxY1wMLy6PHzNxD9ur",
+      "name": "hot potato",
+      "symbol": "potato"
+    },
+    "quoteToken": {
+      "address": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "name": "SP500 xStock",
+      "symbol": "SPYx"
+    },
+    "priceNative": "0.0000",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 0
+      }
+    },
+    "volume": {
+      "h24": 0,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "pairCreatedAt": 1791426033000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/392wn5rbj53de8j1yynl2ngkegj3nwbskaq8x5dp4xae",
+    "pairAddress": "392Wn5RbJ53dE8J1yYNL2NGKEGJ3nwbSKAQ8x5dp4Xae",
+    "baseToken": {
+      "address": "E1gGySS9yTTNuEibkEbPv54oBHY1nY7qcQ3PJqT7pump",
+      "name": "Hot Potato Pad",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002809",
+    "priceUsd": "0.000003250",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 4.74,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -0.16
+    },
+    "fdv": 3250.38,
+    "marketCap": 3250.38,
+    "pairCreatedAt": 1790634396000
+  },
+  {
+    "chainId": "base",
+    "dexId": "uniswap",
+    "url": "https://dexscreener.com/base/0x604d7fee438439c2f9989dce8a51f210822f434ac725dc232bf311de77ef0571",
+    "pairAddress": "0x604d7fee438439c2f9989dce8a51f210822f434ac725dc232bf311de77ef0571",
+    "labels": [
+      "v4"
+    ],
+    "baseToken": {
+      "address": "0x3Ab0CB34b5333a9c5e1eA37AD92895DD962a6C15",
+      "name": "Hotpotato",
+      "symbol": "HOTPOTATO"
+    },
+    "quoteToken": {
+      "address": "0x4200000000000000000000000000000000000006",
+      "name": "Wrapped Ether",
+      "symbol": "WETH"
+    },
+    "priceNative": "0.0000000003692",
+    "priceUsd": "0.0000009532",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 2,
+        "sells": 2
+      }
+    },
+    "volume": {
+      "h24": 1.15,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -32.3
+    },
+    "liquidity": {
+      "usd": 943.88,
+      "base": 989451431,
+      "quote": 0.0002636
+    },
+    "fdv": 953,
+    "marketCap": 953,
+    "pairCreatedAt": 1791390471000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpswap",
+    "url": "https://dexscreener.com/solana/dbwk94gvun2hj6nhhjmhwsfusyicauexw2f9fhclxtcd",
+    "pairAddress": "DBWk94gvuN2Hj6nHhJMHWSfuSyicaueXw2f9FHcLxTCd",
+    "baseToken": {
+      "address": "66eAjoi4Wc7G38QbmE2eoqmQxiKGkSuaAAduN66Xpump",
+      "name": "SPUD The Idaho Potato",
+      "symbol": "SPUD"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.000002436",
+    "priceUsd": "0.0002627",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 1,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 2,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 1440.64,
+      "h6": 9.9,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h6": -9.85,
+      "h24": -15.65
+    },
+    "liquidity": {
+      "usd": 48466.94,
+      "base": 92315058,
+      "quote": 224.5383
+    },
+    "fdv": 260465,
+    "marketCap": 260465,
+    "pairCreatedAt": 1764974643000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/wtBCBFSlF_Hr8jaq?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/66b80a479cd16019665ce378f9bf5d6b180855cc625958141f3a7173c7cdb63a?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/66eAjoi4Wc7G38QbmE2eoqmQxiKGkSuaAAduN66Xpump?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://www.spudcrypto.com/",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/ofcl_spudcrypto?s=11&t=qbVUr45fwDA6V0KrUUadpA",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/SPUDHARVESTGROUP",
+          "type": "telegram"
+        },
+        {
+          "url": "https://www.instagram.com/spud.crypto?igsh=Y2lodHNhNXJoMHln&utm_source=qr",
+          "type": "instagram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "arc",
+    "dexId": "uniswap",
+    "url": "https://dexscreener.com/arc/0x548ed84156cd274cd84ce65ac63d214a685ac810ff78204a1ae2a139221c8974",
+    "pairAddress": "0x548ed84156cd274cd84ce65ac63d214a685ac810ff78204a1ae2a139221c8974",
+    "labels": [
+      "v4"
+    ],
+    "baseToken": {
+      "address": "0x333a07961b50924056B15477b409a9Ae774e1Ed7",
+      "name": "Potato",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "0x3600000000000000000000000000000000000000",
+      "name": "USDC",
+      "symbol": "USDC"
+    },
+    "priceNative": "0.00006764",
+    "priceUsd": "0.00006764",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 4,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 16,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 26,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 1805.41,
+      "h6": 541.87,
+      "h1": 83.16,
+      "m5": 0
+    },
+    "priceChange": {
+      "h1": 1.28,
+      "h6": 8.83,
+      "h24": 32.31
+    },
+    "liquidity": {
+      "usd": 23427.67,
+      "base": 191500965,
+      "quote": 10473
+    },
+    "fdv": 31609,
+    "marketCap": 31609,
+    "pairCreatedAt": 1788848578000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/icHBbdNHwL7bgrk7?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/9qoBnVMV3zavXtLJ?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/arc/0x333a07961b50924056b15477b409a9ae774e1ed7?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://www.potatonarc.fun",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/Potatonarc",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/potatonarc",
+          "type": "telegram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "bsc",
+    "dexId": "pancakeswap",
+    "url": "https://dexscreener.com/bsc/0xbad174d2ab580f5dcab3c333c490cff362d47e72",
+    "pairAddress": "0xbAd174d2Ab580F5DcaB3c333C490cfF362d47E72",
+    "labels": [
+      "v2"
+    ],
+    "baseToken": {
+      "address": "0xff130b022Ad6fC7A6E7150e62a417aA498d1e767",
+      "name": "POTATO",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "0x55d398326f99059fF775485246999027B3197955",
+      "name": "Tether USD",
+      "symbol": "USDT"
+    },
+    "priceNative": "17.6689",
+    "priceUsd": "17.66",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 1,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 19,
+        "sells": 37
+      },
+      "h24": {
+        "buys": 76,
+        "sells": 111
+      }
+    },
+    "volume": {
+      "h24": 29986.24,
+      "h6": 14581.8,
+      "h1": 19.96,
+      "m5": 0
+    },
+    "priceChange": {
+      "h1": 0.02,
+      "h6": -2.04,
+      "h24": -1.22
+    },
+    "liquidity": {
+      "usd": 396834.95,
+      "base": 11229,
+      "quote": 198417
+    },
+    "fdv": 1535660,
+    "marketCap": 1535660,
+    "pairCreatedAt": 1782181307000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/ahc6efekpira389r7jxawpdf3urvvgtk5bcqwfw7y18t",
+    "pairAddress": "AHc6eFEKpiRa389R7JxawpDF3uRVvGtK5BCQwfw7y18t",
+    "baseToken": {
+      "address": "2V6Gkb7UA9Ku1KvY6niMpHzZCQy45Km79zdy9gm9pump",
+      "name": "potato",
+      "symbol": "pot"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000003571",
+    "priceUsd": "0.000003792",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h24": {
+        "buys": 67,
+        "sells": 61
+      }
+    },
+    "volume": {
+      "h24": 8896.91,
+      "h6": 46.04,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h6": -9.95,
+      "h24": 3.11
+    },
+    "fdv": 3792.06,
+    "marketCap": 3792.06,
+    "pairCreatedAt": 1745551282000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/aeae8be99c46a56df5aa87c9954803f519f57aa143b6f8488aed69d0df36b3fc?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/0a4f5e03f3cc8ab4d2e1fcd1f096dba31f624891d3d2dbc7b34cba7c42d93838?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/2V6Gkb7UA9Ku1KvY6niMpHzZCQy45Km79zdy9gm9pump?timestamp=1791490200000",
+      "websites": [],
+      "socials": [
+        {
+          "url": "https://x.com/i/communities/1972985269017260511",
+          "type": "twitter"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "raydium",
+    "url": "https://dexscreener.com/solana/8fkqrhtdq3am6buhepubz6j3jo1vc4dzt4xnux3ump5e",
+    "pairAddress": "8fkQrhTDQ3aM6bUHEpUbz6j3jo1vC4dZT4XnUX3umP5e",
+    "labels": [
+      "CLMM"
+    ],
+    "baseToken": {
+      "address": "GEYrotdkRitGUK5UMv3aMttEhVAZLhRJMcG82zKYsaWB",
+      "name": "POTATO",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+      "name": "USDT",
+      "symbol": "USDT"
+    },
+    "priceNative": "0.00000001339",
+    "priceUsd": "0.00000001339",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 1,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 0
+      }
+    },
+    "volume": {
+      "h24": 19.64,
+      "h6": 19.64,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 8821.68,
+      "base": 648449215713,
+      "quote": 136.2909
+    },
+    "fdv": 121416,
+    "marketCap": 121416,
+    "pairCreatedAt": 1725095887000
+  },
+  {
+    "chainId": "hedera",
+    "dexId": "saucerswap",
+    "url": "https://dexscreener.com/hedera/0x0147c680a17e278ab08046a04ecf531f8030fa66",
+    "pairAddress": "0x0147C680a17E278aB08046A04ecf531f8030FA66",
+    "labels": [
+      "v1"
+    ],
+    "baseToken": {
+      "address": "0x00000000000000000000000000000000008bfFc7",
+      "name": "Potato",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "0x0000000000000000000000000000000000163B5a",
+      "name": "Wrapped Hbar",
+      "symbol": "WHBAR"
+    },
+    "priceNative": "145538.9906",
+    "priceUsd": "13560.47",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 3,
+        "sells": 0
+      }
+    },
+    "volume": {
+      "h24": 1.15,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": 0.42
+    },
+    "liquidity": {
+      "usd": 753.24,
+      "base": 0.02777,
+      "quote": 4042.1475
+    },
+    "fdv": 13560,
+    "marketCap": 13560,
+    "pairCreatedAt": 1748563542000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/0a798d29243a136dc939cb1c6d1002a7ad625cb5ae5de3eb176d3fb1886a52d8?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/1507b203a064589818986bf25802760d0887d811fd519f741a2d01030b43752b?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/hedera/0x00000000000000000000000000000000008bffc7?timestamp=1791490200000",
+      "websites": [],
+      "socials": [
+        {
+          "url": "https://x.com/potato_hbar",
+          "type": "twitter"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "arc",
+    "dexId": "uniswap",
+    "url": "https://dexscreener.com/arc/0xb3f5da97b6438733bd60c6b8bfd628d92d8bc926890835958849149c4317413e",
+    "pairAddress": "0xb3f5da97b6438733bd60c6b8bfd628d92d8bc926890835958849149c4317413e",
+    "labels": [
+      "v4"
+    ],
+    "baseToken": {
+      "address": "0xfc6CD516C75D16a04113CD1A260c82bdcc056D62",
+      "name": "rdbotato",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "0x3600000000000000000000000000000000000000",
+      "name": "USDC",
+      "symbol": "USDC"
+    },
+    "priceNative": "0.000003765",
+    "priceUsd": "0.000003765",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 2
+      }
+    },
+    "volume": {
+      "h24": 21.14,
+      "h6": 0.25,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h6": -0.02,
+      "h24": 0.63
+    },
+    "liquidity": {
+      "usd": 3632.34,
+      "base": 811617704,
+      "quote": 575.7985
+    },
+    "fdv": 3766,
+    "marketCap": 3766,
+    "pairCreatedAt": 1789565087000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/Lo8yrNJFVUd71mZQ?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/CUibdK0UNKtC2NO3?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/arc/0xfc6cd516c75d16a04113cd1a260c82bdcc056d62?timestamp=1791490200000",
+      "websites": [],
+      "socials": [
+        {
+          "url": "https://x.com/NukzzFNn/status/2100214258982142445",
+          "type": "twitter"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpswap",
+    "url": "https://dexscreener.com/solana/fd35pvzqwuhjd1epdvh9u85vpgzrxun9lmjx7sptevmg",
+    "pairAddress": "Fd35pvzQWUHjD1EPDVH9U85vpgZrxuN9LMjx7SPtEvMg",
+    "baseToken": {
+      "address": "3oBRGPMpvR1TpHRx9oMEeJwSgwv7Fo7ndshuu2rQpump",
+      "name": "감자",
+      "symbol": "Potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000005028",
+    "priceUsd": "0.000005335",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 1,
+        "sells": 1
+      },
+      "h24": {
+        "buys": 4,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 9.01,
+      "h6": 8.49,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h6": -8.94,
+      "h24": -9.71
+    },
+    "liquidity": {
+      "usd": 8452.5,
+      "base": 787579701,
+      "quote": 40.06307
+    },
+    "fdv": 5334,
+    "marketCap": 5334,
+    "pairCreatedAt": 1782682454000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/7xc6hvko2PWqqvC7?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/YarSf25uOFaPOMrF?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/3oBRGPMpvR1TpHRx9oMEeJwSgwv7Fo7ndshuu2rQpump?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://www.potatocat.fun/",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/i/communities/1998679404185084413",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/PotatoTheCatPortal",
+          "type": "telegram"
+        },
+        {
+          "url": "https://www.instagram.com/paju_nam/",
+          "type": "instagram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpswap",
+    "url": "https://dexscreener.com/solana/anuykw2z1tobeptcsm2qjc6ydgfndqnxq9scnfrxshsd",
+    "pairAddress": "AnUykW2z1toBepTcSm2qjc6YDgFnDQNXQ9ScNFRXshSd",
+    "baseToken": {
+      "address": "2UmGWqyd7zJA6eq6pweySY1jVar4JVbAm8LPYhHUpump",
+      "name": "Potato",
+      "symbol": "Potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000003408",
+    "priceUsd": "0.000003826",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 0.48,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 6332.75,
+      "base": 822402525,
+      "quote": 28.3809
+    },
+    "fdv": 3727,
+    "marketCap": 3727,
+    "pairCreatedAt": 1770031227000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/af1f831ca17c8719bdfe42b3bbc0a68ea2d573d048ff5a0dc6260f2e0b670f2f?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/43fac37e968763c728e20dd20a2f3996cd84bac4c11c4c83b2a428d6708e65ce?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/2UmGWqyd7zJA6eq6pweySY1jVar4JVbAm8LPYhHUpump?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://potatogrammy.fun/",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/i/communities/2018264373966307456",
+          "type": "twitter"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "raydium",
+    "url": "https://dexscreener.com/solana/7hwsmouxve5e5c2vnzmj75tsyablope2gdcfn5ctitsr",
+    "pairAddress": "7HWsMoUXvE5E5C2VNzMJ75TSyaBLoPE2gdCFN5CTiTsr",
+    "baseToken": {
+      "address": "4YurFfsBq3jbdpwPn3qGN7xrCSp9wxUzmLx1DEW5pump",
+      "name": "Billion Dollar Potato",
+      "symbol": "Potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002716",
+    "priceUsd": "0.000003151",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 2.6,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 5557.33,
+      "base": 880890344,
+      "quote": 23.9707
+    },
+    "fdv": 3146,
+    "marketCap": 3146,
+    "pairCreatedAt": 1736594771000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/a94e221f412d699e5a29cbd712773dd81a779e396b02676ff69c398981c84f5b?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/04e7fb1099789214258330b0ffff5f37632e63b44a305a0d8c65cb5c2d3bc0c5?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/4YurFfsBq3jbdpwPn3qGN7xrCSp9wxUzmLx1DEW5pump?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://billion-dollar-potato.fun/",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/BDPotato_CTO?t=YniwI4oN4-xQkP_lYCzk_Q&s=09",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/billion_dollar_Potato_CTO",
+          "type": "telegram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "raydium",
+    "url": "https://dexscreener.com/solana/4yvuvhwv8x1a5d9q28f8j2bikuseqmpbonl3kbeed6fs",
+    "pairAddress": "4yVuVHWv8x1a5d9Q28F8j2BikuSEqmpBoNL3KbeEd6fS",
+    "baseToken": {
+      "address": "6qSodf26ZAP7skxuHb9jcZHkL7WYaBzD6qkdhL7ypump",
+      "name": "Potato",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002333",
+    "priceUsd": "0.000002706",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 0.25,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 4931.59,
+      "base": 909969404,
+      "quote": 21.2878
+    },
+    "fdv": 2701,
+    "marketCap": 2701,
+    "pairCreatedAt": 1730669694000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/bf11eb273752f4cb618d4b9e482033609ba2b11efed649b1104940afab6dc0de?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/be848687cd7ec9c822c61f9b2e70923b95bc445f27ef2ea212f92338433245b2?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/6qSodf26ZAP7skxuHb9jcZHkL7WYaBzD6qkdhL7ypump?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://po-tato.xyz/",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/Potato_Solana_",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/SOLPotato",
+          "type": "telegram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpswap",
+    "url": "https://dexscreener.com/solana/hvdgqvv9khaxmthj63nk6qft4ujexzkmb5bireowniyv",
+    "pairAddress": "HVDGQvV9KhaXMTHj63NK6qft4UJeXzKmb5biREoWniYv",
+    "baseToken": {
+      "address": "FJVjdjfe7AcVov1hbZF1qNRp8Lf1wvWyhEGs1vi4pump",
+      "name": "Potato",
+      "symbol": "Potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000001805",
+    "priceUsd": "0.000002026",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 0.11,
+      "h6": 0.11,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 4007.9,
+      "base": 982857007,
+      "quote": 17.9691
+    },
+    "fdv": 2016,
+    "marketCap": 2016,
+    "pairCreatedAt": 1771976228000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/9UKA-_XJAQnrklLl?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/-btf8OVDqKoIluC7?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/FJVjdjfe7AcVov1hbZF1qNRp8Lf1wvWyhEGs1vi4pump?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://github.com/drtshock/Potato",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/i/communities/2026439555671380477/",
+          "type": "twitter"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpswap",
+    "url": "https://dexscreener.com/solana/3x77qhmbyvpst9jqc8pzdqjxkwfhwaaabds1npt1y1uo",
+    "pairAddress": "3X77QHMByvpst9jQc8PZDQJxkwfHwaAaBDs1NpT1y1uo",
+    "baseToken": {
+      "address": "25cwvFXmkDacW6tkqj3uw9x7MaKL9QkporHxRphipump",
+      "name": "just a fucking potato",
+      "symbol": "potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002104",
+    "priceUsd": "0.000002440",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 5.22,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -1.34
+    },
+    "liquidity": {
+      "usd": 2513.65,
+      "base": 927514301,
+      "quote": 2.1523
+    },
+    "fdv": 2299,
+    "marketCap": 2299,
+    "pairCreatedAt": 1788307368000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/d495wICFMhmxICJZ?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/YCvuVwC3Aym0UT9F?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/25cwvFXmkDacW6tkqj3uw9x7MaKL9QkporHxRphipump?timestamp=1791490200000",
+      "websites": [],
+      "socials": [
+        {
+          "url": "https://x.com/Pattyice/status/2094933597601906781?s=20",
+          "type": "twitter"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "raydium",
+    "url": "https://dexscreener.com/solana/2hogv8gsztmtpstsf2d11e27etupbycxqfw5mvvs1nzy",
+    "pairAddress": "2HogV8gsztmtpSTSF2d11E27etuPbYCxQFW5MVvS1nZY",
+    "baseToken": {
+      "address": "H3z919g6zYWXG3iyysWztUQWnWy6J4BxE53MgRVuBymv",
+      "name": "POTATO",
+      "symbol": "TATO"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.000000007914",
+    "priceUsd": "0.0000009184",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 3
+      }
+    },
+    "volume": {
+      "h24": 0.24,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -0.04
+    },
+    "liquidity": {
+      "usd": 1710.69,
+      "base": 930163377,
+      "quote": 7.3802
+    },
+    "fdv": 903,
+    "marketCap": 903,
+    "pairCreatedAt": 1723370376000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/fefcf33f96a0b1c5122cb328d3e83bf0a2b19c7c010535e66997e7243ad83c2a?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/98ed6d8a1f798d99371cbd13d87e0c14cf4207fc84dd1a1dffd677966079bf89?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/H3z919g6zYWXG3iyysWztUQWnWy6J4BxE53MgRVuBymv?timestamp=1791490200000",
+      "websites": [
+        {
+          "url": "https://tatopotato.xyz",
+          "label": "Website"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/tatopotatoxyz",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/tatopotatoxyz",
+          "type": "telegram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "raydium",
+    "url": "https://dexscreener.com/solana/a46suqoxztknjr9zsxqwegf53ulicsmdd5t1qornjdb3",
+    "pairAddress": "A46sUqoxztknjr9zSXQWegf53ULicSmDD5T1qoRnjDb3",
+    "baseToken": {
+      "address": "FcHuKv3txaqnDheDzwW3YpP2JNAFUTXLPbAGR84F36zE",
+      "name": "potato",
+      "symbol": "potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.000000008798",
+    "priceUsd": "0.000001012",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 0.95,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 1861.6,
+      "base": 918404594,
+      "quote": 8.09215
+    },
+    "fdv": 1008,
+    "marketCap": 1008,
+    "pairCreatedAt": 1720791898000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/844db5484d68a7fe86db618ae317efb4f807210f80ea4c0cef9d876db56739b8?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/c1dac519434b1b0a5cf2fa8facffb07100ea18a362d2930c4dd1f16d7d86a7d7?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/FcHuKv3txaqnDheDzwW3YpP2JNAFUTXLPbAGR84F36zE?timestamp=1791490200000",
+      "websites": [],
+      "socials": [
+        {
+          "url": "https://x.com/ctopotato",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/potatocto",
+          "type": "telegram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "arc",
+    "dexId": "uniswap",
+    "url": "https://dexscreener.com/arc/0x1ac065dd5368c746e87f16c6755ee49327199c27c1fd1c3efa7d699a751b3e00",
+    "pairAddress": "0x1ac065dd5368c746e87f16c6755ee49327199c27c1fd1c3efa7d699a751b3e00",
+    "labels": [
+      "v4"
+    ],
+    "baseToken": {
+      "address": "0xA2feCee2809BBAA31413ae2Ad4AD0650DA1167FC",
+      "name": "potato",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "0x3600000000000000000000000000000000000000",
+      "name": "USDC",
+      "symbol": "USDC"
+    },
+    "priceNative": "0.000003513",
+    "priceUsd": "0.000003513",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 1.22,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 3423.63,
+      "base": 840306461,
+      "quote": 471.4456
+    },
+    "fdv": 3513,
+    "marketCap": 3513,
+    "pairCreatedAt": 1790434579000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/a1ioxhscrf9qrtlxz364qxxhvidwoyakvqtcbgqpxyfp",
+    "pairAddress": "A1ioXHSCRF9QRtLxz364QxXhviDWoyaKvQtCBgQpxYfp",
+    "baseToken": {
+      "address": "GSKVpdmvWapabkWoMwRornL9dPeQivLxs5P9aLi2pump",
+      "name": "SI MADURO",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002797",
+    "priceUsd": "0.000003140",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 66,
+        "sells": 58
+      }
+    },
+    "volume": {
+      "h24": 5065.75,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -11.41
+    },
+    "fdv": 3140.38,
+    "marketCap": 3140.38,
+    "pairCreatedAt": 1791466249000
+  },
+  {
+    "chainId": "ton",
+    "dexId": "dedust",
+    "url": "https://dexscreener.com/ton/eqahsbixhssjs8chjp13sztzlsrdef3vh6-jcvuir6drjh9u",
+    "pairAddress": "EQAHsBIXHsSJs8ChJP13SztZlSRDEF3Vh6-jCvUiR6Drjh9U",
+    "baseToken": {
+      "address": "EQAmVbnOPXMinHPATJidr7HqleQRfeDPJ3Stbgd70YwNq0N9",
+      "name": "Potato",
+      "symbol": "TATER"
+    },
+    "quoteToken": {
+      "address": "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c",
+      "name": "Gram",
+      "symbol": "GRAM"
+    },
+    "priceNative": "0.0000009867",
+    "priceUsd": "0.000001335",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 10
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 10
+      }
+    },
+    "volume": {
+      "h24": 10.21,
+      "h6": 10.21,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h6": -2.21,
+      "h24": -2.21
+    },
+    "liquidity": {
+      "usd": 1646.12,
+      "base": 613769470,
+      "quote": 610.9785
+    },
+    "fdv": 1335,
+    "marketCap": 1335,
+    "pairCreatedAt": 1786330520000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpswap",
+    "url": "https://dexscreener.com/solana/5hezifkqu3vx3kffmhspfwgjw43db8blfgrjxorsyprq",
+    "pairAddress": "5HeZifKqu3vX3kFfmHsPfWGjW43db8BLfgRjXorsYprq",
+    "baseToken": {
+      "address": "GicwGn7XvWRKt1297uUKbZtY4hpma1sAWqjPBmMsEgYE",
+      "name": "Pot Potato",
+      "symbol": "Potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002446",
+    "priceUsd": "0.000002778",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 10.16,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -1.3
+    },
+    "liquidity": {
+      "usd": 2727.12,
+      "base": 845713434,
+      "quote": 3.321
+    },
+    "fdv": 2399,
+    "marketCap": 2399,
+    "pairCreatedAt": 1790882704000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpswap",
+    "url": "https://dexscreener.com/solana/2qwvmql3oa7fcbhjwdydciqgmygaw7gvy2e4dwxvyrua",
+    "pairAddress": "2qWvMQL3oa7fCbhjwDyDciqgmYgAW7GVy2E4DwXVYrUa",
+    "baseToken": {
+      "address": "CeCJhi9Nv54DMhz5YV5SB98Y16fxrUmCjKERjpxnpump",
+      "name": "The Potato Pill",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000001820",
+    "priceUsd": "0.000002044",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 0.1,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 2057.35,
+      "base": 979909608,
+      "quote": 0.477
+    },
+    "fdv": 2004,
+    "marketCap": 2004,
+    "pairCreatedAt": 1790137552000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "raydium",
+    "url": "https://dexscreener.com/solana/98zmtjsu4rgnd9mogvujbkjdfwdpqwm7wwvwdaxkrsxq",
+    "pairAddress": "98Zmtjsu4RGNd9MoGVUJBKJDfWdPQWm7WwVwDaXkRsXQ",
+    "baseToken": {
+      "address": "JBwrmZNxBiN8ZoWd4vSf3RwiFZ3QsCLoSkbDFyDhpump",
+      "name": "Potato Kingdom",
+      "symbol": "Potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000001697",
+    "priceUsd": "0.000001895",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 1,
+        "sells": 0
+      }
+    },
+    "volume": {
+      "h24": 1.11,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "liquidity": {
+      "usd": 3733.68,
+      "base": 986013797,
+      "quote": 16.706
+    },
+    "fdv": 1895,
+    "marketCap": 1895,
+    "pairCreatedAt": 1742308870000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/fhcqayev5d6ko3yryyd99vcdgeyvzo1ty8x7rl499yap",
+    "pairAddress": "FhCqayeV5d6ko3YRYYD99vCdgEyVZo1TY8X7RL499yap",
+    "baseToken": {
+      "address": "JCbjV9NdZuYUNSPURDhhwi1FM4o69yfdtymXFqcNpump",
+      "name": "Potato",
+      "symbol": "Chat"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002869",
+    "priceUsd": "0.000003337",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 6,
+        "sells": 6
+      }
+    },
+    "volume": {
+      "h24": 657.98,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": 0.05
+    },
+    "fdv": 3337.82,
+    "marketCap": 3337.82,
+    "pairCreatedAt": 1791417843000
+  },
+  {
+    "chainId": "bsc",
+    "dexId": "pancakeswap",
+    "url": "https://dexscreener.com/bsc/0x8e23333ce88524dbae69c89e4b83823b257afdd5",
+    "pairAddress": "0x8e23333Ce88524Dbae69c89e4b83823b257AFdd5",
+    "labels": [
+      "v2"
+    ],
+    "baseToken": {
+      "address": "0xf664f07cB134Ac5AF492fD1E80E4C4794db6237C",
+      "name": "Potato",
+      "symbol": "POTATO"
+    },
+    "quoteToken": {
+      "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+      "name": "Wrapped BNB",
+      "symbol": "WBNB"
+    },
+    "priceNative": "0.000000000004874",
+    "priceUsd": "0.000000003778",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 7,
+        "sells": 3
+      }
+    },
+    "volume": {
+      "h24": 91.59,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -100
+    },
+    "liquidity": {
+      "usd": 0,
+      "base": 75382,
+      "quote": 3.674e-7
+    },
+    "fdv": 3778599027533,
+    "marketCap": 3778599027533,
+    "pairCreatedAt": 1791413912000
+  },
+  {
+    "chainId": "base",
+    "dexId": "uniswap",
+    "url": "https://dexscreener.com/base/0xda18d77747f35a221bc73d57bb8b26081119a9e738f7c505bc39026bdd7600bb",
+    "pairAddress": "0xda18d77747f35a221bc73d57bb8b26081119a9e738f7c505bc39026bdd7600bb",
+    "labels": [
+      "v4"
+    ],
+    "baseToken": {
+      "address": "0x54544DA0559d814cD9303eBEC0a56CEeFBEE5FC9",
+      "name": "Potato",
+      "symbol": "PATO"
+    },
+    "quoteToken": {
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "name": "USD Coin",
+      "symbol": "USDC"
+    },
+    "priceNative": "0.000008002",
+    "priceUsd": "0.000008002",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h6": {
+        "buys": 2,
+        "sells": 4
+      },
+      "h24": {
+        "buys": 2,
+        "sells": 4
+      }
+    },
+    "volume": {
+      "h24": 1.86,
+      "h6": 1.86,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h1": -0.01,
+      "h6": -0.55,
+      "h24": -0.55
+    },
+    "liquidity": {
+      "usd": 7201.9,
+      "base": 899999883,
+      "quote": 0.000932
+    },
+    "fdv": 7202,
+    "marketCap": 7202,
+    "pairCreatedAt": 1791475879000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/axwdaccae4uobzdpwbxebwjq9zvkngkneu613gppsagn",
+    "pairAddress": "AxWDACcAE4UoBZdpwBXebWjQ9zvKngKNEU613gppsaGn",
+    "baseToken": {
+      "address": "HQPknsTDqiqWyUHkFGiPnfKgAzgeNS3HdXBfvhEcpump",
+      "name": "The Solana Potato",
+      "symbol": "Potato"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002795",
+    "priceUsd": "0.000003217",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 5,
+        "sells": 5
+      }
+    },
+    "volume": {
+      "h24": 340.27,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -4.84
+    },
+    "fdv": 3217.24,
+    "marketCap": 3217.24,
+    "pairCreatedAt": 1791446713000
+  },
+  {
+    "chainId": "ethereum",
+    "dexId": "uniswap",
+    "url": "https://dexscreener.com/ethereum/0xa97acd8153d031978ec3e4a510d0b7c4d5a5b30243cbcdb84194703ca0b0c4a9",
+    "pairAddress": "0xa97acd8153d031978ec3e4a510d0b7c4d5a5b30243cbcdb84194703ca0b0c4a9",
+    "labels": [
+      "v4"
+    ],
+    "baseToken": {
+      "address": "0x72E734747959a221FDc7cbaF8e481f5E8E0951e4",
+      "name": "Spuds Finance",
+      "symbol": "SPUD"
+    },
+    "quoteToken": {
+      "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "name": "Wrapped Ether",
+      "symbol": "WETH"
+    },
+    "priceNative": "0.00000001129",
+    "priceUsd": "0.00002752",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 1,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 3,
+        "sells": 0
+      }
+    },
+    "volume": {
+      "h24": 38.56,
+      "h6": 32.57,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h6": -2.7,
+      "h24": -4.29
+    },
+    "liquidity": {
+      "usd": 11861.52,
+      "base": 215445534,
+      "quote": 2.4329
+    },
+    "fdv": 9526,
+    "marketCap": 9526,
+    "pairCreatedAt": 1779314015000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/xEY_2sAk_ncxET1u?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/pspYU3RwUf0MnDaF?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/ethereum/0x72e734747959a221fdc7cbaf8e481f5e8e0951e4?timestamp=1791490500000",
+      "websites": [
+        {
+          "url": "https://spuds.finance",
+          "label": "Website"
+        }
+      ],
+      "socials": []
+    }
+  },
+  {
+    "chainId": "abstract",
+    "dexId": "abstractswap",
+    "url": "https://dexscreener.com/abstract/0x5b294eaf18aaa85a7c4a3ee255307147470e9f98",
+    "pairAddress": "0x5B294EAf18AaA85a7c4a3EE255307147470E9F98",
+    "labels": [
+      "v2"
+    ],
+    "baseToken": {
+      "address": "0x44cCa204FD7a6b357ED88c2C5feFa667ee7bE305",
+      "name": "Spud ",
+      "symbol": "SPUD"
+    },
+    "quoteToken": {
+      "address": "0x3439153EB7AF838Ad19d56E1571FBD09333C2809",
+      "name": "Wrapped Ether",
+      "symbol": "WETH"
+    },
+    "priceNative": "0.000000001510",
+    "priceUsd": "0.000003807",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 4
+      }
+    },
+    "volume": {
+      "h24": 8.93,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -2.58
+    },
+    "liquidity": {
+      "usd": 6365.29,
+      "base": 835798998,
+      "quote": 1.2624
+    },
+    "fdv": 3477,
+    "marketCap": 3477,
+    "pairCreatedAt": 1738220270000,
+    "info": {
+      "imageUrl": "https://cdn.dexscreener.com/cms/images/5mODgDki9RoWg4sz?width=800&height=800&quality=95&format=auto",
+      "header": "https://cdn.dexscreener.com/cms/images/Zvex9PvJrMsfB94j?width=1500&height=500&quality=95&format=auto",
+      "openGraph": "https://cdn.dexscreener.com/token-images/og/abstract/0x44cca204fd7a6b357ed88c2c5fefa667ee7be305?timestamp=1791490500000",
+      "websites": [
+        {
+          "url": "https://spudonabstract.com/",
+          "label": "Website"
+        },
+        {
+          "url": "https://www.tiktok.com/@spudthealien",
+          "label": "TikTok"
+        }
+      ],
+      "socials": [
+        {
+          "url": "https://x.com/SPUDTheAlien",
+          "type": "twitter"
+        },
+        {
+          "url": "https://t.me/SpudOnAbstract",
+          "type": "telegram"
+        }
+      ]
+    }
+  },
+  {
+    "chainId": "solana",
+    "dexId": "meteoradbc",
+    "url": "https://dexscreener.com/solana/79fduafdgyyk1vet6rb9wmtdfwbxmadvfnukopditg62",
+    "pairAddress": "79fduaFdgyyK1vet6rB9WMtdfwBxmaDvfNuKoPditG62",
+    "baseToken": {
+      "address": "5EHjhWXD22N39R77YgTcsMAgLukdRcmmQNqTnYZCMn1y",
+      "name": "SPUD THUG",
+      "symbol": "SPUD"
+    },
+    "quoteToken": {
+      "address": "D1YZZg9dBZ7AbfknZVbaeVLto36eySwoFYEVhZrD4F4n",
+      "name": "LESGO",
+      "symbol": "GO"
+    },
+    "priceNative": "0.01226",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 0,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "pairCreatedAt": 1791394379000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/h39bs3gvyjgsyev4p9ulrehjtb28jpeovaqdrdsnkrpe",
+    "pairAddress": "H39bs3GVyJGsyEv4P9uLrEHJtB28jpEoVAqDRDsnkRPe",
+    "baseToken": {
+      "address": "uZTqfxdDVmyoGvbAmRSKqiX9U39o8UjSp4NEVgCpump",
+      "name": "Spud the Dog",
+      "symbol": "Spud"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002796",
+    "priceUsd": "0.000003238",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 0.33,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "fdv": 3238.39,
+    "marketCap": 3238.39,
+    "pairCreatedAt": 1779665833000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/bppn4yssmzbjstkepgrrnjymyjhvet2kmwdf8mkjmtbw",
+    "pairAddress": "BPpN4YSsmzBjstKePgRRnJYmyjHVEt2KmWdF8MKJmtBW",
+    "baseToken": {
+      "address": "5WaG8GjfmVDiFuJ7q9SGZNG3gmhnGs47iz4afhU2pump",
+      "name": "Spudsy's Wacky Watch",
+      "symbol": "Wacky"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002796",
+    "priceUsd": "0.000003253",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 79,
+        "sells": 79
+      }
+    },
+    "volume": {
+      "h24": 10524.48,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {
+      "h24": -4.69
+    },
+    "fdv": 3253.46,
+    "marketCap": 3253.46,
+    "pairCreatedAt": 1791418556000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/b7fpmslyquhjr1j1jprmuuzf7ytpzay32neyb3c4uqjs",
+    "pairAddress": "B7FpmsLyqUhJr1j1JprmUuZF7ytPzay32Neyb3C4uqJs",
+    "baseToken": {
+      "address": "CbAkFPyarpY9EXKf2cJxMPMEw8Lo3ziKbwrfs4ujpump",
+      "name": "ClaimsPud",
+      "symbol": "CLAIMS"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.00000002797",
+    "priceUsd": "0.000003048",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 1
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 1
+      }
+    },
+    "volume": {
+      "h24": 6.59,
+      "h6": 6.59,
+      "h1": 6.59,
+      "m5": 0
+    },
+    "priceChange": {},
+    "fdv": 3048.98,
+    "marketCap": 3048.98,
+    "pairCreatedAt": 1790198184000
+  },
+  {
+    "chainId": "solana",
+    "dexId": "pumpfun",
+    "url": "https://dexscreener.com/solana/7drufnh7brn5fqlzt26xuyac3qqabc6h8xuhiz727wti",
+    "pairAddress": "7drUFnh7brn5fQLzt26xuYac3QqAbc6h8xuHiz727wti",
+    "baseToken": {
+      "address": "CeA9FzvQSmWhk8ENnTJnhMndRaKuFzqMnWoWz3aU3ctA",
+      "name": "Farmer Elon",
+      "symbol": "ELONSPUD"
+    },
+    "quoteToken": {
+      "address": "So11111111111111111111111111111111111111112",
+      "name": "Wrapped SOL",
+      "symbol": "SOL"
+    },
+    "priceNative": "0.0000",
+    "txns": {
+      "m5": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h1": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h6": {
+        "buys": 0,
+        "sells": 0
+      },
+      "h24": {
+        "buys": 0,
+        "sells": 0
+      }
+    },
+    "volume": {
+      "h24": 0,
+      "h6": 0,
+      "h1": 0,
+      "m5": 0
+    },
+    "priceChange": {},
+    "pairCreatedAt": 1791411744000
+  }
+]

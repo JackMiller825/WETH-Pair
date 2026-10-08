@@ -3,9 +3,6 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main]
-  schedule:
-    # Shortest schedule GitHub allows. The browser refresh interval is separate and can be faster.
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -32,26 +29,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-
-      - name: Install
-        run: npm ci
-
-      - name: Publish pair snapshot
-        run: npx tsx scripts/snapshot.ts
 
       - name: Build
-        env:
-          PAGES_EXPORT: "1"
-          NEXT_PUBLIC_PAGES: "1"
-        run: |
-          rm -rf app/api
-          npm run build
+        run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: out
+          path: dist
 
       - name: Deploy
         id: deployment

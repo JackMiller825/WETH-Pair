@@ -1,0 +1,86 @@
+{
+  "scope": "Indexed legacy Ethereum name and direct token-pair check recorded separately from DEX search counts",
+  "checks": {
+    "results": [
+      {
+        "url": "https://api.dexscreener.com/token-pairs/v1/ethereum/0xb091e74e1dba43ca65d494d090eb435b8ca136d4",
+        "final_url": "https://api.dexscreener.com/token-pairs/v1/ethereum/0xb091e74e1dba43ca65d494d090eb435b8ca136d4",
+        "title": null,
+        "description": null,
+        "language": null,
+        "text": {
+          "type": "document",
+          "children": [
+            {
+              "type": "code",
+              "text": "[]"
+            }
+          ]
+        },
+        "author": null,
+        "published_date": null,
+        "latency_ms": 1945.5627700008336,
+        "format": "json",
+        "page_metadata": {
+          "color_scheme": "light dark"
+        }
+      },
+      {
+        "url": "https://www.spx6900.com/",
+        "final_url": "https://www.spx6900.com/",
+        "title": "SPX6900 ($SPX) is the meme coin out to flip the stock market",
+        "description": "Stop trading, believe in something. Home of the Ethereum quantum tech, Lumina, and Project Aeon.",
+        "language": "en",
+        "text": {
+          "type": "document",
+          "children": [
+            {
+              "type": "paragraph",
+              "text": "$SPX coin has no intrinsic value or expectation of financial return. There is no formal team or roadmap. The coin is completely for entertainment purposes only with no affiliations with the S&P 500. Always do your own research before investing."
+            },
+            {
+              "type": "paragraph",
+              "text": "© 2026 $SPX. All rights reserved."
+            }
+          ]
+        },
+        "author": null,
+        "published_date": null,
+        "latency_ms": 3617.9588439990766,
+        "format": "json",
+        "page_metadata": {
+          "favicon": "https://www.spx6900.com/favicon.ico",
+          "viewport": "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover",
+          "og": {
+            "type": "website",
+            "site_name": "SPX6900",
+            "title": "SPX6900 ($SPX) is the meme coin out to flip the stock market",
+            "description": "Stop trading, believe in something. Home of the Ethereum quantum tech, Lumina, and Project Aeon.",
+            "image": [
+              "https://www.spx6900.com/og-banner.png"
+            ],
+            "image:width": "1200",
+            "image:height": "630"
+          },
+          "twitter": {
+            "card": "summary_large_image",
+            "title": "SPX6900 ($SPX) is the meme coin out to flip the stock market",
+            "description": "Stop trading, believe in something. Home of the Ethereum quantum tech, Lumina, and Project Aeon.",
+            "image": "https://www.spx6900.com/og-banner.png"
+          }
+        }
+      }
+    ],
+    "errors": [
+      {
+        "url": "https://dexscreener.com/ethereum/0xB091e74E1dba43CA65D494d090eb435B8CA136d4?embed=1&info=0&theme=dark&trades=0",
+        "error": "bot_blocked"
+      }
+    ]
+  },
+  "recording": {
+    "url": "https://www.youtube.com/watch?v=QhnQdUHIjp0",
+    "title": "Fireside Chat: Balaji Srinivasan & Shayne Coplan - TOKEN2049 Singapore 2024",
+    "usable_for_2026_quote": false
+  }
+}
