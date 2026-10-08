@@ -4,7 +4,8 @@ export const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11
 export const REORG_BLOCKS = 12
 /** First run only. Later runs continue from the saved block, not from a 24-hour query. */
 export const BOOTSTRAP_LOOKBACK_BLOCKS = 300
-export const BLOCK_CHUNK = 100
+/** Several public RPCs reject eth_getLogs ranges above 50 blocks. */
+export const BLOCK_CHUNK = 40
 export const MAX_CHUNKS_PER_RUN = 20
 
 export const BURN_ADDRESS_LIST = [
