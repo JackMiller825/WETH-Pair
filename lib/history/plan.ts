@@ -33,6 +33,8 @@ export type HistoryJob = {
   olderStart: number
   olderEnd: number
   cursor: number
+  recentHold?: number | null
+  olderCursor?: number
   blocksDone: number
   blocksTotal: number
   pairsFound: number
@@ -96,23 +98,42 @@ export function openHistoryJob(id: HistoryJob["id"], head: number, nowIso: strin
   }
 }
 
+export function focusOlderGap(job: HistoryJob): HistoryJob {
+  const olderCursor = job.olderCursor ?? job.olderStart
+  if (job.phase !== "recent" || job.blocksDone < 1500 || olderCursor >= job.olderEnd) {
+    return { ...job, olderCursor }
+  }
+  return { ...job, phase: "older", recentHold: job.cursor, cursor: olderCursor, olderCursor }
+}
+
 export function advanceJob(job: HistoryJob, nextCursor: number, nowIso: string, stage: string): HistoryJob {
   const moved = Math.max(0, nextCursor - job.cursor)
   let phase = job.phase
   let cursor = nextCursor
+  let recentHold = job.recentHold ?? null
+  let olderCursor = job.olderCursor ?? job.olderStart
   if (phase === "recent" && cursor >= job.recentEnd) {
     phase = "older"
-    cursor = job.olderStart
+    cursor = olderCursor
   }
+  if (phase === "older") olderCursor = cursor
   if (phase === "older" && cursor >= job.olderEnd) {
-    phase = "done"
-    cursor = job.olderEnd
+    if (recentHold != null && recentHold < job.recentEnd) {
+      phase = "recent"
+      cursor = recentHold
+      recentHold = null
+    } else {
+      phase = "done"
+      cursor = job.olderEnd
+    }
   }
   const done = phase === "done"
   return {
     ...job,
     phase,
     cursor,
+    recentHold,
+    olderCursor,
     blocksDone: Math.min(job.blocksTotal, job.blocksDone + moved),
     status: done ? "completed" : "running",
     stage: done ? "Historical scan complete" : stage,

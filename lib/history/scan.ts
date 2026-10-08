@@ -1,4 +1,4 @@
-import { HISTORY_CHUNK, HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, currentSlice, decodeCallResult, dexForFactory, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
+import { HISTORY_CHUNK, HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
 import { TRANSFER_TOPIC, burnPercent, isBurnAddress, parseTransferLog } from "@/lib/lp/burn-logic"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
 import { EMPTY_DETAIL, type PairRecord } from "@/lib/types"
@@ -27,12 +27,13 @@ async function callRpc(url: string, method: string, params: unknown[]): Promise<
 
 async function rpc(method: string, params: unknown[]): Promise<unknown> {
   let last = "RPC failed"
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       return await callRpc(RPCS[0], method, params)
     } catch (error) {
       last = error instanceof Error ? error.message : "RPC error"
-      await sleep(400 * (attempt + 1))
+      if (/429|rate limit|too many requests/i.test(last)) break
+      await sleep(300)
     }
   }
   try {
@@ -69,11 +70,15 @@ function shouldShrink(message: string): boolean {
   return /too many|10000|exceed|response size|log limit|more than/i.test(message)
 }
 
+function rateLimited(message: string): boolean {
+  return /429|rate limit|too many requests/i.test(message)
+}
+
 export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Promise<{ job: HistoryJob; pairs: PairRecord[] }> {
   const deadline = Date.now() + HISTORY_BUDGET_MS
   const pairs: PairRecord[] = []
   const times = new Map<number, string>()
-  let current = job
+  let current = focusOlderGap(job)
   let chunk = HISTORY_CHUNK
   while (Date.now() < deadline) {
     const slice = currentSlice(current, chunk)
@@ -84,6 +89,7 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
     }
     const found: PairRecord[] = []
     let shrink = false
+    let retry = false
     for (const factory of FACTORIES) {
       let logs: { address?: string; topics?: string[]; data?: string; blockNumber?: string }[] = []
       try {
@@ -95,6 +101,10 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
         }])) as typeof logs
       } catch (error) {
         const message = error instanceof Error ? error.message : "Log scan failed"
+        if (rateLimited(message)) {
+          retry = true
+          break
+        }
         if (chunk > 8 && shouldShrink(message)) {
           chunk = Math.max(8, Math.floor(chunk / 2))
           shrink = true
@@ -112,8 +122,13 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
         found.push(chainPair(created.pair, side.token, dex, createdAt, created.block))
       }
     }
+    if (retry) {
+      await sleep(2000)
+      continue
+    }
     if (shrink) continue
     pairs.push(...found)
+    await sleep(200)
     if (chunk < HISTORY_CHUNK) chunk = Math.min(HISTORY_CHUNK, chunk + 8)
     current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning Ethereum for WETH pairs older than the live listing")
     current = { ...current, pairsFound: current.pairsFound + found.length }
@@ -129,7 +144,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
   const deadline = Date.now() + HISTORY_BUDGET_MS
   const burns: ChainBurn[] = []
   const times = new Map<number, string>()
-  let current = job
+  let current = focusOlderGap(job)
   let chunk = HISTORY_CHUNK
   while (Date.now() < deadline) {
     const slice = currentSlice(current, chunk)
@@ -140,6 +155,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
     }
     let found = 0
     let shrink = false
+    let retry = false
     const sliceBurns: ChainBurn[] = []
     for (const topic of [DEAD_TOPIC, ZERO_TOPIC]) {
       let logs: Parameters<typeof parseTransferLog>[0][] = []
@@ -151,6 +167,10 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
         }])) as typeof logs
       } catch (error) {
         const message = error instanceof Error ? error.message : "Log scan failed"
+        if (rateLimited(message)) {
+          retry = true
+          break
+        }
         if (chunk > 8 && shouldShrink(message)) {
           chunk = Math.max(8, Math.floor(chunk / 2))
           shrink = true
@@ -179,8 +199,13 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
         })
       }
     }
+    if (retry) {
+      await sleep(2000)
+      continue
+    }
     if (shrink) continue
     burns.push(...sliceBurns)
+    await sleep(200)
     if (chunk < HISTORY_CHUNK) chunk = Math.min(HISTORY_CHUNK, chunk + 8)
     current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning historical LP transfers to burn addresses")
     current = { ...current, burnsFound: current.burnsFound + found, stage: current.phase === "done" ? "Historical LP scan complete" : "Scanning historical LP transfers to burn addresses" }

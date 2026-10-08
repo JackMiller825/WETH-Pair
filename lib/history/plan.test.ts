@@ -3,6 +3,7 @@ import test from "node:test"
 import { isLiveBurnAlert } from "../lp/burn-logic"
 import {
   advanceJob,
+  focusOlderGap,
   comparisonReady,
   countsByAge,
   decodeCallResult,
@@ -78,6 +79,18 @@ test("a history job resumes from its cursor and can finish", () => {
   assert.equal(finished.phase, "done")
   assert.equal(finished.status, "completed")
   assert.equal(jobProgress(finished), 100)
+})
+
+test("after the 3-day edge is stored, the next scan reads the 7-day gap", () => {
+  const opened = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T12:00:00.000Z", null)
+  const held = opened.cursor + 1500
+  const next = focusOlderGap({ ...opened, blocksDone: 1500, cursor: held })
+  assert.equal(next.phase, "older")
+  assert.equal(next.cursor, opened.olderStart)
+  assert.equal(next.recentHold, held)
+  const back = advanceJob({ ...next, cursor: opened.olderEnd - 5, blocksDone: 2000 }, opened.olderEnd, "2026-10-08T14:00:00.000Z", "scan")
+  assert.equal(back.phase, "recent")
+  assert.equal(back.cursor, held)
 })
 
 test("backfill burns are not live alerts", () => {
