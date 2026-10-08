@@ -7,6 +7,7 @@ export function useSnapshot() {
   const [snapshot, setSnapshot] = useState<SnapshotFile | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -27,7 +28,7 @@ export function useSnapshot() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [tick])
 
-  return { snapshot, error, loading }
+  return { snapshot, error, loading, reload: () => setTick((value) => value + 1) }
 }

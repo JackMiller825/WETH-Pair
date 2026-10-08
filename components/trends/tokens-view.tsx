@@ -18,7 +18,7 @@ export function TokensView() {
     const needle = query.trim().toLowerCase()
     const rows = intel?.tokens ?? []
     if (!needle) return rows.slice(0, 50)
-    return rows.filter((token) => `${token.symbol} ${token.tokenName} ${token.concepts.map((concept) => concept.label).join(" ")}`.toLowerCase().includes(needle)).slice(0, 50)
+    return rows.filter((token) => `${token.symbol} ${token.tokenName} ${token.tokenAddress} ${token.deployer ?? ""} ${token.concepts.map((concept) => concept.label).join(" ")}`.toLowerCase().includes(needle)).slice(0, 50)
   }, [intel, query])
 
   return (
@@ -38,7 +38,7 @@ export function TokensView() {
                   <td className="px-3 py-2">{formatUsd(token.liquidity)}</td>
                   <td className="px-3 py-2">{formatUsd(token.marketCap)}</td>
                   <td className="px-3 py-2 text-muted-foreground">{token.concepts.map((concept) => concept.label).join(", ") || "No lexicon match"}</td>
-                  <td className="px-3 py-2"><Link href={`/tokens/${token.tokenAddress}`} className="text-primary">Full analysis</Link></td>
+                  <td className="px-3 py-2"><button type="button" className="text-primary" onClick={() => setPreview(token)}>Quick view</button> <Link href={`/tokens/${token.tokenAddress}`} className="text-primary">Full analysis</Link></td>
                 </tr>
               ))}
             </tbody>

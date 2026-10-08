@@ -1,10 +1,14 @@
 import { normalizeText } from "@/lib/narrative/text"
 import type { NewsItem } from "@/lib/narrative/types"
 
+/** Public feeds only. Each adapter can fail without discarding the others. */
 const FEEDS: { source: string; kind: NewsItem["kind"]; url: string }[] = [
   { source: "CoinDesk", kind: "news", url: "https://www.coindesk.com/arc/outboundfeeds/rss/" },
   { source: "Cointelegraph", kind: "news", url: "https://cointelegraph.com/rss" },
   { source: "The Block", kind: "news", url: "https://www.theblock.co/rss.xml" },
+  { source: "Decrypt", kind: "news", url: "https://decrypt.co/feed" },
+  { source: "Bitcoin Magazine", kind: "news", url: "https://bitcoinmagazine.com/feed" },
+  { source: "TechCrunch", kind: "news", url: "https://techcrunch.com/feed/" },
   { source: "Reddit r/CryptoCurrency", kind: "reddit", url: "https://www.reddit.com/r/CryptoCurrency/new/.rss" },
   { source: "Reddit r/ethereum", kind: "reddit", url: "https://www.reddit.com/r/ethereum/new/.rss" },
 ]

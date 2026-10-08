@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts"
+    "test": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/narrative/events.test.ts lib/analysis/report.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

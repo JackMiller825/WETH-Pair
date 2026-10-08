@@ -34,6 +34,7 @@ import type {
   TrendKind,
   WindowId,
 } from "@/lib/narrative/types"
+import { analyzeEvents } from "@/lib/narrative/events"
 import { windowById } from "@/lib/narrative/types"
 import { isInsidePrevious, isInsideRange } from "@/lib/time-range"
 import type { PairRecord } from "@/lib/types"
@@ -77,7 +78,7 @@ export function buildIntelligence(snapshot: SnapshotFile, windowId: WindowId | s
     emerging,
     hot,
     cooling,
-    newsLinks: correlateNews(news, current),
+    newsLinks: correlateNews(news, tokens),
     discussionAvailable,
   }
 }
@@ -536,36 +537,33 @@ function originFor(keywords: string[], specific: boolean, tokens: TokenAnalysis[
 }
 
 function correlateNews(news: NewsItem[], tokens: TokenAnalysis[]): NewsCorrelation[] {
-  const links: NewsCorrelation[] = []
-  for (const item of news) {
-    const published = Date.parse(item.publishedAt)
-    if (!Number.isFinite(published)) continue
-    const hits = matchConcepts(item.title, "", null)
-    const concepts = hits.map((concept) => concept.label)
-    if (concepts.length === 0) continue
-    const related = tokens.filter((token) => {
-      const created = Date.parse(token.createdAt)
-      if (!Number.isFinite(created) || created < published || created - published > 48 * 3_600_000) return false
-      return token.concepts.some((concept) => concepts.includes(concept.label))
+  return analyzeEvents(news, tokens)
+    .filter((analysis) => analysis.causedBy.length > 0)
+    .slice(0, 40)
+    .map((analysis) => {
+      const source = analysis.event.sources[0]
+      const ordered = analysis.causedBy.map((link) => link.token)
+      const first = Date.parse(ordered[0].createdAt)
+      return {
+        news: {
+          id: analysis.event.id,
+          title: analysis.event.title,
+          url: source.url,
+          source: analysis.event.sources.map((item) => item.source).join(", "),
+          kind: source.kind,
+          publishedAt: analysis.event.publishedAt,
+        },
+        tokens: ordered.map(toRef),
+        firstTokenAt: ordered[0].createdAt,
+        minutesToFirst: Number.isFinite(first) ? Math.round((first - Date.parse(analysis.event.publishedAt)) / 60_000) : null,
+        deployers: analysis.deployers,
+        liquidity: analysis.liquidity,
+        volume24h: analysis.volume24h,
+        best: analysis.best,
+        origin: analysis.origin,
+        concepts: analysis.event.entities,
+      }
     })
-    if (related.length === 0) continue
-    const ordered = [...related].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    const first = Date.parse(ordered[0].createdAt)
-    const deployers = new Set(ordered.map((token) => token.deployer).filter((value): value is string => Boolean(value)))
-    links.push({
-      news: item,
-      tokens: ordered.map(toRef),
-      firstTokenAt: ordered[0].createdAt,
-      minutesToFirst: Number.isFinite(first) ? Math.round((first - published) / 60_000) : null,
-      deployers: deployers.size,
-      liquidity: sumKnown(ordered.map((token) => token.liquidity)),
-      volume24h: sumKnown(ordered.map((token) => token.volume24h)),
-      best: bestToken(ordered),
-      origin: originFor(concepts, hits.some((concept) => !concept.generic), ordered, [item]),
-      concepts,
-    })
-  }
-  return links.sort((a, b) => b.tokens.length - a.tokens.length || (a.minutesToFirst ?? 1e9) - (b.minutesToFirst ?? 1e9)).slice(0, 40)
 }
 
 function headlineMatches(title: string, keywords: string[]): boolean {
