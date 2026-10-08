@@ -7,25 +7,41 @@ const RPCS = ["https://rpc.mevblocker.io", "https://eth.drpc.org"]
 const ZERO_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000"
 const DEAD_TOPIC = "0x000000000000000000000000000000000000000000000000000000000000dead"
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function callRpc(url: string, method: string, params: unknown[]): Promise<unknown> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", "user-agent": "weth-live-pairs" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(12_000),
+  })
+  const payload = (await response.json().catch(() => null)) as { result?: unknown; error?: { message?: string } } | null
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.error?.message || `HTTP ${response.status}`)
+  }
+  return payload?.result
+}
+
 async function rpc(method: string, params: unknown[]): Promise<unknown> {
   let last = "RPC failed"
-  for (const url of RPCS) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", "user-agent": "weth-live-pairs" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-        signal: AbortSignal.timeout(20_000),
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const payload = (await response.json()) as { result?: unknown; error?: { message?: string } }
-      if (payload.error) throw new Error(payload.error.message || "RPC error")
-      return payload.result
+      return await callRpc(RPCS[0], method, params)
     } catch (error) {
       last = error instanceof Error ? error.message : "RPC error"
+      await sleep(400 * (attempt + 1))
     }
   }
-  throw new Error(last)
+  try {
+    return await callRpc(RPCS[1], method, params)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "RPC error"
+    if (/unknown state/i.test(message)) throw new Error(last)
+    throw new Error(message)
+  }
 }
 
 function hex(value: number): string {
@@ -49,19 +65,25 @@ export async function readHead(): Promise<number> {
   return head
 }
 
+function shouldShrink(message: string): boolean {
+  return /too many|10000|exceed|response size|log limit|more than/i.test(message)
+}
+
 export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Promise<{ job: HistoryJob; pairs: PairRecord[] }> {
   const deadline = Date.now() + HISTORY_BUDGET_MS
   const pairs: PairRecord[] = []
   const times = new Map<number, string>()
   let current = job
+  let chunk = HISTORY_CHUNK
   while (Date.now() < deadline) {
-    const slice = currentSlice(current, HISTORY_CHUNK)
+    const slice = currentSlice(current, chunk)
     if (!slice) {
       current = advanceJob(current, current.phase === "recent" ? current.recentEnd : current.olderEnd, now.toISOString(), current.stage)
       if (current.phase === "done") break
       continue
     }
     const found: PairRecord[] = []
+    let shrink = false
     for (const factory of FACTORIES) {
       let logs: { address?: string; topics?: string[]; data?: string; blockNumber?: string }[] = []
       try {
@@ -73,6 +95,11 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
         }])) as typeof logs
       } catch (error) {
         const message = error instanceof Error ? error.message : "Log scan failed"
+        if (chunk > 8 && shouldShrink(message)) {
+          chunk = Math.max(8, Math.floor(chunk / 2))
+          shrink = true
+          break
+        }
         return { job: { ...current, status: "failed", error: message, stage: "Pair scan stopped. The cursor stays here.", updatedAt: now.toISOString() }, pairs }
       }
       for (const log of logs) {
@@ -85,7 +112,9 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
         found.push(chainPair(created.pair, side.token, dex, createdAt, created.block))
       }
     }
+    if (shrink) continue
     pairs.push(...found)
+    if (chunk < HISTORY_CHUNK) chunk = Math.min(HISTORY_CHUNK, chunk + 8)
     current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning Ethereum for WETH pairs older than the live listing")
     current = { ...current, pairsFound: current.pairsFound + found.length }
     if (current.phase === "done") break
@@ -101,14 +130,17 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
   const burns: ChainBurn[] = []
   const times = new Map<number, string>()
   let current = job
+  let chunk = HISTORY_CHUNK
   while (Date.now() < deadline) {
-    const slice = currentSlice(current, HISTORY_CHUNK)
+    const slice = currentSlice(current, chunk)
     if (!slice) {
       current = advanceJob(current, current.phase === "recent" ? current.recentEnd : current.olderEnd, now.toISOString(), current.stage)
       if (current.phase === "done") break
       continue
     }
     let found = 0
+    let shrink = false
+    const sliceBurns: ChainBurn[] = []
     for (const topic of [DEAD_TOPIC, ZERO_TOPIC]) {
       let logs: Parameters<typeof parseTransferLog>[0][] = []
       try {
@@ -119,6 +151,11 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
         }])) as typeof logs
       } catch (error) {
         const message = error instanceof Error ? error.message : "Log scan failed"
+        if (chunk > 8 && shouldShrink(message)) {
+          chunk = Math.max(8, Math.floor(chunk / 2))
+          shrink = true
+          break
+        }
         return { job: { ...current, status: "failed", error: message, stage: "LP scan stopped. The cursor stays here.", updatedAt: now.toISOString() }, burns }
       }
       for (const log of logs) {
@@ -127,7 +164,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
         const percent = await currentBurnPercent(transfer.pair)
         if (percent == null || percent <= 0) continue
         found += 1
-        burns.push({
+        sliceBurns.push({
           pair: transfer.pair,
           tx: transfer.tx,
           logIndex: transfer.logIndex,
@@ -142,6 +179,9 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
         })
       }
     }
+    if (shrink) continue
+    burns.push(...sliceBurns)
+    if (chunk < HISTORY_CHUNK) chunk = Math.min(HISTORY_CHUNK, chunk + 8)
     current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning historical LP transfers to burn addresses")
     current = { ...current, burnsFound: current.burnsFound + found, stage: current.phase === "done" ? "Historical LP scan complete" : "Scanning historical LP transfers to burn addresses" }
     if (current.phase === "done") break
