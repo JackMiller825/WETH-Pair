@@ -18,6 +18,11 @@ export const WINDOWS = [
 export type WindowId = (typeof WINDOWS)[number]["id"]
 
 export function windowById(id: string) {
+  const custom = /^(\d+)h$/.exec(id)
+  if (custom) {
+    const hours = Math.min(168, Math.max(1, Number(custom[1])))
+    return { id: "1h" as WindowId, label: `${hours} hour${hours === 1 ? "" : "s"}`, ms: hours * 60 * 60 * 1000 }
+  }
   return WINDOWS.find((item) => item.id === id) ?? WINDOWS[3]
 }
 

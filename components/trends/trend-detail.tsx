@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { buildIntelligence, findTrend, historySeries, launchBuckets } from "@/lib/narrative/engine"
 import { SCORE_NOTES, TREND_SCORE_WEIGHTS, statusLabel } from "@/lib/narrative/score"
-import { DIRECTION_LABEL, type WindowId } from "@/lib/narrative/types"
+import { DIRECTION_LABEL } from "@/lib/narrative/types"
 import { formatCount, formatUsd } from "@/lib/format"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
@@ -12,14 +12,14 @@ import { DataGate, LaunchChart, PageFrame, Section, Sparkline, Stat, WindowPicke
 
 export function TrendDetail({ slug }: { slug: string }) {
   const { snapshot, error, loading } = useSnapshot()
-  const [windowId, setWindowId] = useState<WindowId>("6h")
+  const [windowId, setWindowId] = useState("6h")
   const focused = useMemo(() => (snapshot ? buildIntelligence(snapshot, windowId) : null), [snapshot, windowId])
   const widest = useMemo(() => (snapshot ? buildIntelligence(snapshot, "7d") : null), [snapshot])
   const trend = (focused && findTrend(focused, slug)) || (widest && findTrend(widest, slug))
   const usingFallback = Boolean(focused && trend && !findTrend(focused, slug))
 
   return (
-    <PageFrame title={trend?.name ?? "Trend"} lede="Launch counts are measured from pair creation times. Origins stay unknown unless a fetched headline shares the name, and they are labeled by how strong that evidence is.">
+    <PageFrame eyebrow="Trend detail" title={trend?.name ?? "Trend"} lede="Launch counts come from pair creation times. An origin is shown only when a fetched headline shares the name.">
       <WindowPicker value={windowId} onChange={setWindowId} />
       <DataGate loading={loading} error={error} ready={Boolean(snapshot)}>
         {snapshot && trend && focused ? (

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { buildIntelligence } from "@/lib/narrative/engine"
 import { conceptById } from "@/lib/narrative/lexicon"
-import type { Trend, WindowId } from "@/lib/narrative/types"
+import type { Trend } from "@/lib/narrative/types"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
 import { DataGate, PageFrame, Section, TrendTable, WindowPicker } from "@/components/trends/widgets"
@@ -25,11 +25,11 @@ const ANCHORS = [
 
 export function TrendsView() {
   const { snapshot, error, loading } = useSnapshot()
-  const [windowId, setWindowId] = useState<WindowId>("1h")
+  const [windowId, setWindowId] = useState("1h")
   const intel = useMemo(() => (snapshot ? buildIntelligence(snapshot, windowId) : null), [snapshot, windowId])
 
   return (
-    <PageFrame title="Trending token names" lede="Repeated words, ticker construction, and combinations in newly launched WETH pairs. Growth compares this window with the previous one of the same length.">
+    <PageFrame eyebrow="Trend intelligence" title="What is being named right now?" lede="Discover names, tickers, and narratives that are appearing across newly launched WETH pairs.">
       <WindowPicker value={windowId} onChange={setWindowId} />
       <DataGate loading={loading} error={error} ready={Boolean(intel)}>
         {intel && snapshot ? (
@@ -40,10 +40,10 @@ export function TrendsView() {
                 <a key={id} href={`#${id}`} className="rounded-full bg-muted px-3 py-1 text-muted-foreground">{label}</a>
               ))}
             </nav>
-            <Section id="hot" title="Current hot trends"><TrendTable trends={intel.hot} /></Section>
+            <Section id="hot" title="Current hot trends"><TrendTable trends={intel.hot} analyzed={intel.total} /></Section>
             <Section id="emerging" title="Emerging narratives">
               <p className="text-sm text-muted-foreground">Detected from the last 20 minutes against the previous 24 hours, independent of the filter above.</p>
-              <TrendTable trends={intel.emerging} />
+              <TrendTable trends={intel.emerging} analyzed={intel.total} />
             </Section>
             <Section id="names" title="Trending names"><TrendTable trends={intel.concepts.filter((trend) => trend.count >= 2)} /></Section>
             <Section id="tickers" title="Trending tickers"><TrendTable trends={intel.tickers} /></Section>

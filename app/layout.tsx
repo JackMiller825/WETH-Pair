@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AlertWatcher } from "@/components/alert-watcher";
 import { LpMonitor } from "@/components/lp/monitor-context";
-import { SiteNav } from "@/components/site-nav";
+import { AppShell } from "@/components/shell/app-shell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,10 +27,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SiteNav />
         <LpMonitor>
-          <AlertWatcher />
-          {children}
+          <AppShell>
+            <AlertWatcher />
+            {children}
+          </AppShell>
         </LpMonitor>
       </body>
     </html>

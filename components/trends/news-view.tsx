@@ -11,12 +11,12 @@ export function NewsView() {
   const { snapshot, error, loading } = useSnapshot()
   const intel = useMemo(() => (snapshot ? buildIntelligence(snapshot, "24h") : null), [snapshot])
   return (
-    <PageFrame title="News → token launches" lede="Headlines are collected from CoinDesk, Cointelegraph, The Block, and two Reddit feeds when the site is published. A token is listed only if it launched after the headline and shares a name. That is a timing correlation, not proof the headline caused the token.">
+    <PageFrame eyebrow="News intelligence" title="News → tokens" lede="See when a headline is followed by new WETH launches that share its name. A match is timing plus a shared name, not proof the headline caused the token.">
       <DataGate loading={loading} error={error} ready={Boolean(intel)}>
         {intel && snapshot ? (
           <div className="flex flex-col gap-4">
             <p className="text-xs text-muted-foreground">{snapshot.news?.length ?? 0} headlines checked at {formatCreated(snapshot.generatedAt, "local")}. Reddit discussion scoring is {intel.discussionAvailable ? "available" : "unavailable for this publish"}.</p>
-            {intel.newsLinks.length === 0 ? <p className="text-sm text-muted-foreground">No headline was followed by a matching token launch.</p> : intel.newsLinks.map((link) => (
+            {intel.newsLinks.length === 0 ? <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground ring-1 ring-foreground/10">{snapshot.news?.length ?? 0} headlines were checked. None was followed by a token whose name matched the story.</p> : intel.newsLinks.map((link) => (
               <article key={link.news.id} className="flex flex-col gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
                 <p className="text-xs text-muted-foreground">{formatCreated(link.news.publishedAt, "local")} · {link.news.source}</p>
                 <a href={link.news.url} target="_blank" rel="noreferrer" className="font-medium hover:underline">{link.news.title}</a>

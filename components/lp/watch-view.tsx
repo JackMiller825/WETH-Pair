@@ -21,26 +21,46 @@ import {
   watchStatus,
   type LpBurnEvent,
 } from "@/lib/lp/monitor"
-import { modeLabel, useLpMonitor } from "@/components/lp/monitor-context"
+import { useLpMonitor } from "@/components/lp/monitor-context"
 import type { PairRecord } from "@/lib/types"
 
 export function LpWatchSummary() {
-  const { config, mode, snapshot, lastCheck } = useLpMonitor()
+  const { config, mode, snapshot, lastCheck, nextCheck, scanNow } = useLpMonitor()
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => {
+    setNow(Date.now())
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const resolved = resolveInterval(config)
+  const total = "error" in resolved ? null : resolved.ms
+  const remain = now && nextCheck ? Math.max(0, nextCheck - now) : null
+  const progress = remain != null && total ? Math.min(1, Math.max(0, 1 - remain / total)) : 0
   const scannedAt = snapshot?.lpScan?.scannedAt ?? snapshot?.generatedAt
-  const burns = snapshot?.lpScan?.newBurns
+  const status = mode === "paused" ? "Paused" : mode === "error" ? "Reconnecting" : mode === "realtime" ? "Live" : "Polling"
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+    <section className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-sm font-medium">LP Burn Watch</h2>
-        <p className="text-sm">{modeLabel(mode)}</p>
+        <h2 className="text-sm font-medium">LP Burn Monitor</h2>
+        <p className="text-sm">{status}</p>
       </div>
-      <dl className="grid grid-cols-2 gap-2 text-sm">
-        <div><dt className="text-xs text-muted-foreground">Interval</dt><dd>{intervalLabel(config)}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Last check</dt><dd>{lastCheck ? ago(Date.now() - lastCheck) : "Waiting"}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Published scan</dt><dd>{scannedAt ? ago(Date.now() - Date.parse(scannedAt)) : "Waiting"}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">New LP burns</dt><dd>{burns == null ? "—" : burns}</dd></div>
+      <dl className="grid gap-3 text-sm sm:grid-cols-3 xl:grid-cols-6">
+        <div><dt className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Monitoring interval</dt><dd>{intervalLabel(config)}</dd></div>
+        <div><dt className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Last check</dt><dd>{lastCheck && now ? ago(now - lastCheck) : "Waiting"}</dd></div>
+        <div><dt className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Dataset updated</dt><dd>{scannedAt && now ? ago(now - Date.parse(scannedAt)) : "Waiting"}</dd></div>
+        <div><dt className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Pairs scanned</dt><dd>{formatCount(snapshot?.lpScan?.pairsChecked ?? snapshot?.rows.length)}</dd></div>
+        <div><dt className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">New LP burns</dt><dd>{snapshot?.lpScan?.newBurns ?? "—"}</dd></div>
+        <div><dt className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Next check</dt><dd>{remain == null ? "—" : formatDuration(remain)}</dd></div>
       </dl>
-      <Link href="/lp-burns" className="text-sm font-medium underline">Open LP Burn Watch</Link>
+      <div>
+        <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Next check</span><span>{remain == null ? "Paused or waiting" : `${Math.ceil(remain / 1000)} sec`}</span></div>
+        <div className="h-1.5 rounded-full bg-muted" aria-hidden><div className="h-1.5 rounded-full bg-primary" style={{ width: `${Math.round(progress * 100)}%` }} /></div>
+      </div>
+      <div className="flex flex-wrap gap-2 text-sm">
+        <Link href="/lp-burns" className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground">Open monitor</Link>
+        <button type="button" onClick={scanNow} className="rounded-md bg-muted px-3 py-1.5">Scan now</button>
+        <Link href="/alerts" className="rounded-md bg-muted px-3 py-1.5">Alert settings</Link>
+      </div>
     </section>
   )
 }
@@ -89,19 +109,19 @@ export function LpBurnWatch() {
   const ageNow = now ?? 0
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6">
+    <main className="page-wrap flex w-full flex-col gap-6 py-6 sm:py-8">
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">LP burn monitoring</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Watching LP Burned Tokens</h1>
+        <p className="text-[11px] font-medium tracking-[0.18em] text-primary uppercase">LP burn monitoring</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">LP Burn Watch</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Newly launched WETH pairs whose LP tokens were burned. Locked liquidity stays in its own status. The refresh interval is how often this browser checks the published scan. The search window is how old a pair can be. Those are separate settings.
+          Monitor newly launched WETH pairs and detect when their liquidity-provider tokens are burned.
         </p>
       </header>
 
       <section className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-medium">Refresh interval</h2>
-          <p className="text-sm">{modeLabel(mode)}</p>
+          <p className="text-sm">{mode === "realtime" ? "Live" : mode === "paused" ? "Paused" : mode === "error" ? "Reconnecting" : "Polling"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {INTERVAL_PRESETS.map((item) => (

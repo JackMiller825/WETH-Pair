@@ -35,7 +35,7 @@ export function AlertsView() {
   }
 
   return (
-    <PageFrame title="Trend alerts" lede="Alerts run in this browser while the site is open. They use the published pair list, so they can only see launches that have already been collected. A webhook receives the same JSON if you set one. Telegram needs a relay you control; this page does not store a bot token.">
+    <PageFrame eyebrow="Alerts" title="Trend alerts" lede="Get notified in this browser when a name, ticker, or headline pattern crosses a rule you turn on.">
       <div className="flex flex-col gap-3">
         <button
           type="button"

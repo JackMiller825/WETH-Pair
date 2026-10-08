@@ -14,7 +14,7 @@ export function TokenDetail({ address }: { address: string }) {
   const explained = useMemo(() => (token && intel ? explainToken(token, intel.tokens, snapshot?.news ?? []) : null), [token, intel, snapshot])
 
   return (
-    <PageFrame title={token ? `${token.tokenName}` : "Token"} lede="Why this name is a classification of the words that are actually in the name, ticker, description, and links. Missing fields were not in the DEXTools pair record.">
+    <PageFrame eyebrow="Token detail" title={token ? token.tokenName : "Token"} lede="Why this name uses the words in the name, ticker, description, and links. Missing fields were not in the pair record.">
       <DataGate loading={loading} error={error} ready={Boolean(snapshot)}>
         {token && explained ? (
           <>
