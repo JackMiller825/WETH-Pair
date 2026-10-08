@@ -1,0 +1,6 @@
+---
+description: Push codebase updates to GitHub and publish GitHub Pages
+alwaysApply: true
+---
+
+After changing this codebase, commit the updates, push them to the GitHub repo, and wait until the GitHub Pages workflow succeeds. Confirm https://wethlivepairs.site/ is serving the new version before finishing.

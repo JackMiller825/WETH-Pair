@@ -24,6 +24,20 @@ export type PairDetail = {
   lpBurntPercent: number
   lpLockedPercent: number
   lpUnlockAt: string | null
+  /** DEXTools 24h pool volume in USD, when the pair record includes it. */
+  volume24h?: number | null
+  /** Unique makers reported by DEXTools for the last 24h. This is not a buyer-only count. */
+  makers24h?: number | null
+  /** Buy swaps reported by DEXTools for the last 24h. */
+  buys24h?: number | null
+  deployer?: string | null
+  description?: string | null
+  website?: string | null
+  twitter?: string | null
+  telegram?: string | null
+  tokenCreatedAt?: string | null
+  symbol?: string | null
+  tokenName?: string | null
 }
 
 export type PairRecord = PairRow & PairDetail
@@ -37,6 +51,8 @@ export const OUTPUT_FORMATS: { id: OutputFormat; label: string; extension: strin
 ]
 
 export const MAX_HOURS = 72
+/** Longest lookback the collector will fetch. The pair search UI still caps at MAX_HOURS. */
+export const COLLECTION_MAX_HOURS = 168
 
 export const EMPTY_DETAIL: PairDetail = {
   marketCap: null,

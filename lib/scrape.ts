@@ -1,5 +1,5 @@
 import { ListingError, requestJson, sleep } from "@/lib/http"
-import { MAX_HOURS, UNKNOWN_EXCHANGE, type PairRow } from "@/lib/types"
+import { COLLECTION_MAX_HOURS, UNKNOWN_EXCHANGE, type PairRow } from "@/lib/types"
 
 const LISTING_API = "https://www.dextools.io/api/core"
 const EXCHANGES_API = "https://www.dextools.io/shared/exchanges/v2"
@@ -113,12 +113,12 @@ async function fetchPage(cursor: number | null): Promise<ListingPage> {
 }
 
 export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]; scanned: number }> {
-  if (!Number.isFinite(hours) || hours <= 0 || hours > MAX_HOURS) {
-    throw new ListingError(`Choose a period between 1 and ${MAX_HOURS} hours.`)
+  if (!Number.isFinite(hours) || hours <= 0 || hours > COLLECTION_MAX_HOURS) {
+    throw new ListingError(`Choose a period between 1 and ${COLLECTION_MAX_HOURS} hours.`)
   }
 
   const cutoff = Date.now() - hours * 60 * 60 * 1000
-  const maxPages = Math.min(50, Math.ceil(hours * 1.6) + 2)
+  const maxPages = Math.min(hours > 72 ? 80 : 50, Math.ceil(hours * 1.6) + 2)
   const matches: PairRow[] = []
   const seen = new Set<string>()
   let scanned = 0

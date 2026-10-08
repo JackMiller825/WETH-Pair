@@ -21,8 +21,19 @@ type RawPair = {
     balanceLpTokenBurned?: number | null
   }
   price?: number | null
+  team?: { wallet?: string }
+  periodStats?: Record<string, {
+    volume?: { total?: number | null }
+    swaps?: { buys?: number | null }
+    makers?: number | null
+  }>
   token?: {
     locks?: RawLock[]
+    name?: string
+    symbol?: string
+    creationTime?: string
+    info?: { description?: string }
+    links?: { twitter?: string; telegram?: string; website?: string }
     metrics?: {
       holders?: number | null
       mcap?: number | null
@@ -30,6 +41,12 @@ type RawPair = {
       totalSupply?: number | null
     }
   }
+}
+
+function text(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 function num(value: unknown): number | null {
@@ -105,6 +122,7 @@ export function parseDetail(raw: RawPair): PairDetail {
     unlockAt: [pairLocks.unlockAt, tokenLocks.unlockAt].filter((value): value is string => value !== null).sort().at(-1) ?? null,
   }
 
+  const day = raw.periodStats?.["24h"]
   return {
     marketCap,
     liquidity: num(raw.metrics?.liquidity),
@@ -114,6 +132,17 @@ export function parseDetail(raw: RawPair): PairDetail {
     lpBurntPercent,
     lpLockedPercent: locked.percent,
     lpUnlockAt: locked.unlockAt,
+    volume24h: num(day?.volume?.total),
+    makers24h: num(day?.makers),
+    buys24h: num(day?.swaps?.buys),
+    deployer: text(raw.team?.wallet),
+    description: text(raw.token?.info?.description),
+    website: text(raw.token?.links?.website),
+    twitter: text(raw.token?.links?.twitter),
+    telegram: text(raw.token?.links?.telegram),
+    tokenCreatedAt: text(raw.token?.creationTime),
+    symbol: text(raw.token?.symbol),
+    tokenName: text(raw.token?.name),
   }
 }
 

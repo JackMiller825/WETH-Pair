@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import {
   ArrowDown,
   ArrowLeft,
@@ -1015,7 +1016,7 @@ export function PairFinder() {
                   {visible.map((record) => (
                     <TableRow key={record.address}>
                       <TableCell className="font-medium whitespace-nowrap">
-                        {record.name}
+                        <Link href={`/tokens/${record.tokenAddress.toLowerCase()}`} className="hover:underline">{record.name}</Link>
                         {newAddresses.has(record.address.toLowerCase()) ? (
                           <Badge className="ml-2 bg-emerald-400/20 text-emerald-300">NEW</Badge>
                         ) : null}
