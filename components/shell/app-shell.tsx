@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Bell, Flame, LayoutDashboard, Menu, Newspaper, Search, TrendingUp, Waypoints, X, Zap } from "lucide-react"
+import { Bell, Flame, LayoutDashboard, Menu, Monitor, Moon, Newspaper, Search, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
+import { applyTheme, isThemeId, type ThemeId } from "@/lib/theme"
 import { ago, eventsOf } from "@/lib/lp/monitor"
 import { useLpMonitor } from "@/components/lp/monitor-context"
 import { parseIdentity } from "@/lib/narrative/text"
@@ -36,8 +37,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [feed, setFeed] = useState(false)
   const [tour, setTour] = useState(false)
   const [now, setNow] = useState<number | null>(null)
+  const [theme, setTheme] = useState<ThemeId>("dark")
 
   useEffect(() => {
+    const saved = localStorage.getItem("weth-theme")
+    const next = isThemeId(saved) ? saved : "dark"
+    setTheme(next)
+    applyTheme(next)
     setFeed(localStorage.getItem("weth-activity-feed") !== "off")
     setTour(localStorage.getItem("weth-onboarded") !== "1")
     setNow(Date.now())
@@ -54,6 +60,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       window.removeEventListener("keydown", onKey)
     }
   }, [])
+
+  useEffect(() => {
+    if (theme !== "system") return
+    const media = window.matchMedia("(prefers-color-scheme: dark)")
+    const sync = () => applyTheme("system")
+    sync()
+    media.addEventListener("change", sync)
+    return () => media.removeEventListener("change", sync)
+  }, [theme])
 
   useEffect(() => {
     setOpen(false)
@@ -91,7 +106,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               )
             })}
           </nav>
-          <button type="button" onClick={() => setQueryOpen(true)} className="ml-auto hidden items-center gap-2 rounded-md bg-card px-3 py-1.5 text-xs text-muted-foreground ring-1 ring-foreground/10 sm:flex">
+          <ThemeSwitch theme={theme} onChange={(next) => { setTheme(next); applyTheme(next) }} />
+          <button type="button" onClick={() => setQueryOpen(true)} className="hidden items-center gap-2 rounded-md bg-card px-3 py-1.5 text-xs text-muted-foreground ring-1 ring-foreground/10 sm:flex">
             <Search size={14} /> Search token, ticker, contract…
             <kbd className="rounded bg-muted px-1.5 py-0.5">Ctrl K</kbd>
           </button>
@@ -114,6 +130,36 @@ export function AppShell({ children }: { children: ReactNode }) {
       {queryOpen ? <CommandSearch onClose={() => setQueryOpen(false)} /> : null}
       {tour ? <Welcome onClose={(forever) => { if (forever) localStorage.setItem("weth-onboarded", "1"); setTour(false) }} /> : null}
       <p className="sr-only">{statusText}</p>
+    </div>
+  )
+}
+
+function ThemeSwitch({ theme, onChange }: { theme: ThemeId; onChange: (theme: ThemeId) => void }) {
+  const options = [
+    { id: "light" as const, label: "Light", icon: Sun },
+    { id: "dark" as const, label: "Dark", icon: Moon },
+    { id: "system" as const, label: "System", icon: Monitor },
+  ]
+  return (
+    <div className="ml-auto flex rounded-md bg-card p-0.5 ring-1 ring-foreground/10" role="radiogroup" aria-label="Theme">
+      {options.map((option) => {
+        const Icon = option.icon
+        const selected = theme === option.id
+        return (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            aria-label={option.label}
+            title={option.label}
+            onClick={() => onChange(option.id)}
+            className={`rounded px-2 py-1 ${selected ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Icon size={14} />
+          </button>
+        )
+      })}
     </div>
   )
 }
