@@ -1,3 +1,0 @@
-chain,name,ticker,contract_or_mint,source,status
-ethereum,Hot Potato,Potato,0xb091e74e1dba43ca65d494d090eb435b8ca136d4,https://etherscan.io/token/0xb091e74e1dba43ca65d494d090eb435b8ca136d4,Indexed primary explorer name; live page bot-blocked; direct DEX token-pairs query empty; news connection unverified
-solana,Hotato,HOTATO,unverified full mint; not supplied,https://dexscreener.com/solana/5oezeqgrrbcqxstfvp7yawxj1rptqiznbtcfspmmjfsr,Historical indexed listing; current search returned no pairs; not added to current API count
