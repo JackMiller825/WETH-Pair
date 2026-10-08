@@ -1,17 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { buildIntelligence } from "@/lib/narrative/engine"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
-import { DataGate, PageFrame, money } from "@/components/trends/widgets"
+import { DataGate, PageFrame, WindowPicker, money } from "@/components/trends/widgets"
 
 export function NewsView() {
   const { snapshot, error, loading } = useSnapshot()
-  const intel = useMemo(() => (snapshot ? buildIntelligence(snapshot, "24h") : null), [snapshot])
+  const [windowId, setWindowId] = useState("24h")
+  const intel = useMemo(() => (snapshot ? buildIntelligence(snapshot, windowId) : null), [snapshot, windowId])
   return (
     <PageFrame eyebrow="News intelligence" title="News → tokens" lede="See when a headline is followed by new WETH launches that share its name. A match is timing plus a shared name, not proof the headline caused the token.">
+      <WindowPicker value={windowId} onChange={setWindowId} />
       <DataGate loading={loading} error={error} ready={Boolean(intel)}>
         {intel && snapshot ? (
           <div className="flex flex-col gap-4">

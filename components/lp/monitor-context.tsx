@@ -1,9 +1,12 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { createAudioContext, playNamedTone, requestNotifications, sendDesktopNotification } from "@/lib/alerts"
+import { createAudioContext, notificationState, playNamedTone, requestNotifications } from "@/lib/alerts"
+import { notificationCopy, passesNotifyFilter } from "@/lib/lp/burn-logic"
 import {
   DEFAULT_CONFIG,
+  PAIR_AGE_FILTERS,
+  SEARCH_WINDOWS,
   eventsOf,
   resolveInterval,
   type LpBurnEvent,
@@ -32,6 +35,8 @@ type MonitorValue = {
   dismiss: (id: string) => void
   scanNow: () => void
   testSound: () => void
+  testNotification: () => void
+  enableNotifications: () => void
   deliveryNote: string | null
 }
 
@@ -46,7 +51,12 @@ function readConfig(): WatchConfig {
       ...DEFAULT_CONFIG,
       ...parsed,
       preset: parsed.preset && ["1m", "5m", "15m", "30m", "1h", "3h", "6h", "custom"].includes(parsed.preset) ? parsed.preset : preset,
-      windowId: parsed.windowId && ["5m", "15m", "1h", "6h", "24h", "7d", "custom"].includes(parsed.windowId) ? parsed.windowId : windowId,
+      windowId: parsed.windowId && SEARCH_WINDOWS.some((item) => item.id === parsed.windowId) ? parsed.windowId : windowId,
+      pairAgeId: parsed.pairAgeId && PAIR_AGE_FILTERS.some((item) => item.id === parsed.pairAgeId) ? parsed.pairAgeId : "any",
+      pairAgeMinutes: Number.isFinite(parsed.pairAgeMinutes) ? Number(parsed.pairAgeMinutes) : DEFAULT_CONFIG.pairAgeMinutes,
+      minBurnPercent: Number.isFinite(parsed.minBurnPercent) ? Number(parsed.minBurnPercent) : 0,
+      minLiquidity: Number.isFinite(parsed.minLiquidity) ? Number(parsed.minLiquidity) : 0,
+      maxPairAgeMinutes: parsed.maxPairAgeMinutes == null || Number.isFinite(parsed.maxPairAgeMinutes) ? parsed.maxPairAgeMinutes ?? null : null,
       soundId: parsed.soundId === "chime" || parsed.soundId === "pulse" ? parsed.soundId : "beep",
     }
   } catch {
@@ -109,7 +119,6 @@ export function LpMonitor({ children }: { children: ReactNode }) {
 
   const update = useCallback((patch: Partial<WatchConfig>) => {
     setConfig((current) => ({ ...current, ...patch }))
-    if (patch.browser) void requestNotifications()
     if (patch.sound) audioRef.current = audioRef.current ?? createAudioContext()
   }, [])
 
@@ -122,15 +131,63 @@ export function LpMonitor({ children }: { children: ReactNode }) {
     playNamedTone(audioRef.current, configRef.current.soundId)
   }, [])
 
+  const enableNotifications = useCallback(() => {
+    void requestNotifications().then((state) => {
+      if (state === "granted") {
+        setConfig((current) => ({ ...current, browser: true }))
+        setDeliveryNote("Chrome notifications are enabled.")
+        return
+      }
+      if (state === "denied") setDeliveryNote("Chrome notifications are blocked. Enable notifications for this site in Chrome settings.")
+      else if (state === "unsupported") setDeliveryNote("This browser does not provide the Notification API.")
+      else setDeliveryNote("Notification permission was not granted.")
+    })
+  }, [])
+
+  const testNotification = useCallback(() => {
+    const title = "🔥 LP Burn Notification Test"
+    const body = "Chrome notifications are working correctly."
+    void (async () => {
+      if (!window.isSecureContext) {
+        setDeliveryNote("Desktop notifications need HTTPS, or localhost during development.")
+        return
+      }
+      if (notificationState() !== "granted") {
+        setDeliveryNote("Enable Notifications first. Permission is not granted yet.")
+        return
+      }
+      const registration = await navigator.serviceWorker?.getRegistration().catch(() => undefined)
+      if (registration?.active) {
+        registration.active.postMessage({ type: "test", title, body, url: "/lp-burns/" })
+        setDeliveryNote("Test notification sent through the service worker.")
+        return
+      }
+      const notification = new Notification(title, { body })
+      notification.onclick = () => {
+        window.focus()
+        notification.close()
+      }
+      setDeliveryNote("Test notification sent through the Notification API. The service worker is not active yet.")
+    })()
+  }, [])
+
+  useEffect(() => {
+    if (!ready || !window.isSecureContext || !("serviceWorker" in navigator)) return
+    void navigator.serviceWorker.register("/sw.js").catch(() => {
+      setDeliveryNote("The notification service worker did not register.")
+    })
+  }, [ready])
+
   const considerAlerts = useCallback((data: SnapshotFile) => {
     const current = configRef.current
+    const now = Date.now()
     const events = eventsOf(data).filter((event) => event.kind === "newly-burned")
     const seen = readSeen()
     if (seen == null) {
       writeSeen(new Set(eventsOf(data).map((event) => event.id)))
       return
     }
-    const fresh = events.filter((event) => !seen.has(event.id))
+    const fresh = events.filter((event) => !seen.has(event.id) && passesNotifyFilter(event, current, now))
     if (!current.enabled || current.paused) return
     for (const event of eventsOf(data)) seen.add(event.id)
     writeSeen(seen)
@@ -141,7 +198,7 @@ export function LpMonitor({ children }: { children: ReactNode }) {
     }
     if (current.inApp) setAlerts((existing) => [...announce, ...existing].slice(0, 4))
     for (const event of announce) {
-      if (current.browser) sendDesktopNotification("🔥 NEW LP BURN DETECTED", alertText(event), event.id)
+      if (current.browser) void deliverDesktop(event, now)
       if (current.sound) playNamedTone(audioRef.current, current.soundId)
       const body = { type: "lp-burn", chainId: event.chainId, id: event.id, text: alertText(event), event }
       const posts: Promise<void>[] = []
@@ -270,9 +327,11 @@ export function LpMonitor({ children }: { children: ReactNode }) {
       dismiss,
       scanNow: () => setScanNonce((value) => value + 1),
       testSound,
+      testNotification,
+      enableNotifications,
       deliveryNote,
     }),
-    [config, update, snapshot, loading, error, mode, lastCheck, nextCheck, block, rpc, alerts, dismiss, testSound, deliveryNote],
+    [config, update, snapshot, loading, error, mode, lastCheck, nextCheck, block, rpc, alerts, dismiss, testSound, testNotification, enableNotifications, deliveryNote],
   )
 
   return <MonitorContext.Provider value={value}>{children}</MonitorContext.Provider>
@@ -285,6 +344,33 @@ async function postJson(url: string, body: unknown) {
     body: JSON.stringify(body),
   })
   if (!response.ok) throw new Error(String(response.status))
+}
+
+async function deliverDesktop(event: LpBurnEvent, now: number) {
+  const copy = notificationCopy(event, now)
+  if (!window.isSecureContext) return
+  if (notificationState() !== "granted") return
+  try {
+    const registration = await navigator.serviceWorker?.getRegistration()
+    if (registration?.active) {
+      registration.active.postMessage({ type: "lp-burn", title: copy.title, body: copy.body, url: copy.url, tag: copy.tag })
+      console.info("[ALERT] Sending service worker notification")
+      return
+    }
+  } catch {
+    // Fall through to the page Notification API.
+  }
+  try {
+    const notification = new Notification(copy.title, { body: copy.body, tag: copy.tag })
+    notification.onclick = () => {
+      window.focus()
+      window.location.assign(copy.url)
+      notification.close()
+    }
+    console.info("[ALERT] Notification delivered")
+  } catch {
+    // The browser refused the notification. The in-app toast still shows.
+  }
 }
 
 export function useLpMonitor(): MonitorValue {

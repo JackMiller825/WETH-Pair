@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { buildIntelligence } from "@/lib/narrative/engine"
-import { DIRECTION_LABEL, windowById, type WindowId } from "@/lib/narrative/types"
+import { burnTimeMs } from "@/lib/lp/burn-logic"
+import { eventsOf } from "@/lib/lp/monitor"
+import { DIRECTION_LABEL, type WindowId } from "@/lib/narrative/types"
+import { isInsidePrevious, isInsideRange } from "@/lib/time-range"
 import { formatUsd } from "@/lib/format"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
@@ -14,7 +17,7 @@ export function Dashboard() {
   const { snapshot, error, loading } = useSnapshot()
   const [windowId, setWindowId] = useState<WindowId | string>("1h")
   const intel = useMemo(() => (snapshot ? buildIntelligence(snapshot, windowId) : null), [snapshot, windowId])
-  const pulse = useMemo(() => (snapshot ? pulseFor(snapshot.rows, windowId, snapshot.generatedAt) : null), [snapshot, windowId])
+  const pulse = useMemo(() => (snapshot ? pulseFor(snapshot.rows, eventsOf(snapshot), windowId, snapshot.generatedAt) : null), [snapshot, windowId])
   const topName = intel?.concepts.find((trend) => trend.count >= 2)
   const topTicker = intel?.tickers[0]
   const emerging = intel?.emerging[0]
@@ -82,14 +85,18 @@ export function Dashboard() {
   )
 }
 
-function pulseFor(rows: { created_at: string; lpStatus: string; liquidity: number | null; listingLiquidity: number | null; marketCap: number | null; name: string; address: string; tokenAddress: string }[], windowId: string, generatedAt: string) {
-  const selected = windowById(windowId)
+function pulseFor(rows: { created_at: string; lpStatus: string; liquidity: number | null; listingLiquidity: number | null; marketCap: number | null; name: string; address: string; tokenAddress: string }[], events: { burnAt?: string | null }[], windowId: string, generatedAt: string) {
   const end = Date.parse(generatedAt)
-  const start = end - selected.ms
-  const current = rows.filter((row) => inWindow(row.created_at, start, end))
-  const previous = rows.filter((row) => inWindow(row.created_at, start - selected.ms, start))
-  const burned = current.filter((row) => row.lpStatus === "burnt").length
-  const burnedBefore = previous.filter((row) => row.lpStatus === "burnt").length
+  const current = rows.filter((row) => isInsideRange(row.created_at, windowId, end))
+  const previous = rows.filter((row) => isInsidePrevious(row.created_at, windowId, end))
+  const burned = events.filter((event) => {
+    const at = burnTimeMs(event)
+    return at != null && isInsideRange(at, windowId, end)
+  }).length
+  const burnedBefore = events.filter((event) => {
+    const at = burnTimeMs(event)
+    return at != null && isInsidePrevious(at, windowId, end)
+  }).length
   const liquidity = current.reduce((sum, row) => sum + (row.liquidity ?? row.listingLiquidity ?? 0), 0)
   return {
     pairs: current.length,
@@ -99,11 +106,6 @@ function pulseFor(rows: { created_at: string; lpStatus: string; liquidity: numbe
     liquidity,
     latest: [...current].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 8),
   }
-}
-
-function inWindow(iso: string, start: number, end: number) {
-  const at = Date.parse(iso)
-  return Number.isFinite(at) && at >= start && at < end
 }
 
 function change(current: number, previous: number): number | null {

@@ -1,5 +1,8 @@
 import type { AlertSound } from "@/lib/alerts"
+import type { ChainBurn } from "@/lib/lp/chain-scan"
+import { burnTimeMs, formatBurnPercent } from "@/lib/lp/burn-logic"
 import { matchConcepts, parseIdentity } from "@/lib/narrative/text"
+import { RANGES, rangeById } from "@/lib/time-range"
 import type { PairRecord } from "@/lib/types"
 
 export const CHAIN_ID = 1
@@ -45,6 +48,10 @@ export type LpBurnEvent = {
   burnTx: string | null
   burnBlock: number | null
   burnFrom: string | null
+  logIndex?: number | null
+  source?: "ethereum-transfer" | "dextools"
+  percentKnown?: boolean
+  burnTo?: string | null
 }
 
 export type LpScan = {
@@ -68,10 +75,13 @@ export function watchStatus(record: PairRecord): WatchStatus {
   return "unknown"
 }
 
-export function burnEventId(pair: string, tx: string | null): string {
+export function burnEventId(pair: string, tx: string | null, logIndex?: number | null): string {
   const hash = tx && /^0x[0-9a-fA-F]{64}$/.test(tx) ? tx.toLowerCase() : "no-tx"
-  return `${CHAIN_ID}:${pair.toLowerCase()}:${hash}`
+  const suffix = hash !== "no-tx" && logIndex != null ? `:${logIndex}` : ""
+  return `${CHAIN_ID}:${pair.toLowerCase()}:${hash}${suffix}`
 }
+
+export { formatBurnPercent }
 
 function remainingLp(supply: number | null | undefined, burned: number | null | undefined): number | null {
   if (supply == null || burned == null || !Number.isFinite(supply) || !Number.isFinite(burned)) return null
@@ -108,6 +118,60 @@ function eventFromRecord(record: PairRecord, detectedAt: string, kind: BurnKind)
     burnTx: tx && /^0x[0-9a-fA-F]{64}$/.test(tx) ? tx : null,
     burnBlock: record.lpBurnBlock ?? null,
     burnFrom: record.lpBurnFrom ?? null,
+    logIndex: null,
+    source: record.lpSource === "ethereum-transfer" ? "ethereum-transfer" : "dextools",
+    percentKnown: record.lpBurntPercent > 0 || (supply != null && burned != null),
+    burnTo: null,
+  }
+}
+
+export function applyChainBurns(records: PairRecord[], burns: ChainBurn[]): PairRecord[] {
+  const byPair = new Map<string, ChainBurn>()
+  for (const burn of burns) {
+    const current = byPair.get(burn.pair)
+    if (!current || burn.burnedAt >= current.burnedAt) byPair.set(burn.pair, burn)
+  }
+  return records.map((record) => {
+    const burn = byPair.get(record.address.toLowerCase())
+    if (!burn) return record
+    const percent = burn.percent
+    const next: PairRecord = {
+      ...record,
+      lpBurnTx: burn.tx,
+      lpBurnAt: burn.burnedAt,
+      lpBurnBlock: burn.block,
+      lpBurnFrom: burn.from,
+      lpSource: "ethereum-transfer",
+    }
+    if (percent == null) return next
+    const burned = percent > 0 && percent > (record.lpLockedPercent ?? 0)
+    return {
+      ...next,
+      lpStatus: burned ? "burnt" : record.lpStatus,
+      lpBurntPercent: percent,
+      lpSupply: burn.supply,
+      lpBurnedTokens: burn.burnedTokens,
+    }
+  })
+}
+
+function eventFromChain(record: PairRecord, burn: ChainBurn, detectedAt: string, kind: BurnKind): LpBurnEvent {
+  const base = eventFromRecord(record, detectedAt, kind)
+  return {
+    ...base,
+    id: burnEventId(burn.pair, burn.tx, burn.logIndex),
+    burnAt: burn.burnedAt,
+    burnTx: burn.tx,
+    burnBlock: burn.block,
+    burnFrom: burn.from,
+    burnTo: burn.to,
+    logIndex: burn.logIndex,
+    source: "ethereum-transfer",
+    lpBurntPercent: burn.percent ?? base.lpBurntPercent,
+    percentKnown: burn.percent != null,
+    lpSupply: burn.supply ?? base.lpSupply,
+    lpBurnedTokens: burn.burnedTokens ?? base.lpBurnedTokens,
+    lpRemaining: burn.supply != null && burn.burnedTokens != null ? Math.max(0, burn.supply - burn.burnedTokens) : base.lpRemaining,
   }
 }
 
@@ -115,13 +179,23 @@ export function buildLpBurns(
   records: PairRecord[],
   previous: { rows?: PairRecord[]; lpBurns?: LpBurnEvent[]; generatedAt?: string } | null,
   scannedAt: string,
+  chainBurns: ChainBurn[] = [],
 ): { events: LpBurnEvent[]; scan: LpScan } {
   const now = Date.parse(scannedAt)
   const previousRows = new Map((previous?.rows ?? []).map((row) => [row.address.toLowerCase(), row]))
-  const previousEvents = new Map<string, LpBurnEvent>()
-  for (const event of previous?.lpBurns ?? []) previousEvents.set(event.pair, event)
+  const recordsByPair = new Map(records.map((record) => [record.address.toLowerCase(), record]))
+  const previousById = new Map<string, LpBurnEvent>()
+  const previousByPair = new Map<string, LpBurnEvent[]>()
+  for (const event of previous?.lpBurns ?? []) {
+    previousById.set(event.id, event)
+    const list = previousByPair.get(event.pair) ?? []
+    list.push(event)
+    previousByPair.set(event.pair, list)
+  }
 
   const fresh: LpBurnEvent[] = []
+  const seenIds = new Set<string>()
+  const pairsWithChain = new Set<string>()
   let newBurns = 0
   let previouslyBurnedFound = 0
   let newPairs = 0
@@ -135,29 +209,69 @@ export function buildLpBurns(
     if (record.creationBlock != null && (highestCreationBlock == null || record.creationBlock > highestCreationBlock)) {
       highestCreationBlock = record.creationBlock
     }
-    if (watchStatus(record) !== "burned") continue
+  }
 
-    const existing = previousEvents.get(pair)
-    if (existing) {
-      fresh.push(existing)
-      previousEvents.delete(pair)
+  for (const burn of chainBurns) {
+    const record = recordsByPair.get(burn.pair)
+    if (!record) continue
+    pairsWithChain.add(burn.pair)
+    const id = burnEventId(burn.pair, burn.tx, burn.logIndex)
+    const stored = previousById.get(id)
+    if (stored) {
+      fresh.push({
+        ...stored,
+        burnAt: burn.burnedAt,
+        burnTx: burn.tx,
+        burnBlock: burn.block,
+        burnFrom: burn.from,
+        burnTo: burn.to,
+        logIndex: burn.logIndex,
+        source: "ethereum-transfer",
+        lpBurntPercent: burn.percent ?? stored.lpBurntPercent,
+        percentKnown: burn.percent != null || stored.percentKnown !== false,
+      })
+      seenIds.add(stored.id)
       continue
     }
+    const placeholder = (previousByPair.get(burn.pair) ?? []).find((event) => !event.burnTx && !seenIds.has(event.id))
+    if (placeholder) {
+      fresh.push({ ...eventFromChain(record, burn, placeholder.detectedAt, placeholder.kind), id: placeholder.id })
+      seenIds.add(placeholder.id)
+      continue
+    }
+    newBurns += 1
+    const created = eventFromChain(record, burn, scannedAt, "newly-burned")
+    fresh.push(created)
+    seenIds.add(created.id)
+  }
 
+  for (const record of records) {
+    if (watchStatus(record) !== "burned") continue
+    const pair = record.address.toLowerCase()
+    if (pairsWithChain.has(pair)) continue
+    const existing = (previousByPair.get(pair) ?? []).find((event) => !seenIds.has(event.id))
+    if (existing) {
+      fresh.push(existing)
+      seenIds.add(existing.id)
+      continue
+    }
     const prior = previousRows.get(pair)
     const kind: BurnKind = prior && watchStatus(prior) !== "burned" ? "newly-burned" : "previously-burned"
     if (kind === "newly-burned") newBurns += 1
     else previouslyBurnedFound += 1
-    fresh.push(eventFromRecord(record, scannedAt, kind))
+    const created = eventFromRecord(record, scannedAt, kind)
+    fresh.push(created)
+    seenIds.add(created.id)
   }
 
-  const kept = [...previousEvents.values()].filter((event) => {
-    const at = Date.parse(event.detectedAt)
-    return Number.isFinite(at) && now - at <= EVENT_MAX_AGE_MS
-  })
+  for (const event of previousById.values()) {
+    if (seenIds.has(event.id)) continue
+    const at = Date.parse(event.burnAt ?? event.detectedAt)
+    if (Number.isFinite(at) && now - at <= EVENT_MAX_AGE_MS) fresh.push(event)
+  }
 
-  const events = [...fresh, ...kept]
-    .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt))
+  const events = fresh
+    .sort((a, b) => (b.burnAt ?? b.detectedAt).localeCompare(a.burnAt ?? a.detectedAt))
     .slice(0, EVENT_MAX)
 
   return {
@@ -192,13 +306,18 @@ export const INTERVAL_PRESETS = [
 ] as const
 
 export const SEARCH_WINDOWS = [
-  { id: "5m", label: "Last 5 minutes", ms: 5 * 60_000 },
-  { id: "15m", label: "Last 15 minutes", ms: 15 * 60_000 },
-  { id: "1h", label: "Last hour", ms: 60 * 60_000 },
-  { id: "6h", label: "Last 6 hours", ms: 6 * 60 * 60_000 },
-  { id: "24h", label: "Last 24 hours", ms: 24 * 60 * 60_000 },
-  { id: "7d", label: "Last 7 days", ms: 7 * 24 * 60 * 60_000 },
-  { id: "custom", label: "Custom range", ms: null },
+  ...RANGES.map((item) => ({ id: item.id, label: `Last ${item.label.toLowerCase()}`, ms: item.ms })),
+  { id: "custom" as const, label: "Custom range", ms: null },
+]
+
+export const PAIR_AGE_FILTERS = [
+  { id: "any", label: "Any", ms: null },
+  { id: "5m", label: "< 5m", ms: 5 * 60_000 },
+  { id: "15m", label: "< 15m", ms: 15 * 60_000 },
+  { id: "1h", label: "< 1h", ms: 60 * 60_000 },
+  { id: "6h", label: "< 6h", ms: 6 * 60 * 60_000 },
+  { id: "24h", label: "< 24h", ms: 24 * 60 * 60_000 },
+  { id: "custom", label: "Custom", ms: null },
 ] as const
 
 export type WatchConfig = {
@@ -211,6 +330,11 @@ export type WatchConfig = {
   windowId: (typeof SEARCH_WINDOWS)[number]["id"]
   customStart: string
   customEnd: string
+  pairAgeId: (typeof PAIR_AGE_FILTERS)[number]["id"]
+  pairAgeMinutes: number
+  minBurnPercent: number
+  minLiquidity: number
+  maxPairAgeMinutes: number | null
   inApp: boolean
   browser: boolean
   sound: boolean
@@ -231,6 +355,11 @@ export const DEFAULT_CONFIG: WatchConfig = {
   windowId: "24h",
   customStart: "",
   customEnd: "",
+  pairAgeId: "any",
+  pairAgeMinutes: 60,
+  minBurnPercent: 0,
+  minLiquidity: 0,
+  maxPairAgeMinutes: null,
   inApp: true,
   browser: false,
   sound: false,
@@ -266,11 +395,19 @@ export function intervalLabel(config: WatchConfig): string {
   return "error" in resolved ? resolved.error : resolved.label
 }
 
+export function pairAgeLimitMs(config: WatchConfig): number | null {
+  if (config.pairAgeId === "any") return null
+  if (config.pairAgeId === "custom") {
+    if (!Number.isFinite(config.pairAgeMinutes) || config.pairAgeMinutes <= 0) return null
+    return config.pairAgeMinutes * 60_000
+  }
+  return PAIR_AGE_FILTERS.find((item) => item.id === config.pairAgeId)?.ms ?? null
+}
+
 export function searchBounds(config: WatchConfig, now: number): { start: number; end: number } | { error: string } {
   if (config.windowId !== "custom") {
-    const window = SEARCH_WINDOWS.find((item) => item.id === config.windowId)
-    const ms = window?.ms ?? 24 * 60 * 60_000
-    return { start: now - ms, end: now }
+    const range = rangeById(config.windowId)
+    return { start: now - range.ms, end: now }
   }
   const start = Date.parse(config.customStart)
   const end = Date.parse(config.customEnd)
@@ -381,7 +518,8 @@ export function intervalBuckets(events: LpBurnEvent[], start: number, end: numbe
   }
   buckets.reverse()
   for (const event of events) {
-    const at = Date.parse(event.detectedAt)
+    const at = burnTimeMs(event)
+    if (at == null) continue
     const bucket = buckets.find((item) => at >= item.start && at < item.end)
     if (bucket) bucket.count += 1
   }
@@ -410,8 +548,8 @@ export type SurgeReport = {
 
 function countBetween(events: LpBurnEvent[], start: number, end: number): number {
   return events.filter((event) => {
-    const at = Date.parse(event.detectedAt)
-    return at >= start && at < end
+    const at = burnTimeMs(event)
+    return at != null && at >= start && at < end
   }).length
 }
 
@@ -420,8 +558,8 @@ function dailyAverage(events: LpBurnEvent[], now: number, days: number): { avera
   const present = new Set<string>()
   const counts = new Map<string, number>()
   for (const event of events) {
-    const at = Date.parse(event.detectedAt)
-    if (at < start || at > now) continue
+    const at = burnTimeMs(event)
+    if (at == null || at < start || at > now) continue
     const day = new Date(at).toISOString().slice(0, 10)
     present.add(day)
     counts.set(day, (counts.get(day) ?? 0) + 1)
@@ -453,8 +591,8 @@ export function surgeReport(events: LpBurnEvent[], now: number): SurgeReport {
   const active = week.average != null && current24h >= 5 && current24h >= week.average * 3
 
   const recent = events.filter((event) => {
-    const at = Date.parse(event.detectedAt)
-    return at >= now - day && at <= now
+    const at = burnTimeMs(event)
+    return at != null && at >= now - day && at <= now
   })
   const themes = new Map<string, number>()
   const deployers = new Map<string, number>()

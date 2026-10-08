@@ -45,6 +45,8 @@ export type PairDetail = {
   lpBurnAt?: string | null
   lpBurnBlock?: number | null
   lpBurnFrom?: string | null
+  /** ethereum-transfer is a chain Transfer log. dextools is the pair-page balance. */
+  lpSource?: "ethereum-transfer" | "dextools" | null
 }
 
 export type PairRecord = PairRow & PairDetail
@@ -57,8 +59,8 @@ export const OUTPUT_FORMATS: { id: OutputFormat; label: string; extension: strin
   { id: "txt", label: "Text (.txt)", extension: "txt" },
 ]
 
-export const MAX_HOURS = 72
-/** Longest lookback the collector will fetch. The pair search UI still caps at MAX_HOURS. */
+/** Pair search and the published collector both keep seven days. Display ranges filter this set. */
+export const MAX_HOURS = 168
 export const COLLECTION_MAX_HOURS = 168
 
 export const EMPTY_DETAIL: PairDetail = {

@@ -4,7 +4,8 @@ import { fetchPairDetails } from "../lib/details"
 import { captureHistory } from "../lib/narrative/engine"
 import { fetchNews } from "../lib/narrative/rss"
 import type { HistoryPoint, SnapshotFile } from "../lib/narrative/types"
-import { buildLpBurns } from "../lib/lp/monitor"
+import { scanChain } from "../lib/lp/chain-scan"
+import { applyChainBurns, buildLpBurns } from "../lib/lp/monitor"
 import { collectWethPairs } from "../lib/scrape"
 import { COLLECTION_MAX_HOURS, EMPTY_DETAIL, normalizeLp, type PairRecord } from "../lib/types"
 
@@ -28,18 +29,36 @@ async function main() {
   )
 
   const generatedAt = new Date().toISOString()
-  const [news, previous] = await Promise.all([fetchNews(Date.parse(generatedAt)), loadPrevious()])
-  const history = trimHistory([...(previous?.history ?? []), captureHistory(records, generatedAt)], Date.parse(generatedAt))
-  const lp = buildLpBurns(records, previous, generatedAt)
+  const generatedMs = Date.parse(generatedAt)
+  const [news, previous] = await Promise.all([fetchNews(generatedMs), loadPrevious()])
+  const retained = retainPairs(records, previous?.rows, generatedMs)
+  let chain = previous?.chain
+  let chainBurns: Awaited<ReturnType<typeof scanChain>>["burns"] = []
+  try {
+    const scannedChain = await scanChain(retained, previous?.chain ?? null, new Date(generatedAt))
+    chain = scannedChain.checkpoint
+    chainBurns = scannedChain.burns
+    if (chain.lastError) console.warn(`[LP-MONITOR] ${chain.lastError}`)
+    else console.log(`[LP-MONITOR] Checkpoint ${chain.lpMonitorBlock ?? "unset"} · head ${chain.headBlock ?? "unknown"}`)
+  } catch (error) {
+    console.warn(`[LP-MONITOR] Scan stopped. Checkpoint kept. ${error instanceof Error ? error.message : "unknown error"}`)
+  }
+  const withChain = applyChainBurns(retained, chainBurns)
+  const history = trimHistory([...(previous?.history ?? []), captureHistory(withChain, generatedAt)], generatedMs)
+  const lp = buildLpBurns(withChain, previous, generatedAt, chainBurns)
+  for (const event of lp.events.filter((event) => event.kind === "newly-burned" && event.detectedAt === generatedAt)) {
+    console.log(`[LP-BURN] New event saved ${event.pair} ${event.burnTx ?? "no-tx"}`)
+  }
   const snapshot: SnapshotFile = {
     generatedAt,
     hours,
     scanned,
-    rows: records,
+    rows: withChain,
     news,
     history,
     lpBurns: lp.events,
     lpScan: lp.scan,
+    chain,
   }
   const file = path.join("public", "data", "snapshot.json")
   await mkdir(path.dirname(file), { recursive: true })
@@ -59,6 +78,16 @@ async function loadPrevious(): Promise<SnapshotFile | null> {
     console.warn(`Previous snapshot was not loaded: ${error instanceof Error ? error.message : "unknown error"}`)
     return null
   }
+}
+
+function retainPairs(current: PairRecord[], previous: PairRecord[] | undefined, now: number): PairRecord[] {
+  const seen = new Set(current.map((row) => row.address.toLowerCase()))
+  const extra = (previous ?? []).filter((row) => {
+    const at = Date.parse(row.created_at)
+    return !seen.has(row.address.toLowerCase()) && Number.isFinite(at) && now - at <= COLLECTION_MAX_HOURS * 60 * 60 * 1000
+  })
+  if (extra.length > 0) console.log(`[LP-MONITOR] Kept ${extra.length} stored pairs that this listing page did not return`)
+  return [...current, ...extra]
 }
 
 function trimHistory(points: HistoryPoint[], now: number): HistoryPoint[] {

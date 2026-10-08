@@ -1,29 +1,15 @@
+import type { ChainCheckpoint } from "@/lib/lp/burn-logic"
 import type { LpBurnEvent, LpScan } from "@/lib/lp/monitor"
 import type { PairRecord } from "@/lib/types"
 import type { ConceptHit } from "@/lib/narrative/text"
+import { RANGES, rangeById } from "@/lib/time-range"
 
-export const WINDOWS = [
-  { id: "5m", label: "5 minutes", ms: 5 * 60 * 1000 },
-  { id: "15m", label: "15 minutes", ms: 15 * 60 * 1000 },
-  { id: "30m", label: "30 minutes", ms: 30 * 60 * 1000 },
-  { id: "1h", label: "1 hour", ms: 60 * 60 * 1000 },
-  { id: "3h", label: "3 hours", ms: 3 * 60 * 60 * 1000 },
-  { id: "6h", label: "6 hours", ms: 6 * 60 * 60 * 1000 },
-  { id: "12h", label: "12 hours", ms: 12 * 60 * 60 * 1000 },
-  { id: "24h", label: "24 hours", ms: 24 * 60 * 60 * 1000 },
-  { id: "3d", label: "3 days", ms: 3 * 24 * 60 * 60 * 1000 },
-  { id: "7d", label: "7 days", ms: 7 * 24 * 60 * 60 * 1000 },
-] as const
+export const WINDOWS = RANGES
 
 export type WindowId = (typeof WINDOWS)[number]["id"]
 
 export function windowById(id: string) {
-  const custom = /^(\d+)h$/.exec(id)
-  if (custom) {
-    const hours = Math.min(168, Math.max(1, Number(custom[1])))
-    return { id: "1h" as WindowId, label: `${hours} hour${hours === 1 ? "" : "s"}`, ms: hours * 60 * 60 * 1000 }
-  }
-  return WINDOWS.find((item) => item.id === id) ?? WINDOWS[3]
+  return rangeById(id)
 }
 
 export type OriginLabel = "Confirmed Origin" | "Highly Likely" | "Possible Connection" | "Unknown"
@@ -63,6 +49,7 @@ export type SnapshotFile = {
   history?: HistoryPoint[]
   lpBurns?: LpBurnEvent[]
   lpScan?: LpScan
+  chain?: ChainCheckpoint
 }
 
 export type TokenRef = {
@@ -158,7 +145,7 @@ export type Bucket = { at: string; launches: number }
 
 export type Intelligence = {
   generatedAt: string
-  windowId: WindowId
+  windowId: string
   windowLabel: string
   total: number
   previousTotal: number

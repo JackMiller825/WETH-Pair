@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { formatCount, formatUsd } from "@/lib/format"
+import { filterBurnEvents, formatBurnPercent } from "@/lib/lp/burn-logic"
 import {
   INTERVAL_PRESETS,
+  PAIR_AGE_FILTERS,
   SEARCH_WINDOWS,
   STATUS_LABEL,
   ago,
@@ -14,6 +16,7 @@ import {
   intervalBuckets,
   intervalLabel,
   launchGap,
+  pairAgeLimitMs,
   resolveInterval,
   searchBounds,
   statsFor,
@@ -67,7 +70,7 @@ export function LpWatchSummary() {
 
 export function LpBurnWatch() {
   const monitor = useLpMonitor()
-  const { config, update, snapshot, loading, error, mode, lastCheck, nextCheck, rpc, alerts, dismiss, scanNow, testSound, deliveryNote } = monitor
+  const { config, update, snapshot, loading, error, mode, lastCheck, nextCheck, rpc, alerts, dismiss, scanNow, testSound, testNotification, enableNotifications, deliveryNote } = monitor
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [now, setNow] = useState<number | null>(null)
   useEffect(() => {
@@ -86,22 +89,11 @@ export function LpBurnWatch() {
   const scan = derived?.scan ?? null
   const visible = useMemo(() => {
     if (bounds == null || "error" in bounds) return []
-    return events
-      .filter((event) => {
-        const created = Date.parse(event.createdAt)
-        return created >= bounds.start && created <= bounds.end
-      })
-      .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt))
-  }, [bounds, events])
-  const history = useMemo(() => {
-    if (bounds == null || "error" in bounds) return []
-    return events
-      .filter((event) => {
-        const at = Date.parse(event.burnAt ?? event.detectedAt)
-        return at >= bounds.start && at <= bounds.end
-      })
-      .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt))
-  }, [bounds, events])
+    return filterBurnEvents(events, bounds.start, bounds.end, pairAgeLimitMs(config), now ?? bounds.end)
+      .sort((a, b) => (b.burnAt ?? "").localeCompare(a.burnAt ?? ""))
+  }, [bounds, config, events, now])
+  const undated = useMemo(() => events.filter((event) => !event.burnAt), [events])
+  const history = visible
   const selected = visible.find((event) => event.id === selectedId) ?? visible[0] ?? null
   const day = snapshot && now != null ? statsFor(snapshot.rows, events, now - 24 * 60 * 60_000, now) : null
   const buckets = bounds != null && !("error" in bounds) && !("error" in interval) ? intervalBuckets(events, bounds.start, bounds.end, interval.ms) : []
@@ -141,7 +133,8 @@ export function LpBurnWatch() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">Show pairs from</h2>
+        <h2 className="text-sm font-medium">Burn time</h2>
+        <p className="text-xs text-muted-foreground">Shows LP burns whose burn timestamp falls in this period. Pair age is a separate filter and does not change what the monitor scans.</p>
         <div className="flex flex-wrap gap-2">
           {SEARCH_WINDOWS.map((item) => (
             <button key={item.id} type="button" onClick={() => { setNow(Date.now()); update({ windowId: item.id }) }} className={chip(config.windowId === item.id)}>
@@ -149,6 +142,19 @@ export function LpBurnWatch() {
             </button>
           ))}
         </div>
+        <h2 className="text-sm font-medium">Pair age</h2>
+        <div className="flex flex-wrap gap-2">
+          {PAIR_AGE_FILTERS.map((item) => (
+            <button key={item.id} type="button" onClick={() => update({ pairAgeId: item.id })} className={chip(config.pairAgeId === item.id)}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+        {config.pairAgeId === "custom" ? (
+          <label className="flex w-40 flex-col gap-1 text-sm">Maximum pair age in minutes
+            <input type="number" min={1} value={config.pairAgeMinutes} onChange={(event) => update({ pairAgeMinutes: Number(event.target.value) })} className="rounded-md bg-muted px-2 py-1" />
+          </label>
+        ) : null}
         {config.windowId === "custom" ? (
           <div className="flex flex-wrap items-end gap-3 text-sm">
             <label className="flex flex-col gap-1">Start<input type="datetime-local" value={config.customStart} onChange={(event) => update({ customStart: event.target.value })} className="rounded-md bg-muted px-2 py-1" /></label>
@@ -212,13 +218,13 @@ export function LpBurnWatch() {
             </thead>
             <tbody>
               {visible.map((event) => (
-                <tr key={event.id} onClick={() => setSelectedId(event.id)} className="cursor-pointer border-t border-foreground/10">
+                <tr key={event.id} onClick={() => setSelectedId(event.id)} className={`cursor-pointer border-t border-foreground/10 ${alerts.some((item) => item.id === event.id) ? "bg-primary/15" : ""}`}>
                   <td className="py-2 pr-3">{ago(ageNow - Date.parse(event.detectedAt))}</td>
                   <td className="py-2 pr-3">{event.tokenName}</td>
                   <td className="py-2 pr-3">${event.symbol}</td>
                   <td className="py-2 pr-3">{formatDuration(ageNow - Date.parse(event.createdAt))}</td>
                   <td className="py-2 pr-3">{event.burnAt ? ago(ageNow - Date.parse(event.burnAt)) : "Not in the pair record"}</td>
-                  <td className="py-2 pr-3">{event.lpBurntPercent.toFixed(1)}%</td>
+                  <td className="py-2 pr-3">{formatBurnPercent(event.lpBurntPercent, event.percentKnown !== false)}</td>
                   <td className="py-2 pr-3">{formatUsd(event.liquidity)}</td>
                   <td className="py-2 pr-3">{formatUsd(event.marketCap)}</td>
                   <td className="py-2 pr-3">{formatUsd(event.volume24h)}</td>
@@ -228,7 +234,7 @@ export function LpBurnWatch() {
               ))}
             </tbody>
           </table>
-          {visible.length === 0 && snapshot ? <p className="pt-3 text-sm text-muted-foreground">No burned LP in this launch window.</p> : null}
+          {visible.length === 0 && snapshot ? <p className="pt-3 text-sm text-muted-foreground">No LP burn with a recorded burn time in this period. Pair age is {config.pairAgeId === "any" ? "not limited" : PAIR_AGE_FILTERS.find((item) => item.id === config.pairAgeId)?.label ?? "custom"}.</p> : null}
         </div>
       </section>
 
@@ -285,7 +291,7 @@ export function LpBurnWatch() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">LP burn history</h2>
-        <p className="text-xs text-muted-foreground">This table uses the same clock range, measured from the recorded burn time when it exists, otherwise from the first scan that stored the burn. The watch table above uses pair launch time.</p>
+        <p className="text-xs text-muted-foreground">Same burn-time filter as the watch table. A pair can be hours old and still appear when its LP burn is inside the selected burn time.</p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="text-xs text-muted-foreground">
@@ -306,7 +312,7 @@ export function LpBurnWatch() {
                     <td className="py-2 pr-3">{event.tokenName}</td>
                     <td className="py-2 pr-3">${event.symbol}</td>
                     <td className="py-2 pr-3">{formatUsd(event.liquidity)}</td>
-                    <td className="py-2 pr-3">{event.lpBurntPercent.toFixed(1)}%</td>
+                    <td className="py-2 pr-3">{formatBurnPercent(event.lpBurntPercent, event.percentKnown !== false)}</td>
                     <td className="py-2 pr-3">{formatUsd(event.marketCap)}</td>
                     <td className="py-2 pr-3">{formatUsd(event.volume24h)}</td>
                     <td className="py-2 pr-3">{formatCount(event.buys24h)}</td>
@@ -325,6 +331,8 @@ export function LpBurnWatch() {
         <div className="flex flex-wrap gap-2">
           <Toggle label="In-app alerts" on={config.inApp} onClick={() => update({ inApp: !config.inApp })} />
           <Toggle label="Browser notifications" on={config.browser} onClick={() => update({ browser: !config.browser })} />
+          <button type="button" onClick={enableNotifications} className={chip(false)}>Enable Notifications</button>
+          <button type="button" onClick={testNotification} className={chip(false)}>Test Notification</button>
           <Toggle label="Sound alerts" on={config.sound} onClick={() => update({ sound: !config.sound })} />
           <Toggle label="Webhook" on={config.webhook} onClick={() => update({ webhook: !config.webhook })} />
           <Toggle label="Telegram" on={config.telegram} onClick={() => update({ telegram: !config.telegram })} />
@@ -336,6 +344,17 @@ export function LpBurnWatch() {
           ))}
           <button type="button" onClick={testSound} className={chip(false)}>Test Sound</button>
         </div>
+        <div className="grid gap-3 text-sm sm:grid-cols-3">
+          <label className="flex flex-col gap-1">Minimum LP burn %
+            <input type="number" min={0} max={100} value={config.minBurnPercent} onChange={(event) => update({ minBurnPercent: Number(event.target.value) })} className="rounded-md bg-muted px-2 py-1" />
+          </label>
+          <label className="flex flex-col gap-1">Minimum liquidity USD
+            <input type="number" min={0} value={config.minLiquidity} onChange={(event) => update({ minLiquidity: Number(event.target.value) })} className="rounded-md bg-muted px-2 py-1" />
+          </label>
+          <label className="flex flex-col gap-1">Maximum pair age minutes (blank = any)
+            <input type="number" min={1} value={config.maxPairAgeMinutes ?? ""} onChange={(event) => update({ maxPairAgeMinutes: event.target.value === "" ? null : Number(event.target.value) })} className="rounded-md bg-muted px-2 py-1" />
+          </label>
+        </div>
         <label className="flex flex-col gap-1 text-sm">Webhook URL
           <input value={config.webhookUrl} onChange={(event) => update({ webhookUrl: event.target.value })} placeholder="https://example.com/hook" className="rounded-md bg-muted px-2 py-1" />
         </label>
@@ -344,6 +363,13 @@ export function LpBurnWatch() {
         </label>
         <p className="text-xs leading-5 text-muted-foreground">Each method sends only for a burn found while monitoring was running, and only once. The stored id is chain, pair, and burn transaction hash. When the pair record has no burn hash, the id uses the pair address so the same burn is not announced again. Telegram uses a relay URL you provide. This site does not store a bot token. Sound starts after Test Sound or after you turn sound on, because the browser requires a click.</p>
       </section>
+
+      {undated.length ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium">Burn time not on chain yet</h2>
+          <p className="text-xs text-muted-foreground">{undated.length} stored burns have no burn timestamp, so they stay out of the clock filters above. Market data can be missing without hiding a timed burn.</p>
+        </section>
+      ) : null}
 
       {snapshot ? <StatusSample rows={snapshot.rows} /> : null}
     </main>
@@ -388,7 +414,7 @@ function BurnFacts({ event, detected }: { event: LpBurnEvent; detected?: string 
       <p>Ticker: ${event.symbol}</p>
       <p>Pair: {event.symbol}/WETH</p>
       <p>LP Status: {STATUS_LABEL.burned}</p>
-      <p>LP Burned: {event.lpBurntPercent.toFixed(1)}%</p>
+      <p>LP Burned: {formatBurnPercent(event.lpBurntPercent, event.percentKnown !== false)}{event.source === "ethereum-transfer" ? " · Ethereum Transfer" : event.source === "dextools" ? " · DEXTools balance" : ""}</p>
       <p>Total LP supply: {event.lpSupply == null ? "Not in the pair record" : formatCount(event.lpSupply)}</p>
       <p>LP tokens burned: {event.lpBurnedTokens == null ? "Not in the pair record" : formatCount(event.lpBurnedTokens)}</p>
       <p>Remaining LP tokens: {event.lpRemaining == null ? "Not in the pair record" : formatCount(event.lpRemaining)}</p>

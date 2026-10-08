@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AlertWatcher } from "@/components/alert-watcher";
 import { LpMonitor } from "@/components/lp/monitor-context";
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   description: "Live WETH pairs, LP burn monitoring, and name, ticker, and narrative trends for newly launched Ethereum tokens.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"

@@ -90,10 +90,16 @@ import {
 } from "@/lib/view"
 
 const PERIODS = [
+  { id: "5m", label: "Last 5 minutes", hours: 5 / 60 },
+  { id: "15m", label: "Last 15 minutes", hours: 15 / 60 },
+  { id: "30m", label: "Last 30 minutes", hours: 0.5 },
   { id: "1", label: "Last 1 hour", hours: 1 },
-  { id: "8", label: "Last 8 hours", hours: 8 },
+  { id: "3", label: "Last 3 hours", hours: 3 },
+  { id: "6", label: "Last 6 hours", hours: 6 },
+  { id: "12", label: "Last 12 hours", hours: 12 },
   { id: "24", label: "Last 24 hours", hours: 24 },
-  { id: "48", label: "Last 48 hours", hours: 48 },
+  { id: "72", label: "Last 3 days", hours: 72 },
+  { id: "168", label: "Last 7 days", hours: 168 },
   { id: "custom", label: "Custom", hours: null },
 ] as const
 

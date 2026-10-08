@@ -35,6 +35,7 @@ import type {
   WindowId,
 } from "@/lib/narrative/types"
 import { windowById } from "@/lib/narrative/types"
+import { isInsidePrevious, isInsideRange } from "@/lib/time-range"
 import type { PairRecord } from "@/lib/types"
 
 const EMERGING_RECENT_MS = 20 * 60 * 1000
@@ -45,8 +46,8 @@ export function buildIntelligence(snapshot: SnapshotFile, windowId: WindowId | s
   const news = snapshot.news ?? []
   const discussionAvailable = news.some((item) => item.kind === "reddit")
   const tokens = analyzeRows(snapshot.rows)
-  const current = tokens.filter((token) => inRange(token.createdAt, now - selected.ms, now))
-  const previous = tokens.filter((token) => inRange(token.createdAt, now - selected.ms * 2, now - selected.ms))
+  const current = tokens.filter((token) => isInsideRange(token.createdAt, windowId, now))
+  const previous = tokens.filter((token) => isInsidePrevious(token.createdAt, windowId, now))
   const recent = tokens.filter((token) => inRange(token.createdAt, now - EMERGING_RECENT_MS, now))
   const baseline = tokens.filter((token) => inRange(token.createdAt, now - EMERGING_RECENT_MS - EMERGING_BASELINE_MS, now - EMERGING_RECENT_MS))
 
@@ -76,7 +77,7 @@ export function buildIntelligence(snapshot: SnapshotFile, windowId: WindowId | s
     emerging,
     hot,
     cooling,
-    newsLinks: correlateNews(news, tokens),
+    newsLinks: correlateNews(news, current),
     discussionAvailable,
   }
 }

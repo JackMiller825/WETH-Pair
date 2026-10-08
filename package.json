@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

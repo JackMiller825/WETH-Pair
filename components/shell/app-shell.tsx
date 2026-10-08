@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Bell, Flame, LayoutDashboard, Menu, Monitor, Moon, Newspaper, Search, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
+import { Activity as ActivityIcon, Bell, Flame, LayoutDashboard, Menu, Monitor, Moon, Newspaper, Search, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
 import { applyTheme, isThemeId, type ThemeId } from "@/lib/theme"
 import { ago, eventsOf } from "@/lib/lp/monitor"
 import { useLpMonitor } from "@/components/lp/monitor-context"
@@ -19,6 +19,7 @@ const LINKS = [
   { href: "/news", label: "News → Tokens", icon: Newspaper },
   { href: "/tokens", label: "Token Explorer", icon: Search },
   { href: "/alerts", label: "Alerts", icon: Bell },
+  { href: "/system", label: "Diagnostics", icon: ActivityIcon },
 ] as const
 
 const TOUR = [
@@ -31,7 +32,7 @@ const TOUR = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  const { snapshot, mode, lastCheck, block } = useLpMonitor()
+  const { snapshot, mode, lastCheck, block, alerts, dismiss } = useLpMonitor()
   const [open, setOpen] = useState(false)
   const [queryOpen, setQueryOpen] = useState(false)
   const [feed, setFeed] = useState(false)
@@ -80,7 +81,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [snapshot])
   const latestBurn = useMemo(() => {
     if (!snapshot) return null
-    return eventsOf(snapshot).reduce<string | null>((best, event) => (!best || event.detectedAt > best ? event.detectedAt : best), null)
+    return eventsOf(snapshot).reduce<string | null>((best, event) => {
+      const at = event.burnAt || event.detectedAt
+      return !best || at > best ? at : best
+    }, null)
   }, [snapshot])
 
   const statusText = mode === "realtime" ? "Live Ethereum feed" : mode === "paused" ? "LP burn monitor paused" : mode === "error" ? "Feed reconnecting" : "LP burn monitor polling"
@@ -118,7 +122,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>{block ? `Ethereum block ${block.toLocaleString("en-US")}` : "Ethereum block waiting"}</span>
           <span>Latest pair {latestPair && now ? ago(now - Date.parse(latestPair)) : "waiting"}</span>
           <span>Latest LP burn {latestBurn && now ? ago(now - Date.parse(latestBurn)) : "waiting"}</span>
-          <span>Dataset {snapshot && now ? ago(now - Date.parse(snapshot.generatedAt)) : "waiting"}</span>
+          <span>Chain monitor {snapshot?.chain?.lastSuccessAt && now ? ago(now - Date.parse(snapshot.chain.lastSuccessAt)) : "waiting"}</span>
+          <span>LP burn store {snapshot?.lpScan?.scannedAt && now ? ago(now - Date.parse(snapshot.lpScan.scannedAt)) : "waiting"}</span>
+          <span>Trend data {snapshot && now ? ago(now - Date.parse(snapshot.generatedAt)) : "waiting"}</span>
           <span>Last monitor check {lastCheck && now ? ago(now - lastCheck) : "waiting"}</span>
           <button type="button" className="ml-auto text-foreground underline" onClick={() => { const next = !feed; setFeed(next); localStorage.setItem("weth-activity-feed", next ? "on" : "off") }}>{feed ? "Hide activity feed" : "Show activity feed"}</button>
         </div>
@@ -129,6 +135,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       {queryOpen ? <CommandSearch onClose={() => setQueryOpen(false)} /> : null}
       {tour ? <Welcome onClose={(forever) => { if (forever) localStorage.setItem("weth-onboarded", "1"); setTour(false) }} /> : null}
+      <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex w-[min(100%-2rem,22rem)] flex-col gap-2">
+        {alerts.map((event) => (
+          <article key={event.id} className="pointer-events-auto rounded-xl bg-card p-3 text-sm shadow-lg ring-1 ring-primary/40">
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-medium">🔥 NEW LP BURN</p>
+              <button type="button" className="text-xs text-muted-foreground" onClick={() => dismiss(event.id)}>Dismiss</button>
+            </div>
+            <p className="mt-1">{event.tokenName} / WETH</p>
+            <p className="text-muted-foreground">{event.percentKnown === false ? "LP burn % N/A" : `${event.lpBurntPercent}% LP burned`}</p>
+            <Link href={`/tokens/${event.tokenAddress}`} className="mt-2 inline-block text-primary">View</Link>
+          </article>
+        ))}
+      </div>
       <p className="sr-only">{statusText}</p>
     </div>
   )
