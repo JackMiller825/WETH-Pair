@@ -22,7 +22,6 @@ pairs.json
 /public/data/snapshot.json
 # production
 /build
-/dist
 # misc
 .DS_Store
 *.pem
