@@ -7,7 +7,7 @@ export const HISTORY_RETAIN_MS = 30 * 24 * 60 * 60 * 1000
 export const HISTORY_CHUNK = 40
 // One publish is allowed to keep scanning until the 7-day window is saved.
 // The workflow waits instead of cancelling this run.
-export const HISTORY_BUDGET_MS = 8 * 60 * 1000
+export const HISTORY_BUDGET_MS = 18 * 60 * 1000
 
 export const HISTORY_SCOPE =
   "The newest 24 hours comes from the DEXTools live listing, which stops after about one day and includes every exchange that listing returns. Older WETH pairs are read from Uniswap V2 and SushiSwap PairCreated logs. A 3-day or 7-day count is partial until that backfill finishes."
