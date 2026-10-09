@@ -169,10 +169,36 @@ export function filterBurnEvents<T extends TimedBurn>(
   return events.filter((event) => {
     const burned = burnTimeMs(event)
     if (burned == null || burned < burnStart || burned > burnEnd) return false
-    if (maxPairAgeMs == null) return true
-    const age = pairAgeMs(event.createdAt, now)
-    return age != null && age >= 0 && age <= maxPairAgeMs
+    return pairAgeAllowed(event.createdAt, maxPairAgeMs, now)
   })
+}
+
+/**
+ * The watch table keeps timed burns on the burn clock.
+ * A burned pair with no burn timestamp still appears when the pair itself was created in that window.
+ */
+export function watchTableEvents<T extends TimedBurn>(
+  events: T[],
+  burnStart: number,
+  burnEnd: number,
+  maxPairAgeMs: number | null,
+  now: number,
+): T[] {
+  const timed = filterBurnEvents(events, burnStart, burnEnd, maxPairAgeMs, now)
+  const seen = new Set(timed)
+  const undated = events.filter((event) => {
+    if (seen.has(event) || burnTimeMs(event) != null) return false
+    const created = Date.parse(event.createdAt)
+    if (!Number.isFinite(created) || created < burnStart || created > burnEnd) return false
+    return pairAgeAllowed(event.createdAt, maxPairAgeMs, now)
+  })
+  return [...timed, ...undated]
+}
+
+function pairAgeAllowed(createdAt: string, maxPairAgeMs: number | null, now: number): boolean {
+  if (maxPairAgeMs == null) return true
+  const age = pairAgeMs(createdAt, now)
+  return age != null && age >= 0 && age <= maxPairAgeMs
 }
 
 export function createdInRange(createdAt: string, range: string, now: number): boolean {

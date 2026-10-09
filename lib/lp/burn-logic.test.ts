@@ -9,6 +9,7 @@ import {
   commitCheckpoint,
   createdInRange,
   filterBurnEvents,
+  watchTableEvents,
   formatBurnPercent,
   isReportedBurn,
   notificationCopy,
@@ -76,6 +77,8 @@ test("case D: a 26-hour-old pair burned two minutes ago is outside the 24h pair 
   assert.equal(filterBurnEvents([event], now - 5 * 60 * 1000, now, null, now).length, 1)
   assert.equal(burnTimeMs({ burnAt: null }), null)
   assert.equal(filterBurnEvents([burn(2, null)], now - 24 * 60 * 60 * 1000, now, null, now).length, 0)
+  assert.equal(watchTableEvents([burn(2, null)], now - 24 * 60 * 60 * 1000, now, null, now).length, 1)
+  assert.equal(watchTableEvents([burn(2, null)], now - 60 * 1000, now, null, now).length, 0)
 })
 
 test("the same chain log keeps one id, and a failed scan does not move the checkpoint", () => {

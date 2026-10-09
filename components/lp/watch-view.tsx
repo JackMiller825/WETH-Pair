@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { formatCount, formatUsd } from "@/lib/format"
-import { filterBurnEvents, formatBurnPercent } from "@/lib/lp/burn-logic"
+import { formatBurnPercent, watchTableEvents } from "@/lib/lp/burn-logic"
 import {
   INTERVAL_PRESETS,
   PAIR_AGE_FILTERS,
@@ -94,10 +94,15 @@ export function LpBurnWatch() {
   }, [snapshot])
   const events = derived?.events ?? []
   const scan = derived?.scan ?? null
+  const txByPair = useMemo(() => {
+    const map = new Map<string, number | null>()
+    for (const row of snapshot?.rows ?? []) map.set(row.address.toLowerCase(), row.totalTx ?? null)
+    return map
+  }, [snapshot])
   const visible = useMemo(() => {
     if (bounds == null || "error" in bounds) return []
-    return filterBurnEvents(events, bounds.start, bounds.end, pairAgeLimitMs(config), now ?? bounds.end)
-      .sort((a, b) => (b.burnAt ?? "").localeCompare(a.burnAt ?? ""))
+    return watchTableEvents(events, bounds.start, bounds.end, pairAgeLimitMs(config), now ?? bounds.end)
+      .sort((a, b) => (b.burnAt ?? b.createdAt).localeCompare(a.burnAt ?? a.createdAt))
   }, [bounds, config, events, now])
   const undated = useMemo(() => events.filter((event) => !event.burnAt), [events])
   const history = visible
@@ -209,7 +214,7 @@ export function LpBurnWatch() {
             <h2 className="font-medium">🔥 NEW LP BURN DETECTED</h2>
             <button type="button" onClick={() => dismiss(event.id)} className="text-xs text-muted-foreground">Dismiss</button>
           </div>
-          <BurnFacts event={event} detected="Just now" />
+          <BurnFacts event={event} detected="Just now" transactions={txByPair.get(event.pair) ?? null} />
           <BurnActions event={event} />
         </article>
       ))}
@@ -217,7 +222,7 @@ export function LpBurnWatch() {
 
       {selected ? (
         <article className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <BurnFacts event={selected} />
+          <BurnFacts event={selected} transactions={txByPair.get(selected.pair) ?? null} />
           <p className="text-sm text-muted-foreground">{kindLabel(selected.kind)}. {selected.burnTx ? `Burn transaction ${selected.burnTx}.` : "Burn transaction, block, and sender were not in the pair record."} LP holder addresses were not in the pair record. {STATUS_LABEL.locked} is not counted as burned.</p>
           <BurnActions event={selected} />
         </article>
@@ -226,10 +231,10 @@ export function LpBurnWatch() {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">LP Burn Watch</h2>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr>
-                {["Age", "Token", "Ticker", "Pair age", "LP burn time", "LP burn %", "Liquidity", "Market cap", "Volume", "Buys", "Contract"].map((label) => (
+                {["Age", "Token", "Ticker", "Pair age", "LP burn time", "LP burn %", "Liquidity", "Market cap", "Volume", "Buys", "Transactions", "Contract"].map((label) => (
                   <th key={label} className="py-2 pr-3 font-medium">{label}</th>
                 ))}
               </tr>
@@ -247,6 +252,7 @@ export function LpBurnWatch() {
                   <td className="py-2 pr-3">{formatUsd(event.marketCap)}</td>
                   <td className="py-2 pr-3">{formatUsd(event.volume24h)}</td>
                   <td className="py-2 pr-3">{formatCount(event.buys24h)}</td>
+                  <td className="py-2 pr-3">{formatCount(txByPair.get(event.pair) ?? null)}</td>
                   <td className="py-2 pr-3 font-mono text-xs">{event.tokenAddress.slice(0, 8)}…</td>
                 </tr>
               ))}
@@ -311,10 +317,10 @@ export function LpBurnWatch() {
         <h2 className="text-sm font-medium">LP burn history</h2>
         <p className="text-xs text-muted-foreground">Same burn-time filter as the watch table. A pair can be hours old and still appear when its LP burn is inside the selected burn time.</p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-[1280px] text-left text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr>
-                {["Burn time", "Pair creation", "Time from launch", "Token", "Ticker", "Liquidity", "LP burn %", "Market cap", "Volume", "Buys", "Deployer", "Burn transaction"].map((label) => (
+                {["Burn time", "Pair creation", "Time from launch", "Token", "Ticker", "Liquidity", "LP burn %", "Market cap", "Volume", "Buys", "Transactions", "Deployer", "Burn transaction"].map((label) => (
                   <th key={label} className="py-2 pr-3 font-medium">{label}</th>
                 ))}
               </tr>
@@ -334,6 +340,7 @@ export function LpBurnWatch() {
                     <td className="py-2 pr-3">{formatUsd(event.marketCap)}</td>
                     <td className="py-2 pr-3">{formatUsd(event.volume24h)}</td>
                     <td className="py-2 pr-3">{formatCount(event.buys24h)}</td>
+                    <td className="py-2 pr-3">{formatCount(txByPair.get(event.pair) ?? null)}</td>
                     <td className="py-2 pr-3 font-mono text-xs">{event.deployer ? `${event.deployer.slice(0, 8)}…` : "—"}</td>
                     <td className="py-2 pr-3 font-mono text-xs">{event.burnTx ? `${event.burnTx.slice(0, 10)}…` : "—"}</td>
                   </tr>
@@ -385,7 +392,7 @@ export function LpBurnWatch() {
       {undated.length ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-medium">Burn time not on chain yet</h2>
-          <p className="text-xs text-muted-foreground">{undated.length} stored burns have no burn timestamp, so they stay out of the clock filters above. Market data can be missing without hiding a timed burn.</p>
+          <p className="text-xs text-muted-foreground">{undated.length} stored burns have no chain burn time. They still appear above when the pair was created in the selected period. The burn time cell says the timestamp was not in the pair record.</p>
         </section>
       ) : null}
 
@@ -423,7 +430,7 @@ function CustomInterval() {
   )
 }
 
-function BurnFacts({ event, detected }: { event: LpBurnEvent; detected?: string }) {
+function BurnFacts({ event, detected, transactions }: { event: LpBurnEvent; detected?: string; transactions?: number | null }) {
   const gap = launchGap(event)
   const now = Date.now()
   return (
@@ -442,6 +449,7 @@ function BurnFacts({ event, detected }: { event: LpBurnEvent; detected?: string 
       <p>Time from launch: {gap ? `${formatDuration(gap.ms)}${gap.source === "detection" ? " to first detection" : " to LP burn"}` : "—"}</p>
       <p>Liquidity: {formatUsd(event.liquidity)}</p>
       <p>Market cap: {formatUsd(event.marketCap)}</p>
+      <p>Transactions: {formatCount(transactions)}</p>
       <p className="sm:col-span-2 break-all">Burn transaction: {event.burnTx ?? "Not in the pair record"}</p>
     </div>
   )
