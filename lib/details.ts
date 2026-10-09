@@ -59,11 +59,12 @@ function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
-/** Same rule the pair page uses: burned LP tokens as a share of all LP tokens. */
+/** Same signal DEXTools puts on the liquidity field: any burned LP balance, as a share of LP supply. */
 export function burntPercent(balance: number | null, burned: number | null): number {
-  if (balance === null || burned === null) return 0
-  if (balance <= 0 || burned <= 0 || balance < burned) return 0
-  return (burned * 100) / balance
+  if (burned === null || burned <= 0) return 0
+  if (balance === null || balance <= 0) return 100
+  const supply = Math.max(balance, burned)
+  return Math.min(100, (burned * 100) / supply)
 }
 
 export type LockSummary = { percent: number; active: boolean; unlockAt: string | null }

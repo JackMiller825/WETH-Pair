@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { formatCount, formatUsd } from "@/lib/format"
-import { formatBurnPercent, watchTableEvents } from "@/lib/lp/burn-logic"
+import { ExternalLink, Flame } from "lucide-react"
+import { safeHttpUrl } from "@/lib/http"
+import { formatBurnPercent } from "@/lib/lp/burn-logic"
 import {
   INTERVAL_PRESETS,
   PAIR_AGE_FILTERS,
@@ -12,6 +14,7 @@ import {
   ago,
   clock,
   buildLpBurns,
+  burnedWatchRows,
   eventsOf,
   formatDuration,
   intervalBuckets,
@@ -101,9 +104,9 @@ export function LpBurnWatch() {
   }, [snapshot])
   const visible = useMemo(() => {
     if (bounds == null || "error" in bounds) return []
-    return watchTableEvents(events, bounds.start, bounds.end, pairAgeLimitMs(config), now ?? bounds.end)
+    return burnedWatchRows(snapshot?.rows ?? [], events, bounds.start, bounds.end, pairAgeLimitMs(config), now ?? bounds.end)
       .sort((a, b) => (b.burnAt ?? b.createdAt).localeCompare(a.burnAt ?? a.createdAt))
-  }, [bounds, config, events, now])
+  }, [bounds, config, events, now, snapshot])
   const undated = useMemo(() => events.filter((event) => !event.burnAt), [events])
   const history = visible
   const selected = visible.find((event) => event.id === selectedId) ?? visible[0] ?? null
@@ -157,7 +160,7 @@ export function LpBurnWatch() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">Burn time</h2>
-        <p className="text-xs text-muted-foreground">Shows LP burns whose burn timestamp falls in this period. Pair age is a separate filter and does not change what the monitor scans.</p>
+        <p className="text-xs text-muted-foreground">A pair DEXTools marks as LP burned is listed when that pair was created in this period. A chain burn is listed when the burn time falls in this period. Pair age is a separate filter.</p>
         <div className="flex flex-wrap gap-2">
           {SEARCH_WINDOWS.map((item) => (
             <button key={item.id} type="button" onClick={() => { setNow(Date.now()); update({ windowId: item.id }) }} className={chip(config.windowId === item.id)}>
@@ -234,31 +237,42 @@ export function LpBurnWatch() {
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr>
-                {["Age", "Token", "Ticker", "Pair age", "LP burn time", "LP burn %", "Liquidity", "Market cap", "Volume", "Buys", "Transactions", "Contract"].map((label) => (
-                  <th key={label} className="py-2 pr-3 font-medium">{label}</th>
+                {["Token", "Ticker", "Pair age", "LP burn time", "LP burn %", "Liquidity", "Market cap", "Volume", "Buys", "Transactions", "Contract", ""].map((label) => (
+                  <th key={label || "dextools"} className="py-2 pr-3 font-medium">{label || <span className="sr-only">DEXTools</span>}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {visible.map((event) => (
                 <tr key={event.id} onClick={() => setSelectedId(event.id)} className={`cursor-pointer border-t border-foreground/10 ${alerts.some((item) => item.id === event.id) ? "bg-primary/15" : ""}`}>
-                  <td className="py-2 pr-3">{ago(ageNow - Date.parse(event.detectedAt))}</td>
                   <td className="py-2 pr-3">{event.tokenName}</td>
                   <td className="py-2 pr-3">${event.symbol}</td>
                   <td className="py-2 pr-3">{formatDuration(ageNow - Date.parse(event.createdAt))}</td>
                   <td className="py-2 pr-3">{event.burnAt ? ago(ageNow - Date.parse(event.burnAt)) : "Not in the pair record"}</td>
                   <td className="py-2 pr-3">{formatBurnPercent(event.lpBurntPercent, event.percentKnown !== false)}</td>
-                  <td className="py-2 pr-3">{formatUsd(event.liquidity)}</td>
+                  <td className="py-2 pr-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      {formatUsd(event.liquidity)}
+                      <Flame className="size-3.5 text-orange-400" aria-label="LP burned" />
+                    </span>
+                  </td>
                   <td className="py-2 pr-3">{formatUsd(event.marketCap)}</td>
                   <td className="py-2 pr-3">{formatUsd(event.volume24h)}</td>
                   <td className="py-2 pr-3">{formatCount(event.buys24h)}</td>
                   <td className="py-2 pr-3">{formatCount(txByPair.get(event.pair) ?? null)}</td>
                   <td className="py-2 pr-3 font-mono text-xs">{event.tokenAddress.slice(0, 8)}…</td>
+                  <td className="py-2 pr-3 text-right">
+                    {safeHttpUrl(event.url) ? (
+                      <a href={event.url} target="_blank" rel="noreferrer" aria-label={`Open ${event.symbol} on DEXTools`} onClick={(click) => click.stopPropagation()} className="inline-flex rounded-md p-1 text-primary hover:bg-muted">
+                        <ExternalLink className="size-4" />
+                      </a>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {visible.length === 0 && snapshot ? <p className="pt-3 text-sm text-muted-foreground">No LP burn with a recorded burn time in this period. Pair age is {config.pairAgeId === "any" ? "not limited" : PAIR_AGE_FILTERS.find((item) => item.id === config.pairAgeId)?.label ?? "custom"}.</p> : null}
+          {visible.length === 0 && snapshot ? <p className="pt-3 text-sm text-muted-foreground">No LP burned pair in this period. Pair age is {config.pairAgeId === "any" ? "not limited" : PAIR_AGE_FILTERS.find((item) => item.id === config.pairAgeId)?.label ?? "custom"}.</p> : null}
         </div>
       </section>
 

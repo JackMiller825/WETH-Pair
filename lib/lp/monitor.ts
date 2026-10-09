@@ -1,6 +1,6 @@
 import type { AlertSound } from "@/lib/alerts"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
-import { burnTimeMs, classifyLpTransfer, formatBurnPercent, isReportedBurn } from "@/lib/lp/burn-logic"
+import { burnTimeMs, classifyLpTransfer, formatBurnPercent, isReportedBurn, pairAgeMs, watchTableEvents } from "@/lib/lp/burn-logic"
 import { matchConcepts, parseIdentity } from "@/lib/narrative/text"
 import { RANGES, rangeById } from "@/lib/time-range"
 import type { PairRecord } from "@/lib/types"
@@ -304,6 +304,34 @@ export function isIrreversibleBurnEvent(event: { pair: string; burnFrom?: string
 export function eventsOf(snapshot: { rows: PairRecord[]; generatedAt: string; lpBurns?: LpBurnEvent[] }): LpBurnEvent[] {
   if (snapshot.lpBurns) return snapshot.lpBurns.filter(isIrreversibleBurnEvent)
   return buildLpBurns(snapshot.rows, null, snapshot.generatedAt).events.filter(isIrreversibleBurnEvent)
+}
+
+/** Pairs DEXTools marks burned by LP balance, plus chain burns whose burn time is in the window. */
+export function burnedWatchRows(
+  records: PairRecord[],
+  events: LpBurnEvent[],
+  start: number,
+  end: number,
+  maxPairAgeMs: number | null,
+  now: number,
+): LpBurnEvent[] {
+  const listed = watchTableEvents(events, start, end, maxPairAgeMs, now)
+  const seen = new Set(listed.map((event) => event.pair))
+  const extra: LpBurnEvent[] = []
+  for (const record of records) {
+    const pair = record.address.toLowerCase()
+    if (seen.has(pair)) continue
+    if (watchStatus(record) !== "burned" && !(record.lpBurntPercent > 0)) continue
+    const created = Date.parse(record.created_at)
+    if (!Number.isFinite(created) || created < start || created > end) continue
+    if (maxPairAgeMs != null) {
+      const age = pairAgeMs(record.created_at, now)
+      if (age == null || age < 0 || age > maxPairAgeMs) continue
+    }
+    extra.push(eventFromRecord(record, record.lpBurnAt ?? record.created_at, "previously-burned"))
+    seen.add(pair)
+  }
+  return [...listed, ...extra]
 }
 
 export const INTERVAL_PRESETS = [

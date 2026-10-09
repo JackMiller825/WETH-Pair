@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { burnEventId, isIrreversibleBurnEvent } from "../lp/monitor"
+import { burnEventId, burnedWatchRows, isIrreversibleBurnEvent } from "../lp/monitor"
+import { burntPercent } from "../details"
 import {
   BLOCK_CHUNK,
   REORG_BLOCKS,
@@ -160,6 +161,35 @@ test("finding a burnt pair twice does not treat the second sighting as new", () 
   assert.equal(findNewBurnt([record], seen).length, 1)
   seen.add(PAIR)
   assert.equal(findNewBurnt([record], seen).length, 0)
+})
+
+test("a DEXTools burned LP balance stays a burn even when the burned amount exceeds the reported supply", () => {
+  assert.equal(burntPercent(100, 40), 40)
+  assert.equal(burntPercent(10, 40), 100)
+  assert.equal(burntPercent(null, 5), 100)
+  assert.equal(burntPercent(100, 0), 0)
+})
+
+test("a burned pair with no burn event is still listed when it was created in the window", () => {
+  const record = {
+    ...EMPTY_DETAIL,
+    name: "EX(Example)",
+    created_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+    exchange: "Uniswap V2",
+    address: PAIR,
+    tokenAddress: "0x2222222222222222222222222222222222222222",
+    url: "https://www.dextools.io/app/ether/pair-explorer/" + PAIR,
+    price: null,
+    remaining: null,
+    remainingUnit: "",
+    listingLiquidity: null,
+    lpStatus: "burnt" as const,
+    lpBurntPercent: 100,
+  } satisfies PairRecord
+  const rows = burnedWatchRows([record], [], now - 24 * 60 * 60 * 1000, now, null, now)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0]?.pair, PAIR)
+  assert.equal(burnedWatchRows([record], [], now - 60 * 1000, now, null, now).length, 0)
 })
 
 test("a holder transfer to the dead address is an irreversible burn, including a partial amount", () => {
