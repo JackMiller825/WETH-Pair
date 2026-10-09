@@ -5,9 +5,9 @@ export const HISTORY_DAYS = 7
 export const LIVE_LISTING_HOURS = 24
 export const HISTORY_RETAIN_MS = 30 * 24 * 60 * 60 * 1000
 export const HISTORY_CHUNK = 40
-// The Pages workflow is replaced every five minutes. Each scan must finish
-// inside that window so a checkpoint is published instead of being cancelled.
-export const HISTORY_BUDGET_MS = 70 * 1000
+// One publish is allowed to keep scanning until the 7-day window is saved.
+// The workflow waits instead of cancelling this run.
+export const HISTORY_BUDGET_MS = 8 * 60 * 1000
 
 export const HISTORY_SCOPE =
   "The newest 24 hours comes from the DEXTools live listing, which stops after about one day and includes every exchange that listing returns. Older WETH pairs are read from Uniswap V2 and SushiSwap PairCreated logs. A 3-day or 7-day count is partial until that backfill finishes."
@@ -49,6 +49,16 @@ export type BackfillState = {
   burns: HistoryJob
   scope: string
   providerNote: string | null
+}
+
+export function overallProgress(backfill: BackfillState | null | undefined): number | null {
+  if (!backfill) return null
+  const jobs = [backfill.pairs, backfill.burns]
+  const total = jobs.reduce((sum, job) => sum + Math.max(0, job.blocksTotal), 0)
+  if (total <= 0) return null
+  if (jobs.every((job) => job.status === "completed" || job.phase === "done")) return 100
+  const done = jobs.reduce((sum, job) => sum + Math.max(0, Math.min(job.blocksDone, job.blocksTotal)), 0)
+  return Math.max(0, Math.min(99, Math.floor((done / total) * 100)))
 }
 
 export function jobProgress(job: HistoryJob | null | undefined): number | null {

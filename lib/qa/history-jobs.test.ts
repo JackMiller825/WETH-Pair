@@ -10,6 +10,7 @@ import {
   jobEtaMs,
   jobProgress,
   mergeRecords,
+  overallProgress,
   openHistoryJob,
 } from "../history/plan"
 import { backfillHealth, rpcHealth } from "../health"
@@ -25,6 +26,20 @@ test("progress is the processed share and does not invent a percent when the tot
   assert.equal(jobProgress({ ...job, blocksDone: 1000, blocksTotal: 1000, status: "running", phase: "recent" }), 99)
   assert.equal(jobProgress({ ...job, status: "completed", phase: "done" }), 100)
   assert.equal(jobProgress({ ...job, blocksTotal: 0 }), null)
+})
+
+test("overall history percent is the share of pair and burn blocks, and stays under 100 until both finish", () => {
+  const pairs = openHistoryJob("weth-pairs", 26_000_000, nowIso, null)
+  const burns = openHistoryJob("lp-burns", 26_000_000, nowIso, null)
+  const backfill = {
+    pairs: { ...pairs, blocksDone: 500, blocksTotal: 1000 },
+    burns: { ...burns, blocksDone: 250, blocksTotal: 1000 },
+    scope: "",
+    providerNote: null,
+  }
+  assert.equal(overallProgress(backfill), 37)
+  assert.equal(overallProgress({ ...backfill, pairs: { ...backfill.pairs, status: "completed", phase: "done" }, burns: { ...backfill.burns, status: "completed", phase: "done" } }), 100)
+  assert.equal(overallProgress(null), null)
 })
 
 test("eta stays hidden until the scan has moved, and a rate limit does not count as success", () => {

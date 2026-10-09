@@ -137,8 +137,27 @@
   padding-right: clamp(16px, 2vw, 32px);
 }
 
+.progress-fill {
+  position: relative;
+  overflow: hidden;
+  transition: width 500ms ease-out;
+}
+
+.progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 253 248 / 45%), transparent);
+  animation: progress-sheen 2.4s ease-in-out infinite;
+}
+
 .live-dot {
   animation: live-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes progress-sheen {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
 }
 
 @keyframes live-pulse {
