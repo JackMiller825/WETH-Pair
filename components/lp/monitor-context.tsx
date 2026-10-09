@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createAudioContext, notificationState, playNamedTone, requestNotifications } from "@/lib/alerts"
-import { isLiveBurnAlert, notificationCopy, passesNotifyFilter } from "@/lib/lp/burn-logic"
+import { freshLiveAlerts, isLiveBurnAlert, notificationCopy, passesNotifyFilter } from "@/lib/lp/burn-logic"
 import {
   DEFAULT_CONFIG,
   PAIR_AGE_FILTERS,
@@ -187,11 +187,10 @@ export function LpMonitor({ children }: { children: ReactNode }) {
       writeSeen(new Set(eventsOf(data).map((event) => event.id)))
       return
     }
-    const fresh = events.filter((event) => !seen.has(event.id) && passesNotifyFilter(event, current, now))
-    if (!current.enabled || current.paused) return
+    const fresh = freshLiveAlerts(events, seen, (event) => passesNotifyFilter(event, current, now))
     for (const event of eventsOf(data)) seen.add(event.id)
     writeSeen(seen)
-    if (fresh.length === 0) return
+    if (!current.enabled || current.paused || fresh.length === 0) return
     const announce = fresh.slice(0, 3)
     if (fresh.length > announce.length) {
       setDeliveryNote(`${fresh.length - announce.length} more new LP burns are in the watch list.`)

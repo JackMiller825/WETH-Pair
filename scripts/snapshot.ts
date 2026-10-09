@@ -6,7 +6,7 @@ import { fetchNews } from "../lib/narrative/rss"
 import type { HistoryPoint, SnapshotFile } from "../lib/narrative/types"
 import { scanChain } from "../lib/lp/chain-scan"
 import { applyChainBurns, buildLpBurns } from "../lib/lp/monitor"
-import { HISTORY_RETAIN_MS, HISTORY_SCOPE, openHistoryJob } from "../lib/history/plan"
+import { HISTORY_RETAIN_MS, HISTORY_SCOPE, mergeRecords, openHistoryJob } from "../lib/history/plan"
 import { enrichIdentity, readHead, scanHistoricalBurns, scanHistoricalPairs } from "../lib/history/scan"
 import { collectWethPairs } from "../lib/scrape"
 import { COLLECTION_MAX_HOURS, EMPTY_DETAIL, normalizeLp, type PairRecord } from "../lib/types"
@@ -123,12 +123,7 @@ function retainPairs(current: PairRecord[], previous: PairRecord[] | undefined, 
 }
 
 function mergePairs(current: PairRecord[], extra: PairRecord[]): PairRecord[] {
-  const map = new Map(current.map((row) => [row.address.toLowerCase(), row]))
-  for (const row of extra) {
-    const key = row.address.toLowerCase()
-    if (!map.has(key)) map.set(key, row)
-  }
-  return [...map.values()]
+  return mergeRecords(current, extra)
 }
 
 function trimHistory(points: HistoryPoint[], now: number): HistoryPoint[] {

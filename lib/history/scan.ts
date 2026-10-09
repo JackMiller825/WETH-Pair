@@ -1,4 +1,4 @@
-import { HISTORY_CHUNK, HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
+import { HISTORY_CHUNK, HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, classifyRpcFailure, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
 import { TRANSFER_TOPIC, burnPercent, isBurnAddress, parseTransferLog } from "@/lib/lp/burn-logic"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
 import { EMPTY_DETAIL, type PairRecord } from "@/lib/types"
@@ -66,14 +66,6 @@ export async function readHead(): Promise<number> {
   return head
 }
 
-function shouldShrink(message: string): boolean {
-  return /too many|10000|exceed|response size|log limit|more than/i.test(message)
-}
-
-function rateLimited(message: string): boolean {
-  return /429|rate limit|too many requests/i.test(message)
-}
-
 export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Promise<{ job: HistoryJob; pairs: PairRecord[] }> {
   const deadline = Date.now() + HISTORY_BUDGET_MS
   const pairs: PairRecord[] = []
@@ -101,11 +93,12 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
         }])) as typeof logs
       } catch (error) {
         const message = error instanceof Error ? error.message : "Log scan failed"
-        if (rateLimited(message)) {
+        const kind = classifyRpcFailure(message)
+        if (kind === "rate-limit") {
           retry = true
           break
         }
-        if (chunk > 8 && shouldShrink(message)) {
+        if (chunk > 8 && kind === "shrink") {
           chunk = Math.max(8, Math.floor(chunk / 2))
           shrink = true
           break
@@ -167,11 +160,12 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
         }])) as typeof logs
       } catch (error) {
         const message = error instanceof Error ? error.message : "Log scan failed"
-        if (rateLimited(message)) {
+        const kind = classifyRpcFailure(message)
+        if (kind === "rate-limit") {
           retry = true
           break
         }
-        if (chunk > 8 && shouldShrink(message)) {
+        if (chunk > 8 && kind === "shrink") {
           chunk = Math.max(8, Math.floor(chunk / 2))
           shrink = true
           break

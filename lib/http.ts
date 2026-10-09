@@ -3,6 +3,18 @@ const USER_AGENT = "dextools-weth-pairs/1.0"
 
 export class ListingError extends Error {}
 
+/** Only http(s) links from token metadata are safe to render. javascript: and other schemes are dropped. */
+export function safeHttpUrl(value: string | null | undefined): string | null {
+  if (!value) return null
+  try {
+    const url = new URL(value.trim())
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }

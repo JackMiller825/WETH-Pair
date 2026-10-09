@@ -8,6 +8,7 @@ import { buildIntelligence } from "@/lib/narrative/engine"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
 import { ProgressMeter } from "@/components/progress/history-panel"
+import { safeHttpUrl } from "@/lib/http"
 import { DataGate, PageFrame, money } from "@/components/trends/widgets"
 
 const TABS = ["Overview", "Liquidity", "Deployer", "Narrative", "News", "Related", "Timeline", "Sources", "Contract"] as const
@@ -131,9 +132,9 @@ function Overview({ report }: { report: TokenReport }) {
       <div className="flex flex-wrap gap-3">
         <a href={token.url} target="_blank" rel="noreferrer" className="hover:underline">DEXTools</a>
         <a href={`https://etherscan.io/token/${token.tokenAddress}`} target="_blank" rel="noreferrer" className="hover:underline">Etherscan</a>
-        {token.website ? <a href={token.website} target="_blank" rel="noreferrer" className="hover:underline">Website</a> : <span className="text-muted-foreground">Website not listed</span>}
-        {token.twitter ? <a href={token.twitter} target="_blank" rel="noreferrer" className="hover:underline">X</a> : <span className="text-muted-foreground">X not listed</span>}
-        {token.telegram ? <a href={token.telegram} target="_blank" rel="noreferrer" className="hover:underline">Telegram</a> : <span className="text-muted-foreground">Telegram not listed</span>}
+        {safeHttpUrl(token.website) ? <a href={safeHttpUrl(token.website)!} target="_blank" rel="noreferrer" className="hover:underline">Website</a> : <span className="text-muted-foreground">Website not listed</span>}
+        {safeHttpUrl(token.twitter) ? <a href={safeHttpUrl(token.twitter)!} target="_blank" rel="noreferrer" className="hover:underline">X</a> : <span className="text-muted-foreground">X not listed</span>}
+        {safeHttpUrl(token.telegram) ? <a href={safeHttpUrl(token.telegram)!} target="_blank" rel="noreferrer" className="hover:underline">Telegram</a> : <span className="text-muted-foreground">Telegram not listed</span>}
       </div>
       <h2 className="text-lg font-semibold">Primary findings</h2>
       <ul className="list-disc pl-5">

@@ -78,6 +78,23 @@ export function exchangeOptions(records: PairRecord[]): { name: string; count: n
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 }
 
+export function pairHaystack(record: PairRecord): string {
+  return [record.name, record.symbol, record.tokenName, record.address, record.tokenAddress, record.deployer]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase()
+}
+
+/** Pages are 1-based. A short last page is returned whole, and no row is repeated. */
+export function slicePage<T>(rows: T[], page: number, pageSize: number): T[] {
+  const size = Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 1
+  if (rows.length === 0) return []
+  const pageCount = Math.ceil(rows.length / size)
+  const current = Math.min(pageCount, Math.max(1, Math.floor(page) || 1))
+  const start = (current - 1) * size
+  return rows.slice(start, start + size)
+}
+
 export function isFiltered(filters: Filters): boolean {
   return filters.name.trim() !== "" || filters.exchange !== ALL_EXCHANGES
 }
@@ -87,7 +104,7 @@ export function applyView(records: PairRecord[], filters: Filters, sort: SortSta
   const needle = filters.name.trim().toLowerCase()
   const filtered = records.filter((record) => {
     if (filters.exchange !== ALL_EXCHANGES && record.exchange !== filters.exchange) return false
-    if (needle && !record.name.toLowerCase().includes(needle)) return false
+    if (needle && !pairHaystack(record).includes(needle)) return false
     return true
   })
   const factor = sort.direction === "asc" ? 1 : -1

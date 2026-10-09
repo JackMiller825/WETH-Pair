@@ -387,7 +387,8 @@ export function customIntervalMs(value: number, unit: "minutes" | "hours"): { ms
 export function resolveInterval(config: WatchConfig): { ms: number; label: string } | { error: string } {
   if (config.preset !== "custom") {
     const preset = INTERVAL_PRESETS.find((item) => item.id === config.preset)
-    return { ms: preset?.ms ?? 60_000, label: preset ? `every ${preset.label === "1m" ? "1 minute" : preset.label}` : "every 1 minute" }
+    if (!preset || preset.ms == null) return { error: "Unknown monitoring interval." }
+    return { ms: preset.ms, label: `every ${preset.label === "1m" ? "1 minute" : preset.label}` }
   }
   const custom = customIntervalMs(config.customValue, config.customUnit)
   if ("error" in custom) return custom

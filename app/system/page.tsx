@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { notificationState } from "@/lib/alerts"
+import { backfillHealth, rpcHealth } from "@/lib/health"
 import { useLpMonitor } from "@/components/lp/monitor-context"
 import { HistoryPanel } from "@/components/progress/history-panel"
 import { PageFrame } from "@/components/trends/widgets"
@@ -46,6 +47,8 @@ export default function SystemPage() {
       {snapshot ? <HistoryPanel backfill={snapshot.backfill} oldestPair={oldest(snapshot.rows.map((row) => row.created_at))} pairCount={snapshot.rows.length} oldestBurn={oldest((snapshot.lpBurns ?? []).map((event) => event.burnAt ?? ""))} burnCount={snapshot.lpBurns?.length ?? 0} now={Date.parse(snapshot.generatedAt)} /> : null}
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <Row label="Ethereum RPC" value={chain?.lastError ? `Error: ${chain.lastError}` : chain ? `Connected · ${chain.rpcHost}` : "Waiting for a publish"} />
+        <Row label="RPC health" value={rpcHealth(chain, snapshot ? Date.parse(snapshot.generatedAt) : 0)} />
+        <Row label="Backfill health" value={backfillHealth(snapshot?.backfill)} />
         <Row label="Browser refresh" value={mode} />
         <Row label="Current Ethereum block" value={chain?.headBlock?.toLocaleString("en-US") ?? (block ? block.toLocaleString("en-US") : "Waiting")} />
         <Row label="LP monitor checkpoint" value={chain?.lpMonitorBlock?.toLocaleString("en-US") ?? "Not saved yet"} />
@@ -62,7 +65,7 @@ export default function SystemPage() {
       </dl>
       <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
         <p>The DEXTools live listing ends after about 24 hours. Pairs and LP burns older than that are backfilled from Ethereum and kept in the published snapshot. Uniswap V2 and SushiSwap PairCreated logs supply the older pairs. The live LP checkpoint is separate, and a failed RPC call does not move it. Backfill burns are stored and do not send a new-burn notification.</p>
-        <p className="mt-2">The first scan looks back {300} blocks, not 24 hours. Later scans continue from the saved block and replay 12 blocks so a short reorg can be deduplicated. A backfill is separate: set BACKFILL_FROM_BLOCK and BACKFILL_TO_BLOCK, or BACKFILL_HOURS, on the publish job. That adds events without treating the backfill as the live checkpoint.</p>
+        <p className="mt-2">The first live scan looks back 300 blocks, not 24 hours. Later scans continue from the saved block and replay 12 blocks so a short reorg can be deduplicated. Historical backfill keeps its own cursor. A failed RPC call leaves that cursor where it was, and the next publish resumes. Backfill does not move the live LP checkpoint.</p>
         <p className="mt-2">Chrome notifications work while this site is open, including a background tab, through the service worker. Web Push after the browser closes the site needs a push server, which GitHub Pages does not provide.</p>
       </div>
     </PageFrame>

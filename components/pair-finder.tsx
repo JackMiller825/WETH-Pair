@@ -83,6 +83,7 @@ import {
   DEFAULT_SORT,
   applyView,
   exchangeOptions,
+  slicePage,
   isFiltered,
   liquidityOf,
   type Filters,
@@ -778,7 +779,7 @@ export function PairFinder() {
   const pageSize = run ? pageSizes[run.mode] : DEFAULT_PAGE_SIZE.all
   const lastPage = Math.max(1, Math.ceil(rows.length / pageSize))
   const currentPage = Math.min(page, lastPage)
-  const visible = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const visible = slicePage(rows, currentPage, pageSize)
 
   const pager = run ? (
     <Pager

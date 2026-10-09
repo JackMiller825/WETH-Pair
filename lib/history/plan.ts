@@ -172,9 +172,28 @@ export function parsePairCreated(log: { address?: string; topics?: string[]; dat
 }
 
 export function wethSide(token0: string, token1: string): { weth: "token0" | "token1"; token: string } | null {
-  if (token0 === WETH) return { weth: "token0", token: token1 }
-  if (token1 === WETH) return { weth: "token1", token: token0 }
+  const left = token0.toLowerCase()
+  const right = token1.toLowerCase()
+  if (left === WETH) return { weth: "token0", token: right }
+  if (right === WETH) return { weth: "token1", token: left }
   return null
+}
+
+/** First row wins, so a live listing is kept when a backfill sees the same pair. */
+export function mergeRecords<T extends { address: string }>(current: T[], extra: T[]): T[] {
+  const map = new Map(current.map((row) => [row.address.toLowerCase(), row]))
+  for (const row of extra) {
+    const key = row.address.toLowerCase()
+    if (!map.has(key)) map.set(key, row)
+  }
+  return [...map.values()]
+}
+
+/** Rate-limit waits and retries. Oversized log replies shrink the chunk. Anything else stops the scan. */
+export function classifyRpcFailure(message: string): "rate-limit" | "shrink" | "fatal" {
+  if (/429|rate limit|too many requests/i.test(message)) return "rate-limit"
+  if (/too many|10000|exceed|response size|log limit|more than/i.test(message)) return "shrink"
+  return "fatal"
 }
 
 export function dexForFactory(factory: string): string | null {

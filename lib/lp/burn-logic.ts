@@ -38,7 +38,8 @@ export function burnPercent(supply: bigint, balances: bigint[]): number | null {
   const burned = balances.reduce((sum, value) => sum + (value > BigInt(0) ? value : BigInt(0)), BigInt(0))
   if (burned <= BigInt(0)) return 0
   const hundredths = (burned * BigInt(10000)) / supply
-  return Number(hundredths) / 100
+  const capped = hundredths > BigInt(10000) ? BigInt(10000) : hundredths
+  return Number(capped) / 100
 }
 
 export type TransferLog = {
@@ -179,6 +180,22 @@ export function passesNotifyFilter(
 /** Historical backfill is stored, but it must not buzz as a new live burn. */
 export function isLiveBurnAlert(event: { kind?: string; detectionSource?: string | null }): boolean {
   return event.kind === "newly-burned" && event.detectionSource !== "backfill"
+}
+
+/** One notification per event id. Backfill and already-seen ids are left out. */
+export function freshLiveAlerts<T extends { id: string; kind?: string; detectionSource?: string | null }>(
+  events: T[],
+  seen: ReadonlySet<string>,
+  allow: (event: T) => boolean = () => true,
+): T[] {
+  const announced = new Set<string>()
+  const fresh: T[] = []
+  for (const event of events) {
+    if (!isLiveBurnAlert(event) || seen.has(event.id) || announced.has(event.id) || !allow(event)) continue
+    announced.add(event.id)
+    fresh.push(event)
+  }
+  return fresh
 }
 
 /** A zero result is the Uniswap minimum-liquidity lock, not a burned LP position. */

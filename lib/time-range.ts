@@ -16,19 +16,32 @@ export type TimeRangeId = (typeof RANGES)[number]["id"]
 
 const NAMED = new Map<string, (typeof RANGES)[number]>(RANGES.map((item) => [item.id, item]))
 
+/** Custom durations longer than this are rejected. They are not rewritten as 24h or 7d. */
+export const MAX_RANGE_MS = 30 * 24 * 60 * 60 * 1000
+
 /**
- * Named ranges win before the custom "Nh" pattern, so "24h" stays 24 hours
- * and is not rewritten into the 1-hour slot.
+ * Named ranges win before the custom pattern, so "24h" stays 24 hours.
+ * Unknown text is an error. It is never replaced with 1h or 24h.
  */
+export function parseRange(id: string): { ok: true; id: string; label: string; ms: number } | { ok: false; error: string } {
+  const trimmed = id.trim()
+  const named = NAMED.get(trimmed)
+  if (named) return { ok: true, id: named.id, label: named.label, ms: named.ms }
+  const match = /^(\d+)(m|h|d)$/.exec(trimmed)
+  if (!match) return { ok: false, error: "Invalid time range" }
+  const amount = Number(match[1])
+  if (!Number.isInteger(amount) || amount < 1) return { ok: false, error: "Invalid time range" }
+  const unit = match[2]
+  const ms = unit === "m" ? amount * 60 * 1000 : unit === "h" ? amount * 60 * 60 * 1000 : amount * 24 * 60 * 60 * 1000
+  if (ms > MAX_RANGE_MS) return { ok: false, error: "A time range cannot be longer than 30 days." }
+  const noun = unit === "m" ? "minute" : unit === "h" ? "hour" : "day"
+  return { ok: true, id: `${amount}${unit}`, label: `${amount} ${noun}${amount === 1 ? "" : "s"}`, ms }
+}
+
 export function rangeById(id: string): { id: string; label: string; ms: number } {
-  const named = NAMED.get(id)
-  if (named) return named
-  const custom = /^(\d+)h$/.exec(id)
-  if (custom) {
-    const hours = Math.min(168, Math.max(1, Number(custom[1])))
-    return { id: `${hours}h`, label: `${hours} hour${hours === 1 ? "" : "s"}`, ms: hours * 60 * 60 * 1000 }
-  }
-  return NAMED.get("1h")!
+  const parsed = parseRange(id)
+  if (!parsed.ok) throw new Error(parsed.error)
+  return { id: parsed.id, label: parsed.label, ms: parsed.ms }
 }
 
 export function getRangeStart(range: string, now: number): number {
