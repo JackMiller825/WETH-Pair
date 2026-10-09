@@ -146,7 +146,7 @@ export function LpBurnWatch() {
           <div><dt className="text-xs text-muted-foreground">Last check</dt><dd>{lastCheck ? clock(lastCheck) : "—"}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Next check</dt><dd>{nextCheck ? clock(nextCheck) : "—"}</dd></div>
         </dl>
-        <p className="text-sm">{mode === "realtime" ? "⚡ Realtime LP monitoring. Burn logs are classified in the browser. The refresh interval reloads published enrichment." : mode === "paused" ? "Monitoring is paused." : `⚠ Realtime feed unavailable. Polling the published scan every ${"error" in interval ? "the saved interval" : interval.label}.`}</p>
+        <p className="text-sm">{mode === "realtime" ? "⚡ Realtime LP monitoring. Burn logs are classified in the browser. The refresh interval reloads published enrichment." : mode === "paused" ? "Monitoring is paused." : `⚠ Realtime feed unavailable. Polling the published scan${"error" in interval ? "." : ` ${interval.label}.`}`}</p>
         <p className="text-xs leading-5 text-muted-foreground">The interval does not decide whether a burn is seen. While the Ethereum socket is connected, a transfer into a burn address is checked immediately. The published scan is the reconciliation copy. A liquidity removal is not an LP burn.</p>
       </section>
 
