@@ -22,32 +22,51 @@ async function main() {
       ? requested
       : COLLECTION_MAX_HOURS
 
+  const generatedAt = new Date().toISOString()
+  const generatedMs = Date.parse(generatedAt)
+  const previousP = loadPrevious()
+  const newsP = fetchNews(generatedMs)
   console.log(`Collecting WETH pairs for the last ${hours} hours...`)
-  const listing = await collectWethPairs(hours)
+  const listingP = collectWethPairs(hours)
+  const previous = await previousP
+  const liveStarted = Date.now()
+  const liveP = scanChain(previous?.rows ?? [], previous?.chain ?? null, new Date(generatedAt))
+    .then((result) => {
+      console.log(`[LP-MONITOR] Known-pair scan finished in ${Date.now() - liveStarted}ms, before market details.`)
+      return result
+    })
+    .catch((error: unknown) => {
+      console.warn(`[LP-MONITOR] Scan stopped. Checkpoint kept. ${error instanceof Error ? error.message : "unknown error"}`)
+      return null
+    })
+  const listing = await listingP
   const { rows, scanned } = listing
   if (!listing.listingComplete) {
     console.warn(`[HISTORY] DEXTools live listing ended at ${listing.listingOldestAt ?? "unknown"} before the ${hours}h cutoff. Older pairs require the Ethereum backfill.`)
   }
-  console.log(`Matched ${rows.length} WETH pairs after scanning ${scanned} pools. Loading details...`)
-  const details = await fetchPairDetails(rows.map((row) => row.address))
+  console.log(`Matched ${rows.length} WETH pairs after scanning ${scanned} pools. Loading details while the chain scan continues...`)
+  const detailsP = fetchPairDetails(rows.map((row) => row.address))
+  const [live, details, news] = await Promise.all([liveP, detailsP, newsP])
   const records: PairRecord[] = rows.map((row) =>
     normalizeLp({ ...row, ...(details[row.address.toLowerCase()] ?? { ...EMPTY_DETAIL }) }),
   )
-
-  const generatedAt = new Date().toISOString()
-  const generatedMs = Date.parse(generatedAt)
-  const [news, previous] = await Promise.all([fetchNews(generatedMs), loadPrevious()])
   const retained = retainPairs(records.map((row) => ({ ...row, listingSource: row.listingSource ?? "dextools" })), previous?.rows, generatedMs)
-  let chain = previous?.chain
-  let chainBurns: Awaited<ReturnType<typeof scanChain>>["burns"] = []
-  try {
-    const scannedChain = await scanChain(retained, previous?.chain ?? null, new Date(generatedAt))
-    chain = scannedChain.checkpoint
-    chainBurns = scannedChain.burns
-    if (chain.lastError) console.warn(`[LP-MONITOR] ${chain.lastError}`)
-    else console.log(`[LP-MONITOR] Checkpoint ${chain.lpMonitorBlock ?? "unset"} · head ${chain.headBlock ?? "unknown"}`)
-  } catch (error) {
-    console.warn(`[LP-MONITOR] Scan stopped. Checkpoint kept. ${error instanceof Error ? error.message : "unknown error"}`)
+  let chain = live?.checkpoint ?? previous?.chain
+  let chainBurns: Awaited<ReturnType<typeof scanChain>>["burns"] = live?.burns ?? []
+  if (chain?.lastError) console.warn(`[LP-MONITOR] ${chain.lastError}`)
+  else if (chain) console.log(`[LP-MONITOR] Checkpoint ${chain.lpMonitorBlock ?? "unset"} · head ${chain.headBlock ?? "unknown"}`)
+  const alreadyWatched = new Set((previous?.rows ?? []).map((row) => row.address.toLowerCase()))
+  const fresh = retained.filter((row) => !alreadyWatched.has(row.address.toLowerCase()))
+  if (fresh.length > 0 && chain?.headBlock != null) {
+    try {
+      const extra = await scanChain(fresh, { ...chain, lpMonitorBlock: Math.max(0, chain.headBlock - 400) }, new Date(generatedAt))
+      const kept = chain.lpMonitorBlock
+      if (extra.checkpoint.lpMonitorBlock != null && (kept == null || extra.checkpoint.lpMonitorBlock >= kept)) chain = extra.checkpoint
+      chainBurns = [...chainBurns, ...extra.burns]
+      console.log(`[LP-MONITOR] New pairs scanned: ${fresh.length}`)
+    } catch (error) {
+      console.warn(`[LP-MONITOR] New-pair scan stopped. ${error instanceof Error ? error.message : "unknown error"}`)
+    }
   }
   let backfill = previous?.backfill
   let historicalRows = retained

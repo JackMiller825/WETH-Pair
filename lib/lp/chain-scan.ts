@@ -4,6 +4,7 @@ import {
   TRANSFER_TOPIC,
   blocksForHours,
   burnPercent,
+  classifyLpTransfer,
   commitCheckpoint,
   parseTransferLog,
   planChunks,
@@ -13,7 +14,7 @@ import {
   type TransferLog,
 } from "@/lib/lp/burn-logic"
 
-const DEFAULT_RPCS = ["https://eth.drpc.org", "https://rpc.mevblocker.io"]
+const DEFAULT_RPCS = ["https://rpc.mevblocker.io", "https://eth.drpc.org"]
 const TOTAL_SUPPLY = "0x18160ddd"
 const BALANCE_OF = "0x70a08231"
 
@@ -79,7 +80,6 @@ function monitoredPairs(records: PairRecord[]): string[] {
   const addresses: string[] = []
   for (const record of records) {
     if (!canBurnLp(record.exchange)) continue
-    if (record.lpSource === "ethereum-transfer" && record.lpBurntPercent >= 99.5) continue
     addresses.push(record.address.toLowerCase())
   }
   return [...new Set(addresses)]
@@ -153,6 +153,7 @@ async function enrich(url: string, transfers: ParsedTransfer[]): Promise<ChainBu
   const supplyCache = new Map<string, { supply: bigint; burned: bigint } | null>()
   const burns: ChainBurn[] = []
   for (const transfer of transfers) {
+    if (classifyLpTransfer(transfer) !== "irreversible-burn") continue
     if (!supplyCache.has(transfer.pair)) supplyCache.set(transfer.pair, await readSupply(url, transfer.pair))
     const balances = supplyCache.get(transfer.pair) ?? null
     const percent = balances ? burnPercent(balances.supply, [balances.burned]) : null

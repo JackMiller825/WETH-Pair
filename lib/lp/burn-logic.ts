@@ -61,6 +61,29 @@ export type ParsedTransfer = {
   logIndex: number
 }
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+const DEAD_ADDRESS = "0x000000000000000000000000000000000000dead"
+const PROTOCOL_MINIMUM = BigInt(1000)
+
+export type LpTransferClass = "irreversible-burn" | "protocol-minimum" | "liquidity-removal" | "mint" | "ordinary-transfer"
+
+/**
+ * A transfer into the dead address, or into zero from a holder, is an irreversible LP burn.
+ * Uniswap removes liquidity by burning LP from the pair contract to zero. That is not a creator burn.
+ * The 1000-wei mint to zero is protocol minimum liquidity.
+ */
+export function classifyLpTransfer(transfer: { pair: string; from: string | null; to: string; amount: bigint }): LpTransferClass {
+  const to = transfer.to.toLowerCase()
+  const from = transfer.from?.toLowerCase() ?? null
+  const pair = transfer.pair.toLowerCase()
+  if (!isBurnAddress(to)) return "ordinary-transfer"
+  if (from == null || from === ZERO_ADDRESS) return transfer.amount <= PROTOCOL_MINIMUM ? "protocol-minimum" : "mint"
+  if (to === ZERO_ADDRESS && from === pair) return "liquidity-removal"
+  if (to === ZERO_ADDRESS && transfer.amount <= PROTOCOL_MINIMUM) return "protocol-minimum"
+  if (to === DEAD_ADDRESS || to === ZERO_ADDRESS) return "irreversible-burn"
+  return "ordinary-transfer"
+}
+
 export function parseTransferLog(log: TransferLog): ParsedTransfer | null {
   if ((log.topics[0] ?? "").toLowerCase() !== TRANSFER_TOPIC) return null
   const to = addressFromTopic(log.topics[2])

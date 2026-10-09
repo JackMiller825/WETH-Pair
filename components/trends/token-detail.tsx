@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { readChainFacts } from "@/lib/analysis/chain"
 import { buildTokenReport, type ChainFacts, type TokenReport } from "@/lib/analysis/report"
 import { buildIntelligence } from "@/lib/narrative/engine"
+import { eventsOf } from "@/lib/lp/monitor"
 import { formatCreated } from "@/lib/types"
 import { useSnapshot } from "@/components/trends/use-intel"
 import { ProgressMeter } from "@/components/progress/history-panel"
@@ -36,7 +37,7 @@ export function TokenDetail({ address }: { address: string }) {
     return buildTokenReport({
       token,
       rows: snapshot.rows,
-      burns: snapshot.lpBurns ?? [],
+      burns: eventsOf(snapshot),
       news: snapshot.news ?? [],
       tokens: intel.tokens,
       chain,

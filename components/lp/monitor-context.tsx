@@ -3,6 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createAudioContext, notificationState, playNamedTone, requestNotifications } from "@/lib/alerts"
 import { freshLiveAlerts, isLiveBurnAlert, notificationCopy, passesNotifyFilter } from "@/lib/lp/burn-logic"
+import { LIVE_HEADS_URL, liveLogFilter, livePairFilter, liveBurnEvent, recordFromPairSighting, sightingFromMessage } from "@/lib/lp/live-feed"
+import type { ParsedTransfer } from "@/lib/lp/burn-logic"
+import type { PairRecord } from "@/lib/types"
 import {
   DEFAULT_CONFIG,
   PAIR_AGE_FILTERS,
@@ -16,7 +19,6 @@ import type { SnapshotFile } from "@/lib/narrative/types"
 
 const CONFIG_KEY = "weth-lp-watch"
 const SEEN_KEY = "weth-lp-burn-seen"
-const HEADS_URL = "wss://ethereum-rpc.publicnode.com"
 
 export type MonitorMode = "active" | "paused" | "error" | "realtime"
 
@@ -85,7 +87,7 @@ function alertText(event: LpBurnEvent): string {
     `Token: ${event.tokenName}`,
     `Ticker: $${event.symbol}`,
     `Pair: ${event.symbol}/WETH`,
-    `LP Burn: ${event.lpBurntPercent.toFixed(1)}%`,
+    `LP Burn: ${event.percentKnown === false ? "N/A" : `${event.lpBurntPercent.toFixed(1)}%`}`,
     `Liquidity: ${event.liquidity ?? "unknown"}`,
     `Market Cap: ${event.marketCap ?? "unknown"}`,
   ].join("\n")
@@ -106,7 +108,11 @@ export function LpMonitor({ children }: { children: ReactNode }) {
   const configRef = useRef(config)
   const audioRef = useRef<AudioContext | null>(null)
   const lastFetchRef = useRef(0)
+  const pairsRef = useRef(new Map<string, PairRecord>())
+  const pendingRef = useRef(new Map<string, { transfer: ParsedTransfer; at: number }[]>())
+  const snapshotRef = useRef(snapshot)
   configRef.current = config
+  snapshotRef.current = snapshot
 
   useEffect(() => {
     setConfig(readConfig())
@@ -214,6 +220,20 @@ export function LpMonitor({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const announce = useCallback((record: PairRecord, transfer: ParsedTransfer) => {
+    const event = liveBurnEvent(record, transfer, new Date().toISOString())
+    const current = snapshotRef.current
+    considerAlerts({
+      rows: current?.rows ?? [record],
+      generatedAt: new Date().toISOString(),
+      hours: current?.hours ?? 0,
+      scanned: current?.scanned ?? 0,
+      news: current?.news,
+      history: current?.history,
+      lpBurns: [event],
+    })
+  }, [considerAlerts])
+
   const load = useCallback(async () => {
     lastFetchRef.current = Date.now()
     setLastCheck(Date.now())
@@ -246,46 +266,88 @@ export function LpMonitor({ children }: { children: ReactNode }) {
   }, [ready, pollKey, load])
 
   useEffect(() => {
-    if (!ready || !config.realtime || config.paused || !config.enabled) {
+    const map = new Map<string, PairRecord>()
+    for (const row of snapshot?.rows ?? []) map.set(row.address.toLowerCase(), row)
+    for (const [pair, record] of pairsRef.current) {
+      if (!map.has(pair)) map.set(pair, record)
+    }
+    pairsRef.current = map
+    for (const [pair, waiting] of [...pendingRef.current]) {
+      const record = map.get(pair)
+      if (!record) continue
+      pendingRef.current.delete(pair)
+      for (const item of waiting) announce(record, item.transfer)
+    }
+  }, [snapshot, announce])
+
+  useEffect(() => {
+    if (!ready || config.paused || !config.enabled) {
       setSocket("off")
       setBlock(null)
       return
     }
     let closed = false
-    let ws: WebSocket
-    try {
-      ws = new WebSocket(HEADS_URL)
-    } catch {
-      setSocket("error")
-      return
-    }
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_subscribe", params: ["newHeads"] }))
-    }
-    ws.onmessage = (event) => {
+    let ws: WebSocket | null = null
+    let retry: number | null = null
+    const connect = () => {
       try {
-        const message = JSON.parse(String(event.data)) as { params?: { result?: { number?: string } } }
-        const hex = message.params?.result?.number
-        if (typeof hex !== "string") return
-        if (!closed) {
-          setBlock(Number.parseInt(hex, 16))
-          setSocket("open")
-        }
+        ws = new WebSocket(LIVE_HEADS_URL)
       } catch {
-        // Ignore subscription confirmations that are not block headers.
+        if (!closed) setSocket("error")
+        return
+      }
+      ws.onopen = () => {
+        ws?.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_subscribe", params: ["newHeads"] }))
+        ws?.send(JSON.stringify(liveLogFilter()))
+        ws?.send(JSON.stringify(livePairFilter()))
+        if (!closed) setSocket("open")
+      }
+      ws.onmessage = (event) => {
+        let message: unknown
+        try {
+          message = JSON.parse(String(event.data))
+        } catch {
+          return
+        }
+        const hex = (message as { params?: { result?: { number?: string } } }).params?.result?.number
+        if (typeof hex === "string" && !closed) setBlock(Number.parseInt(hex, 16))
+        const sighting = sightingFromMessage(message, new Set(pairsRef.current.keys()))
+        if (!sighting || closed) return
+        if (sighting.type === "pair") {
+          const seenAt = new Date().toISOString()
+          if (!pairsRef.current.has(sighting.pair)) pairsRef.current.set(sighting.pair, recordFromPairSighting(sighting, seenAt))
+          const waiting = pendingRef.current.get(sighting.pair) ?? []
+          pendingRef.current.delete(sighting.pair)
+          const record = pairsRef.current.get(sighting.pair)
+          if (record) for (const item of waiting) announce(record, item.transfer)
+          return
+        }
+        const record = pairsRef.current.get(sighting.transfer.pair)
+        if (!record) {
+          const list = pendingRef.current.get(sighting.transfer.pair) ?? []
+          const duplicate = list.some((item) => item.transfer.tx === sighting.transfer.tx && item.transfer.logIndex === sighting.transfer.logIndex)
+          if (!duplicate) list.push({ transfer: sighting.transfer, at: Date.now() })
+          pendingRef.current.set(sighting.transfer.pair, list.filter((item) => Date.now() - item.at < 180_000))
+          return
+        }
+        announce(record, sighting.transfer)
+      }
+      ws.onerror = () => {
+        if (!closed) setSocket("error")
+      }
+      ws.onclose = () => {
+        if (closed) return
+        setSocket("error")
+        retry = window.setTimeout(connect, 2000)
       }
     }
-    ws.onerror = () => {
-      if (!closed) setSocket("error")
-    }
-    ws.onclose = () => {
-      if (!closed) setSocket("error")
-    }
+    connect()
     return () => {
       closed = true
-      ws.close()
+      if (retry != null) window.clearTimeout(retry)
+      ws?.close()
     }
-  }, [ready, config.realtime, config.paused, config.enabled])
+  }, [ready, config.paused, config.enabled, announce])
 
   useEffect(() => {
     if (socket !== "open" || block == null) return
@@ -299,16 +361,16 @@ export function LpMonitor({ children }: { children: ReactNode }) {
 
   let mode: MonitorMode = "active"
   if (!config.enabled || config.paused) mode = "paused"
-  else if (error || (config.realtime && socket === "error")) mode = "error"
-  else if (config.realtime && socket === "open") mode = "realtime"
+  else if (error && socket !== "open") mode = "error"
+  else if (socket === "open") mode = "realtime"
 
   const rpc = error
     ? "Published scan unavailable"
-    : config.realtime && socket === "open"
-      ? `Ethereum heads connected${block != null ? `, block ${block.toLocaleString("en-US")}` : ""}`
-      : config.realtime && socket === "error"
-        ? "Ethereum heads unavailable. Using the refresh interval."
-        : "Published scan"
+    : socket === "open"
+      ? `Realtime LP feed${block != null ? `, block ${block.toLocaleString("en-US")}` : ""}`
+      : socket === "error"
+        ? "Realtime feed unavailable. Polling the published scan."
+        : "Polling the published scan"
 
   const value = useMemo<MonitorValue>(
     () => ({
@@ -379,7 +441,7 @@ export function useLpMonitor(): MonitorValue {
 }
 
 export function modeLabel(mode: MonitorMode): string {
-  if (mode === "realtime") return "⚡ Real-Time"
+  if (mode === "realtime") return "⚡ Realtime LP monitoring"
   if (mode === "paused") return "🟡 Paused"
   if (mode === "error") return "🔴 Connection Error"
   return "🟢 Active"

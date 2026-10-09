@@ -12,6 +12,7 @@ import {
   ago,
   clock,
   buildLpBurns,
+  eventsOf,
   formatDuration,
   intervalBuckets,
   intervalLabel,
@@ -88,7 +89,7 @@ export function LpBurnWatch() {
   const interval = resolveInterval(config)
   const derived = useMemo(() => {
     if (!snapshot) return null
-    if (snapshot.lpBurns && snapshot.lpScan) return { events: snapshot.lpBurns, scan: snapshot.lpScan }
+    if (snapshot.lpBurns && snapshot.lpScan) return { events: eventsOf(snapshot), scan: snapshot.lpScan }
     return buildLpBurns(snapshot.rows, null, snapshot.generatedAt)
   }, [snapshot])
   const events = derived?.events ?? []
@@ -145,8 +146,8 @@ export function LpBurnWatch() {
           <div><dt className="text-xs text-muted-foreground">Last check</dt><dd>{lastCheck ? clock(lastCheck) : "—"}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Next check</dt><dd>{nextCheck ? clock(nextCheck) : "—"}</dd></div>
         </dl>
-        {config.realtime ? <p className="text-sm">⚡ Real-Time Monitoring is on. A dropped connection falls back to {intervalLabel(config)}.</p> : null}
-        <p className="text-xs leading-5 text-muted-foreground">The published scan runs about every 5 minutes, which is the shortest schedule this host allows. A 1-minute setting checks that scan every minute. It does not re-read the whole Ethereum chain.</p>
+        <p className="text-sm">{mode === "realtime" ? "⚡ Realtime LP monitoring. Burn logs are classified in the browser. The refresh interval reloads published enrichment." : mode === "paused" ? "Monitoring is paused." : `⚠ Realtime feed unavailable. Polling the published scan every ${"error" in interval ? "the saved interval" : interval.label}.`}</p>
+        <p className="text-xs leading-5 text-muted-foreground">The interval does not decide whether a burn is seen. While the Ethereum socket is connected, a transfer into a burn address is checked immediately. The published scan is the reconciliation copy. A liquidity removal is not an LP burn.</p>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -186,7 +187,7 @@ export function LpBurnWatch() {
         <button type="button" onClick={() => update({ paused: true })} className={chip(config.paused)}>Pause Monitoring</button>
         <button type="button" onClick={() => update({ enabled: true, paused: false })} className={chip(false)}>Resume Monitoring</button>
         <button type="button" onClick={() => { setNow(Date.now()); scanNow() }} className={chip(false)}>Run Scan Now</button>
-        <button type="button" onClick={() => update({ realtime: !config.realtime })} className={chip(config.realtime)}>Real-Time Mode</button>
+        <button type="button" className={chip(mode === "realtime")} disabled>Realtime feed</button>
       </section>
 
       <section className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">

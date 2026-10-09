@@ -43,8 +43,8 @@ export function Dashboard() {
               backfill={snapshot.backfill}
               oldestPair={oldestTime(snapshot.rows.map((row) => row.created_at))}
               pairCount={snapshot.rows.length}
-              oldestBurn={oldestTime((snapshot.lpBurns ?? []).map((event) => event.burnAt ?? ""))}
-              burnCount={snapshot.lpBurns?.length ?? 0}
+              oldestBurn={oldestTime(eventsOf(snapshot).map((event) => event.burnAt ?? ""))}
+              burnCount={eventsOf(snapshot).length}
               requestedMs={rangeById(windowId).ms}
               now={Date.parse(snapshot.generatedAt)}
             />

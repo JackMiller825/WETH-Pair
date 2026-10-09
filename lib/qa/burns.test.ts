@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { burnEventId } from "../lp/monitor"
+import { burnEventId, isIrreversibleBurnEvent } from "../lp/monitor"
 import {
   BLOCK_CHUNK,
   REORG_BLOCKS,
@@ -14,6 +14,7 @@ import {
   isLiveBurnAlert,
   isReportedBurn,
   notificationCopy,
+  classifyLpTransfer,
   parseTransferLog,
   planChunks,
   scanStart,
@@ -159,6 +160,35 @@ test("finding a burnt pair twice does not treat the second sighting as new", () 
   assert.equal(findNewBurnt([record], seen).length, 1)
   seen.add(PAIR)
   assert.equal(findNewBurnt([record], seen).length, 0)
+})
+
+test("a holder transfer to the dead address is an irreversible burn, including a partial amount", () => {
+  const holder = "0x3333333333333333333333333333333333333333"
+  assert.equal(classifyLpTransfer({ pair: PAIR, from: holder, to: DEAD, amount: BigInt(650) }), "irreversible-burn")
+  assert.equal(classifyLpTransfer({ pair: PAIR, from: holder.toUpperCase(), to: "0x000000000000000000000000000000000000dEaD", amount: BigInt(998) }), "irreversible-burn")
+  assert.equal(classifyLpTransfer({ pair: PAIR, from: holder, to: ZERO, amount: BigInt(5000) }), "irreversible-burn")
+})
+
+test("uniswap liquidity removal and protocol minimum liquidity are not creator burns", () => {
+  assert.equal(classifyLpTransfer({ pair: PAIR, from: PAIR, to: ZERO, amount: BigInt(10) ** BigInt(18) }), "liquidity-removal")
+  assert.equal(classifyLpTransfer({ pair: PAIR, from: ZERO, to: ZERO, amount: BigInt(1000) }), "protocol-minimum")
+  assert.equal(classifyLpTransfer({ pair: PAIR, from: ZERO, to: DEAD, amount: BigInt(1000) }), "protocol-minimum")
+  assert.equal(classifyLpTransfer({ pair: PAIR, from: "0x3333333333333333333333333333333333333333", to: "0x4444444444444444444444444444444444444444", amount: BigInt(1000) }), "ordinary-transfer")
+  assert.equal(isIrreversibleBurnEvent({ pair: PAIR, burnFrom: PAIR, burnTo: ZERO }), false)
+  assert.equal(isIrreversibleBurnEvent({ pair: PAIR, burnFrom: "0x3333333333333333333333333333333333333333", burnTo: DEAD }), true)
+})
+
+test("classifying twenty thousand transfers stays under a fifth of a second", () => {
+  const holder = "0x3333333333333333333333333333333333333333"
+  const started = Date.now()
+  let burns = 0
+  for (let index = 0; index < 20_000; index += 1) {
+    const kind = classifyLpTransfer({ pair: PAIR, from: index % 5 === 0 ? PAIR : holder, to: index % 2 === 0 ? ZERO : DEAD, amount: BigInt(1000 + index) })
+    if (kind === "irreversible-burn") burns += 1
+  }
+  const elapsed = Date.now() - started
+  assert.ok(burns > 0)
+  assert.ok(elapsed < 200, `classify took ${elapsed}ms`)
 })
 
 function log(pair: string, from: string, to: string) {

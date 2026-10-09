@@ -1,5 +1,5 @@
 import { HISTORY_CHUNK, HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, classifyRpcFailure, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
-import { TRANSFER_TOPIC, burnPercent, isBurnAddress, parseTransferLog } from "@/lib/lp/burn-logic"
+import { TRANSFER_TOPIC, burnPercent, classifyLpTransfer, isBurnAddress, parseTransferLog } from "@/lib/lp/burn-logic"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
 import { EMPTY_DETAIL, type PairRecord } from "@/lib/types"
 
@@ -175,6 +175,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
       for (const log of logs) {
         const transfer = parseTransferLog(log)
         if (!transfer || !pairAddresses.has(transfer.pair) || !isBurnAddress(transfer.to) || transfer.amount <= BigInt(0)) continue
+        if (classifyLpTransfer(transfer) !== "irreversible-burn") continue
         const percent = await currentBurnPercent(transfer.pair)
         if (percent == null || percent <= 0) continue
         found += 1

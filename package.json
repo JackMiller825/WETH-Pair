@@ -7,12 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/narrative/events.test.ts lib/analysis/report.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts lib/qa/product.test.ts",
-    "test:unit": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/narrative/events.test.ts lib/analysis/report.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts",
+    "test": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/narrative/events.test.ts lib/analysis/report.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts lib/qa/product.test.ts lib/lp/live-feed.test.ts",
+    "test:unit": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/narrative/events.test.ts lib/analysis/report.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts lib/lp/live-feed.test.ts",
     "test:integration": "tsx --test lib/qa/product.test.ts",
     "test:e2e": "tsx --test lib/qa/product.test.ts",
-    "test:critical": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts",
-    "test:coverage": "node --import tsx --test --experimental-test-coverage lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/narrative/events.test.ts lib/analysis/report.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts lib/qa/product.test.ts"
+    "test:critical": "tsx --test lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts lib/lp/live-feed.test.ts",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage lib/time-range.test.ts lib/lp/burn-logic.test.ts lib/narrative/events.test.ts lib/analysis/report.test.ts lib/history/plan.test.ts lib/qa/ranges.test.ts lib/qa/burns.test.ts lib/qa/history-jobs.test.ts lib/qa/product.test.ts lib/lp/live-feed.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

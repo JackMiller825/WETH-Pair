@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { notificationState } from "@/lib/alerts"
 import { backfillHealth, rpcHealth } from "@/lib/health"
 import { useLpMonitor } from "@/components/lp/monitor-context"
+import { eventsOf } from "@/lib/lp/monitor"
 import { HistoryPanel } from "@/components/progress/history-panel"
 import { PageFrame } from "@/components/trends/widgets"
 
@@ -44,7 +45,7 @@ export default function SystemPage() {
   const behind = chain?.blocksBehind
   return (
     <PageFrame eyebrow="Diagnostics" title="Monitor status" lede="The published scan stores the chain checkpoint. The time range on other pages only filters what you see.">
-      {snapshot ? <HistoryPanel backfill={snapshot.backfill} oldestPair={oldest(snapshot.rows.map((row) => row.created_at))} pairCount={snapshot.rows.length} oldestBurn={oldest((snapshot.lpBurns ?? []).map((event) => event.burnAt ?? ""))} burnCount={snapshot.lpBurns?.length ?? 0} now={Date.parse(snapshot.generatedAt)} /> : null}
+      {snapshot ? <HistoryPanel backfill={snapshot.backfill} oldestPair={oldest(snapshot.rows.map((row) => row.created_at))} pairCount={snapshot.rows.length} oldestBurn={oldest(eventsOf(snapshot).map((event) => event.burnAt ?? ""))} burnCount={eventsOf(snapshot).length} now={Date.parse(snapshot.generatedAt)} /> : null}
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <Row label="Ethereum RPC" value={chain?.lastError ? `Error: ${chain.lastError}` : chain ? `Connected · ${chain.rpcHost}` : "Waiting for a publish"} />
         <Row label="RPC health" value={rpcHealth(chain, snapshot ? Date.parse(snapshot.generatedAt) : 0)} />
@@ -66,6 +67,7 @@ export default function SystemPage() {
       <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
         <p>The DEXTools live listing ends after about 24 hours. Pairs and LP burns older than that are backfilled from Ethereum and kept in the published snapshot. Uniswap V2 and SushiSwap PairCreated logs supply the older pairs. The live LP checkpoint is separate, and a failed RPC call does not move it. Backfill burns are stored and do not send a new-burn notification.</p>
         <p className="mt-2">The first live scan looks back 300 blocks, not 24 hours. Later scans continue from the saved block and replay 12 blocks so a short reorg can be deduplicated. Historical backfill keeps its own cursor. A failed RPC call leaves that cursor where it was, and the next publish resumes. Backfill does not move the live LP checkpoint.</p>
+        <p className="mt-2">While this site is open, the browser subscribes to Ethereum logs. A transfer into the dead address, or into the zero address from a holder, is an LP burn. A transfer from the pair contract to the zero address is a Uniswap liquidity removal and is not alerted. The 1000-wei mint to zero is protocol minimum liquidity and is not alerted. A transfer to a locker is not a burn, because locker addresses are not in the burn list. The published scan is reconciliation. It starts on pairs already stored, and it does not wait for DEXTools market details. There is no server-side WebSocket, so chain-to-notification latency is not measured here. A dropped socket shows Polling, not Realtime.</p>
         <p className="mt-2">Chrome notifications work while this site is open, including a background tab, through the service worker. Web Push after the browser closes the site needs a push server, which GitHub Pages does not provide.</p>
       </div>
     </PageFrame>

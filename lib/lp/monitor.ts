@@ -1,6 +1,6 @@
 import type { AlertSound } from "@/lib/alerts"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
-import { burnTimeMs, formatBurnPercent, isReportedBurn } from "@/lib/lp/burn-logic"
+import { burnTimeMs, classifyLpTransfer, formatBurnPercent, isReportedBurn } from "@/lib/lp/burn-logic"
 import { matchConcepts, parseIdentity } from "@/lib/narrative/text"
 import { RANGES, rangeById } from "@/lib/time-range"
 import type { PairRecord } from "@/lib/types"
@@ -189,6 +189,7 @@ export function buildLpBurns(
   const previousById = new Map<string, LpBurnEvent>()
   const previousByPair = new Map<string, LpBurnEvent[]>()
   for (const event of previous?.lpBurns ?? []) {
+    if (!isIrreversibleBurnEvent(event)) continue
     previousById.set(event.id, event)
     const list = previousByPair.get(event.pair) ?? []
     list.push(event)
@@ -294,9 +295,15 @@ export function buildLpBurns(
   }
 }
 
+/** A stored event whose from/to show a mint or a Uniswap liquidity removal is not a creator burn. */
+export function isIrreversibleBurnEvent(event: { pair: string; burnFrom?: string | null; burnTo?: string | null }): boolean {
+  if (!event.burnFrom || !event.burnTo) return true
+  return classifyLpTransfer({ pair: event.pair, from: event.burnFrom, to: event.burnTo, amount: BigInt(1001) }) === "irreversible-burn"
+}
+
 export function eventsOf(snapshot: { rows: PairRecord[]; generatedAt: string; lpBurns?: LpBurnEvent[] }): LpBurnEvent[] {
-  if (snapshot.lpBurns && snapshot.lpBurns.length > 0) return snapshot.lpBurns
-  return buildLpBurns(snapshot.rows, null, snapshot.generatedAt).events
+  if (snapshot.lpBurns) return snapshot.lpBurns.filter(isIrreversibleBurnEvent)
+  return buildLpBurns(snapshot.rows, null, snapshot.generatedAt).events.filter(isIrreversibleBurnEvent)
 }
 
 export const INTERVAL_PRESETS = [
