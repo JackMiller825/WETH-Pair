@@ -46,7 +46,7 @@ type Filters = {
 const INITIAL: Filters = {
   range: "24h",
   custom: null,
-  mode: "window",
+  mode: "launch",
   limit: 10,
   sort: "multiple",
   pumpsOnly: true,
@@ -127,7 +127,7 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
 
   useEffect(() => {
     if (!snapshot) return
-    pumpHub().startBackfill(snapshot.rows)
+    pumpHub().startBackfill(snapshot.rows, Date.parse(snapshot.generatedAt))
     return () => pumpHub().stopBackfill()
   }, [snapshot])
 
@@ -282,7 +282,7 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
         </div>
         <p className="text-[10px] leading-4 text-muted-foreground">{criteria.join(" · ")} · Top {filters.limit}</p>
       </div>
-      {!ranked.coverage.complete ? (
+      {filters.mode === "window" && !ranked.coverage.complete ? (
         <div className="border-b border-foreground/10 px-3 py-2 text-[11px] text-muted-foreground">
           <p>Historical price coverage: {available == null ? "0" : coverageLabel(available)} / {coverageLabel(requested)}</p>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted" role="meter" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Indexed price history">
@@ -292,7 +292,9 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {snapshot == null ? <p className="px-3 py-3 text-sm text-muted-foreground">The pair list is still loading. The last ranking stays once it has loaded.</p> : ranked.items.length === 0 ? (
+        {snapshot == null ? <p className="px-3 py-3 text-sm text-muted-foreground">The pair list is still loading. The last ranking stays once it has loaded.</p> : ranked.analyzed === 0 ? (
+          <p className="px-3 py-3 text-sm text-muted-foreground">Reading current pool reserves. Rankings appear as each price arrives.</p>
+        ) : ranked.items.length === 0 ? (
           <div className="flex flex-col gap-2 px-3 py-3 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">No qualifying pumpers in this period</p>
             <p>{ranked.analyzed.toLocaleString("en-US")} tokens were analyzed, but none currently meet the ranking and quality criteria.</p>
@@ -322,6 +324,43 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
             </button>
           </div>
         ) : null}
+      </div>
+    </div>
+  )
+}
+
+function PumpDetail({ row, now }: { row: PumpRow; now: number }) {
+  const fields: { label: string; value: string }[] = [
+    { label: "Current return", value: `${formatMultiple(row.multiple)} (${formatPumpPercent(row.percent)})` },
+    { label: "Peak return", value: row.peakMultiple == null ? "—" : formatMultiple(row.peakMultiple) },
+    { label: "From peak", value: row.retracementPercent == null ? "—" : formatPumpPercent(row.retracementPercent) },
+    { label: "Current price", value: formatPrice(row.currentPriceUsd) },
+    { label: row.sinceLaunch ? "Since launch" : "Reference", value: formatPrice(row.referencePriceUsd) },
+    { label: "Confidence", value: row.confidence },
+    { label: "Liquidity", value: formatUsd(row.liquidityUsd) },
+    { label: "Volume", value: formatUsd(row.volumeUsd) },
+    { label: "Transactions", value: formatCount(row.totalTx) },
+    { label: "Pooled WETH", value: formatWeth(row.pooledWeth) },
+    { label: "Holders", value: formatCount(row.holders) },
+    { label: "LP burn", value: row.lpBurnPercent == null ? "—" : `${row.lpBurnPercent.toFixed(1)}%` },
+    { label: "Age", value: formatAge(Math.max(0, now - row.createdAt)) },
+  ]
+  return (
+    <div className="flex flex-col gap-2 text-xs">
+      <p className="font-medium break-words text-foreground">{row.name}</p>
+      <dl className="grid grid-cols-[7.25rem_minmax(0,1fr)] gap-x-3 gap-y-1">
+        {fields.map((field) => (
+          <div key={field.label} className="contents">
+            <dt className="text-muted-foreground">{field.label}</dt>
+            <dd className="text-right break-words text-foreground tabular-nums">{field.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {row.confidenceReason ? <p className="break-words text-muted-foreground">{row.confidenceReason}</p> : null}
+      <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-foreground/10 pt-2">
+        <Link href={`/tokens/${row.token}`} className="text-primary hover:underline">Full analysis</Link>
+        <a href={row.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">DEXTools</a>
+        <a href={`https://etherscan.io/token/${row.token}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">Etherscan</a>
       </div>
     </div>
   )
@@ -367,26 +406,8 @@ function PumpCard({ row, now, label, move }: { row: PumpRow; now: number; label:
       <div className="mt-1.5 flex items-center gap-2">
         <span className={`rounded px-1 py-0.5 text-[10px] font-medium tracking-wide uppercase ${row.confidence === "high" ? "bg-primary/15 text-primary" : row.confidence === "low" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>{row.confidence}</span>
         {row.recent === "rising" ? <span className="text-[10px] text-muted-foreground">Still rising</span> : row.recent === "retracing" ? <span className="text-[10px] text-muted-foreground">Retracing</span> : null}
-        <Popover label={`${row.symbol} price detail`} className="ml-auto px-1.5 py-0.5 text-[11px] text-muted-foreground" trigger={<span>Details</span>} panelClassName="w-64 p-3">
-          {() => (
-            <div className="flex flex-col gap-1.5 text-xs">
-              <p className="font-medium text-foreground">{row.name}</p>
-              <p>Current return {formatMultiple(row.multiple)} ({formatPumpPercent(row.percent)})</p>
-              <p>Peak return {row.peakMultiple == null ? "—" : formatMultiple(row.peakMultiple)}</p>
-              <p>Retracement from peak {row.retracementPercent == null ? "—" : formatPumpPercent(row.retracementPercent)}</p>
-              <p>Current {formatPrice(row.currentPriceUsd)}</p>
-              <p>{row.sinceLaunch ? "Since launch" : "Reference"} {formatPrice(row.referencePriceUsd)}</p>
-              <p>Confidence {row.confidence}{row.confidenceReason ? `. ${row.confidenceReason}` : ""}</p>
-              <p>Liquidity {formatUsd(row.liquidityUsd)} · Volume {formatUsd(row.volumeUsd)}</p>
-              <p>TX {formatCount(row.totalTx)} · WETH {formatWeth(row.pooledWeth)} · Holders {formatCount(row.holders)}</p>
-              <p>LP burn {row.lpBurnPercent == null ? "—" : `${row.lpBurnPercent.toFixed(1)}%`} · Age {formatAge(Math.max(0, now - row.createdAt))}</p>
-              <div className="mt-1 flex flex-col gap-1">
-                <Link href={`/tokens/${row.token}`} className="text-primary hover:underline">Full analysis</Link>
-                <a href={row.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">DEXTools</a>
-                <a href={`https://etherscan.io/token/${row.token}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">Etherscan</a>
-              </div>
-            </div>
-          )}
+        <Popover floating label={`${row.symbol} price detail`} className="ml-auto px-1.5 py-0.5 text-[11px] text-muted-foreground" trigger={<span>Details</span>}>
+          {() => <PumpDetail row={row} now={now} />}
         </Popover>
       </div>
     </li>

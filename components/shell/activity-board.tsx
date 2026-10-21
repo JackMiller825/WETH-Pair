@@ -7,7 +7,7 @@ import { ArrowUpRight, Flame, Minimize2, Newspaper, Plus, TrendingUp, X, Zap, ty
 import { useClock } from "@/components/shell/clock"
 import { ActivityCard, activityStatus, useActivityList } from "@/components/shell/live-activity"
 import { Popover } from "@/components/shell/popover"
-import { addColumn, BOARD_COLUMNS, BOARD_COLUMNS_KEY, columnById, columnsFrom, LEGACY_BOARD_COLUMNS_KEY, placePumpers, removeColumn, type BoardColumnId } from "@/lib/activity/board"
+import { addColumn, BOARD_COLUMNS, BOARD_COLUMNS_KEY, columnById, columnsFrom, FEED_WINDOW_KEY, FEED_WINDOWS, feedWindowById, inFeedWindow, LEGACY_BOARD_COLUMNS_KEY, placePumpers, removeColumn, type BoardColumnId, type FeedWindowId } from "@/lib/activity/board"
 import { TopPumpers } from "@/components/shell/top-pumpers"
 import { filterActivity, type ActivityItem } from "@/lib/activity/store"
 import { buildIntelligence } from "@/lib/narrative/engine"
@@ -84,6 +84,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
   const root = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const [columns, setColumns] = useState<BoardColumnId[]>(readColumns)
+  const [feedWindow, setFeedWindow] = useState<FeedWindowId>(() => (typeof localStorage === "undefined" ? "all" : feedWindowById(localStorage.getItem(FEED_WINDOW_KEY) ?? "all").id))
   const [openedAt] = useState(() => Date.now())
   const [windowData, setWindowData] = useState<BoardWindow | null>(null)
   const [windowError, setWindowError] = useState<string | null>(null)
@@ -170,7 +171,23 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
           <span aria-hidden className={`size-1.5 rounded-full ${status.dot} ${status.pulse ? "live-dot" : ""}`} />
           {status.text}
         </span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex flex-1 flex-wrap items-center gap-1" role="group" aria-label="Live feed interval">
+          {FEED_WINDOWS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={feedWindow === item.id}
+              onClick={() => {
+                setFeedWindow(item.id)
+                localStorage.setItem(FEED_WINDOW_KEY, item.id)
+              }}
+              className={`rounded px-1.5 py-0.5 text-[11px] font-medium uppercase ${feedWindow === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
           {missing.length > 0 ? (
             <Popover label="Add column" className="inline-flex h-8 items-center gap-1 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" trigger={<><Plus size={14} aria-hidden /> Add column</>} panelClassName="w-52 p-1.5">
               {(close) => (
@@ -207,6 +224,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
             windowData={windowData}
             windowError={windowError}
             snapshot={snapshot}
+            feedSpanMs={feedWindowById(feedWindow).ms}
             canRemove={columns.length > 1}
             onRemove={() => onColumns(removeColumn(columns, id))}
           />
@@ -224,6 +242,7 @@ function BoardColumn({
   windowData,
   windowError,
   snapshot,
+  feedSpanMs,
   canRemove,
   onRemove,
 }: {
@@ -234,12 +253,14 @@ function BoardColumn({
   windowData: BoardWindow | null
   windowError: string | null
   snapshot: SnapshotFile | null
+  feedSpanMs: number | null
   canRemove: boolean
   onRemove: () => void
 }) {
   const column = columnById(id)
   const Icon = COLUMN_ICON[id]
-  const live = id === "pairs" || id === "burns" ? filterActivity(list, id === "pairs" ? "pairs" : "burns") : []
+  const spanLabel = FEED_WINDOWS.find((item) => item.ms === feedSpanMs)?.label ?? "All"
+  const live = id === "pairs" || id === "burns" ? filterActivity(list, id === "pairs" ? "pairs" : "burns").filter((item) => now == null || inFeedWindow(item.occurredAt, now, feedSpanMs)) : []
   const count = id === "news" ? (windowData ? windowData.news.length + windowData.generic.length : null) : id === "trends" ? windowData?.trends.length ?? null : id === "pumpers" ? null : live.length
   return (
     <section aria-labelledby={`board-${id}`} className={`flex h-full flex-col ${id === "pumpers" ? "min-w-[22rem] flex-[1.3]" : "min-w-72 flex-1"}`}>
@@ -255,9 +276,9 @@ function BoardColumn({
       {id === "pumpers" ? (
         <TopPumpers snapshot={snapshot} />
       ) : id === "pairs" || id === "burns" ? (
-        <LiveColumn items={live} readyAt={readyAt} waiting={list.length === 0} empty={id === "pairs" ? "No new pairs yet." : "No LP burns yet."} />
+        <LiveColumn items={live} readyAt={readyAt} waiting={list.length === 0} empty={feedSpanMs == null ? (id === "pairs" ? "No new pairs yet." : "No LP burns yet.") : id === "pairs" ? `No new pairs in the last ${spanLabel}.` : `No LP burns in the last ${spanLabel}.`} />
       ) : (
-        <WindowColumn id={id} now={now} data={windowData} error={windowError} />
+        <WindowColumn id={id} now={now} data={windowData} error={windowError} feedSpanMs={feedSpanMs} />
       )}
     </section>
   )
@@ -302,7 +323,7 @@ function LiveColumn({ items, readyAt, waiting, empty }: { items: ActivityItem[];
   )
 }
 
-function WindowColumn({ id, now, data, error }: { id: "news" | "trends"; now: number | null; data: BoardWindow | null; error: string | null }) {
+function WindowColumn({ id, now, data, error, feedSpanMs }: { id: "news" | "trends"; now: number | null; data: BoardWindow | null; error: string | null; feedSpanMs: number | null }) {
   const [generic, setGeneric] = useState(false)
   if (error) return <p className="px-3 py-3 text-sm text-muted-foreground">{error}</p>
   if (!data) return <p className="px-3 py-3 text-sm text-muted-foreground">Loading the 24 hour window…</p>
@@ -326,7 +347,8 @@ function WindowColumn({ id, now, data, error }: { id: "news" | "trends"; now: nu
       </div>
     )
   }
-  const visible = generic ? [...data.news, ...data.generic] : data.news
+  const inWindow = (at: string) => now == null || inFeedWindow(at, now, feedSpanMs)
+  const visible = (generic ? [...data.news, ...data.generic] : data.news).filter((item) => inWindow(item.event.publishedAt))
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <ul className="flex flex-col gap-2 px-3 py-3">

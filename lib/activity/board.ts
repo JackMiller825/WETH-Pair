@@ -57,6 +57,34 @@ export function addColumn(columns: readonly BoardColumnId[], id: BoardColumnId):
   return columns.includes(id) ? [...columns] : [...columns, id]
 }
 
+/** How far back the full-screen live columns look. `all` keeps every stored event. */
+export const FEED_WINDOWS = [
+  { id: "1m", label: "1m", ms: 60 * 1000 },
+  { id: "5m", label: "5m", ms: 5 * 60 * 1000 },
+  { id: "15m", label: "15m", ms: 15 * 60 * 1000 },
+  { id: "30m", label: "30m", ms: 30 * 60 * 1000 },
+  { id: "1h", label: "1h", ms: 60 * 60 * 1000 },
+  { id: "6h", label: "6h", ms: 6 * 60 * 60 * 1000 },
+  { id: "24h", label: "24h", ms: 24 * 60 * 60 * 1000 },
+  { id: "all", label: "All", ms: null },
+] as const
+
+export type FeedWindowId = (typeof FEED_WINDOWS)[number]["id"]
+
+export const FEED_WINDOW_KEY = "weth-feed-window"
+
+export function feedWindowById(id: string): (typeof FEED_WINDOWS)[number] {
+  return FEED_WINDOWS.find((item) => item.id === id) ?? FEED_WINDOWS[FEED_WINDOWS.length - 1]
+}
+
+/** True when the event time falls inside the selected monitor window. */
+export function inFeedWindow(occurredAt: string, now: number, spanMs: number | null): boolean {
+  if (spanMs == null) return true
+  const at = Date.parse(occurredAt)
+  if (!Number.isFinite(at)) return false
+  return at <= now + 60_000 && now - at <= spanMs
+}
+
 /** The last open column stays, so the board is never blank. */
 export function removeColumn(columns: readonly BoardColumnId[], id: BoardColumnId): BoardColumnId[] {
   if (columns.length <= 1) return [...columns]

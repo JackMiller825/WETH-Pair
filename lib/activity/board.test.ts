@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { addColumn, columnsFrom, DEFAULT_BOARD_COLUMNS, placePumpers, removeColumn } from "./board"
+import { addColumn, columnsFrom, DEFAULT_BOARD_COLUMNS, feedWindowById, inFeedWindow, placePumpers, removeColumn } from "./board"
 
 test("a first visit opens News, Trends, Top Pumpers, Pairs, and LP Burns", () => {
   assert.deepEqual(columnsFrom(null), ["news", "trends", "pumpers", "pairs", "burns"])
@@ -24,6 +24,16 @@ test("a saved layout keeps its order and drops unknown or repeated columns", () 
 test("adding a column appends it, and adding it again does not duplicate it", () => {
   assert.deepEqual(addColumn(["pairs"], "news"), ["pairs", "news"])
   assert.deepEqual(addColumn(["pairs", "news"], "news"), ["pairs", "news"])
+})
+
+test("a feed window keeps events inside it and an unknown id means the full list", () => {
+  const now = Date.parse("2026-10-21T12:00:00Z")
+  assert.equal(inFeedWindow(new Date(now - 30_000).toISOString(), now, 60_000), true)
+  assert.equal(inFeedWindow(new Date(now - 5 * 60_000).toISOString(), now, 60_000), false)
+  assert.equal(inFeedWindow("not a time", now, 60_000), false)
+  assert.equal(inFeedWindow(new Date(now - 86_400_000).toISOString(), now, null), true)
+  assert.equal(feedWindowById("nope").id, "all")
+  assert.equal(feedWindowById("15m").ms, 15 * 60 * 1000)
 })
 
 test("removing a column leaves the rest, and the last column cannot be removed", () => {

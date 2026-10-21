@@ -19,10 +19,12 @@ class PumpHub {
   private decimals = new Map<string, number>()
   private requested = new Set<string>()
   private pending: ReserveNote[] = []
-  private queue: { pair: string; token: string; wethFirst: boolean; decimals: number; block: number; at: number }[] = []
+  private queue: { pair: string; token: string; wethFirst: boolean | null; block: number; at: number }[] = []
   private timer: ReturnType<typeof setInterval> | null = null
   private backfill: ReturnType<typeof setTimeout> | null = null
   private seeded = false
+  private listedAt: number | null = null
+  private generation = 0
 
   subscribe = (listener: () => void): (() => void) => {
     listeners.add(listener)
@@ -58,56 +60,113 @@ class PumpHub {
     this.stopBackfill()
   }
 
-  /** Low-priority reserve reads for pairs that do not yet have a bucket. One call at a time. */
-  startBackfill(rows: readonly PairRecord[]) {
+  /** Current reserves first, then older buckets. A few current reads run together so a ranking can appear within seconds. */
+  startBackfill(rows: readonly PairRecord[], listedAt: number | null) {
     this.stopBackfill()
+    const generation = this.generation
     const v2 = rows.filter((row) => poolKind(row.exchange, row.address) === "v2").slice(0, 40)
+    const rememberListings = () => {
+      if (this.listedAt === listedAt) return
+      const eth = marketClient().getView().eth.data?.priceUsd
+      if (!(eth && eth > 0) || listedAt == null || !Number.isFinite(listedAt)) return
+      this.listedAt = listedAt
+      for (const row of v2) {
+        if (!(row.price != null && row.price > 0)) continue
+        const reserve = row.remaining != null && /^w?eth$/i.test(row.remainingUnit) ? row.remaining : null
+        if (reserve == null || !(reserve >= 0.05)) continue
+        this.book.insert({
+          pair: row.address,
+          token: row.tokenAddress,
+          block: null,
+          at: listedAt,
+          priceWeth: row.price / eth,
+          priceUsd: row.price,
+          reserveWeth: reserve,
+          liquidityUsd: row.liquidity,
+          source: "dextools",
+        })
+      }
+      this.persist()
+      this.emit()
+    }
     const step = async () => {
+      if (generation !== this.generation) return
+      let pause = 400
       try {
+        rememberListings()
         if (this.queue.length === 0) {
           const head = await readHead(defaultFetch)
           const eth = marketClient().getView().eth.data?.priceUsd
+          if (generation !== this.generation) return
           if (head && eth && eth > 0) {
-            const slots = await planSlots(defaultFetch, head, Date.now())
             for (const row of v2) {
-              const token = row.tokenAddress.toLowerCase()
-              const places = this.decimals.get(token) ?? (await readDecimals(defaultFetch, token))
-              if (places == null) continue
-              this.decimals.set(token, places)
-              const side = (await readWethFirst(defaultFetch, row.address, token)) ?? wethIsToken0(token)
-              const created = Date.parse(row.created_at)
-              for (const slot of slots) {
-                if (Number.isFinite(created) && created > slot.at) continue
-                const have = this.book.points(row.address).some((point) => Math.abs(point.at - slot.at) < 10 * 60 * 1000)
-                if (have) continue
-                this.queue.push({ pair: row.address, token, wethFirst: side, decimals: places, block: slot.block, at: slot.at })
-              }
+              const have = this.book.points(row.address).some((point) => Math.abs(point.at - head.timeMs) < 2 * 60 * 1000)
+              if (have) continue
+              this.queue.push({ pair: row.address, token: row.tokenAddress.toLowerCase(), wethFirst: null, block: head.block, at: head.timeMs })
             }
+            void this.queueOlder(v2, head, generation)
           }
           if (this.queue.length === 0) {
             this.backfill = setTimeout(() => void step(), 30_000)
             return
           }
         }
-        const job = this.queue.shift()
-        const eth = marketClient().getView().eth.data?.priceUsd
-        if (job && eth && eth > 0) {
-          const point = await sampleReserves(defaultFetch, job.pair, job.token, job.block, job.wethFirst, job.decimals, eth, job.at)
-          if (point) {
-            this.book.insert(point)
-            this.persist()
-            this.emit()
-          }
+        const fresh = Date.now() - this.queue[0].at < 3 * 60 * 1000
+        pause = fresh ? 120 : 400
+        const batch = []
+        const count = fresh ? 4 : 1
+        while (batch.length < count && this.queue.length > 0) batch.push(this.queue.shift() as (typeof this.queue)[number])
+        await Promise.all(batch.map((job) => this.sampleJob(job, generation)))
+        if (generation === this.generation) {
+          this.persist()
+          this.emit()
         }
       } catch {
         // One failed read waits for the next tick. Coverage stays partial.
       }
-      this.backfill = setTimeout(() => void step(), 400)
+      if (generation !== this.generation) return
+      this.backfill = setTimeout(() => void step(), pause)
     }
-    this.backfill = setTimeout(() => void step(), 400)
+    this.backfill = setTimeout(() => void step(), 0)
+  }
+
+  private async queueOlder(rows: readonly PairRecord[], head: { block: number; timeMs: number }, generation: number) {
+    try {
+      const slots = await planSlots(defaultFetch, head, Date.now())
+      if (generation !== this.generation) return
+      for (const slot of slots) {
+        if (slot.block === head.block) continue
+        for (const row of rows) {
+          const created = Date.parse(row.created_at)
+          if (Number.isFinite(created) && created > slot.at) continue
+          const have = this.book.points(row.address).some((point) => Math.abs(point.at - slot.at) < 10 * 60 * 1000)
+          if (have) continue
+          this.queue.push({ pair: row.address, token: row.tokenAddress.toLowerCase(), wethFirst: null, block: slot.block, at: slot.at })
+        }
+      }
+    } catch {
+      // Older buckets stay missing. The current price is already queued.
+    }
+  }
+
+  private async sampleJob(job: { pair: string; token: string; wethFirst: boolean | null; block: number; at: number }, generation: number) {
+    const eth = marketClient().getView().eth.data?.priceUsd
+    if (!(eth && eth > 0) || generation !== this.generation) return
+    let places = this.decimals.get(job.token)
+    if (places == null) {
+      const read = await readDecimals(defaultFetch, job.token)
+      if (read == null || generation !== this.generation) return
+      places = read
+      this.decimals.set(job.token, read)
+    }
+    const side = job.wethFirst ?? (await readWethFirst(defaultFetch, job.pair, job.token)) ?? wethIsToken0(job.token)
+    if (generation !== this.generation) return
+    const point = await sampleReserves(defaultFetch, job.pair, job.token, job.block, side, places, eth, job.at)
+    if (point && generation === this.generation) this.book.insert(point)
   }
 
   stopBackfill() {
+    this.generation += 1
     if (this.backfill != null) clearTimeout(this.backfill)
     this.backfill = null
     this.queue = []

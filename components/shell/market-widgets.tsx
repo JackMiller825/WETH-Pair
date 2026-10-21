@@ -1,6 +1,6 @@
 "use client"
 
-import { useSyncExternalStore, type ReactNode } from "react"
+import { useState, useSyncExternalStore, type ReactNode } from "react"
 import { ArrowDown, ArrowUp, Fuel, RefreshCw } from "lucide-react"
 import { useClock } from "@/components/shell/clock"
 import { Popover } from "@/components/shell/popover"
@@ -11,6 +11,8 @@ import { GAS_PERCENTILES } from "@/lib/market/gas"
 import { changeTone, formatAgo, formatAge, formatChange, formatEthPrice, formatEthPriceCompact, formatGwei, spokenChange, spokenUsd, type Tone } from "@/lib/market/format"
 import { GAS_STALE_MS, PRICE_STALE_MS, feedHealth } from "@/lib/market/service"
 import { EMPTY_FEED, type FeedHealth, type FeedState, type GasTier } from "@/lib/market/types"
+import { EthChart } from "@/components/shell/eth-chart"
+import { GasHistory, GasUsage } from "@/components/shell/gas-panel"
 
 const SERVER_VIEW: MarketView = { eth: { ...EMPTY_FEED }, gas: { ...EMPTY_FEED }, via: "browser", ethMove: null, gasMove: null }
 
@@ -24,7 +26,8 @@ export function notifyMarketBlock() {
   marketClient().onBlock()
 }
 
-const PANEL = "w-[min(20rem,calc(100vw-1.5rem))] max-sm:fixed max-sm:top-14 max-sm:right-3 max-sm:left-3 max-sm:w-auto"
+const ETH_PANEL = "w-[min(36rem,calc(100vw-1.5rem))] max-h-[min(34rem,calc(100vh-5rem))] overflow-y-auto max-sm:fixed max-sm:top-14 max-sm:right-3 max-sm:left-3 max-sm:w-auto"
+const GAS_PANEL = "w-[min(54rem,calc(100vw-1.5rem))] max-h-[min(34rem,calc(100vh-5rem))] overflow-y-auto max-sm:fixed max-sm:top-14 max-sm:right-3 max-sm:left-3 max-sm:w-auto"
 
 function toneClass(tone: Tone) {
   return tone === "up" ? "tone-up" : tone === "down" ? "tone-down" : "text-muted-foreground"
@@ -109,7 +112,7 @@ export function EthMarketWidget() {
   return (
     <Popover
       label={spoken}
-      panelClassName={PANEL}
+      panelClassName={ETH_PANEL}
       trigger={
         <span className="flex h-8 items-center gap-1.5 rounded-md bg-card px-2 ring-1 ring-foreground/10 hover:ring-foreground/25 sm:gap-2 sm:px-2.5">
           <EthIcon />
@@ -135,6 +138,7 @@ export function EthMarketWidget() {
         <HealthBadge health={health} age={age} fallbackText="Fallback source" />
       </div>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{formatEthPrice(data?.priceUsd)}</p>
+      <EthChart />
       <dl className="mt-3 divide-y divide-foreground/10">
         <DetailRow label={<Tip label="1 Hour" text={DEFINITIONS.change1h} />}><ChangeDetail value={data?.change1h ?? null} /></DetailRow>
         <DetailRow label={<Tip label="24 Hours" text={DEFINITIONS.change24h} />}><ChangeDetail value={data?.change24h ?? null} /></DetailRow>
@@ -169,6 +173,7 @@ function TierRow({ name, tip, tier, highlight = false }: { name: string; tip: st
 
 export function EthereumGasWidget() {
   const view = useMarket()
+  const [tab, setTab] = useState<"estimate" | "guzzlers" | "spenders" | "history">("estimate")
   const now = useClock(1000)
   const state = view.gas
   const data = state.data
@@ -182,7 +187,7 @@ export function EthereumGasWidget() {
   return (
     <Popover
       label={spoken}
-      panelClassName={PANEL}
+      panelClassName={GAS_PANEL}
       trigger={
         <span className="flex h-8 items-center gap-1.5 rounded-md bg-card px-2 ring-1 ring-foreground/10 hover:ring-foreground/25 sm:px-2.5">
           <Fuel size={13} aria-hidden className="shrink-0 text-muted-foreground" />
@@ -199,6 +204,15 @@ export function EthereumGasWidget() {
         <p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Ethereum gas</p>
         <HealthBadge health={health} age={age} fallbackText="Fallback RPC" />
       </div>
+      <div className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label="Gas details">
+        {([["estimate", "Estimate"], ["guzzlers", "Guzzlers"], ["spenders", "Spenders"], ["history", "History"]] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded px-2 py-0.5 text-[11px] ${tab === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{label}</button>
+        ))}
+      </div>
+      {tab === "guzzlers" ? <div className="mt-2"><GasUsage kind="guzzlers" ethUsd={view.eth.data?.priceUsd ?? null} /></div> : null}
+      {tab === "spenders" ? <div className="mt-2"><GasUsage kind="spenders" ethUsd={view.eth.data?.priceUsd ?? null} /></div> : null}
+      {tab === "history" ? <div className="mt-2"><GasHistory /></div> : null}
+      {tab === "estimate" ? <>
       <table className="mt-2 w-full">
         <thead>
           <tr className="text-[10px] text-muted-foreground uppercase">
@@ -227,6 +241,7 @@ export function EthereumGasWidget() {
       </p>
       {state.lastError ? <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">Last refresh failed. {data ? "Showing the last good estimate." : "No gas source answered."}</p> : null}
       <RefreshButton busy={state.refreshing} onClick={() => marketClient().refreshNow("gas")} />
+      </> : null}
     </Popover>
   )
 }
