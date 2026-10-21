@@ -3,7 +3,10 @@ import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { promisify } from "node:util"
-import { GAS_TRACKER_PAGE, gasTrackerForm, gasTrackerTableUrl, parseGasTracker, rowsFromTrackerPayload, type GasTrackerFile, type GasTrackerRow } from "../lib/market/gas-tracker"
+import { GAS_TRACKER_PAGE, gasTrackerFile, gasTrackerForm, gasTrackerTableUrl, parseGasTracker, rowsFromTrackerPayload, type GasTrackerFile, type GasTrackerRow } from "../lib/market/gas-tracker"
+
+/** Public gist updated from a machine Etherscan allows. The publish job reads it. */
+export const GAS_TRACKER_GIST_ID = "ac07566df7412704f98c78d45ad181f4"
 
 const execFileAsync = promisify(execFile)
 const VERSION = "v2.3.0"
@@ -87,6 +90,16 @@ function rowsFrom(text: string, kind: string): GasTrackerRow[] {
   const rows = rowsFromTrackerPayload(payload)
   if (rows.length < 10) throw new Error(`The ${kind} table was incomplete (${rows.length})`)
   return rows
+}
+
+/** The table last published from a machine Etherscan allows. */
+export async function fetchGasTrackerGist(): Promise<GasTrackerFile> {
+  const url = `https://gist.githubusercontent.com/JackMiller825/${GAS_TRACKER_GIST_ID}/raw/gas-tracker.json?t=${Date.now()}`
+  const response = await fetch(url, { cache: "no-store", redirect: "follow", signal: AbortSignal.timeout(20_000) })
+  if (!response.ok) throw new Error(`Gas tracker gist HTTP ${response.status}`)
+  const file = gasTrackerFile(await response.json())
+  if (!file) throw new Error("The gas tracker gist was empty")
+  return file
 }
 
 /** Read both gas tracker tables with a Chrome-like client. */

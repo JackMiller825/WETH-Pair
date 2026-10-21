@@ -3,7 +3,7 @@ import path from "node:path"
 import { buildSignals } from "../lib/activity/signals"
 import { fetchPairDetails } from "../lib/details"
 import { fetchGasTracker } from "../lib/market/gas-tracker"
-import { fetchGasTrackerBrowser } from "./gas-live"
+import { fetchGasTrackerBrowser, fetchGasTrackerGist } from "./gas-live"
 import { freshMarketStatus } from "../lib/market/server"
 import { defaultFetch } from "../lib/market/types"
 import { buildPumpSeed } from "../lib/pump/sample"
@@ -172,7 +172,13 @@ async function readGasTracker() {
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error"
     console.warn(`[GAS] Direct read failed. ${message} Retrying with a browser request.`)
-    return fetchGasTrackerBrowser()
+  }
+  try {
+    return await fetchGasTrackerBrowser()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error"
+    console.warn(`[GAS] Browser read failed. ${message} Reading the last published table.`)
+    return fetchGasTrackerGist()
   }
 }
 
