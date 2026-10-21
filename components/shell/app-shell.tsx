@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity as ActivityIcon, Bell, CircleHelp, Flame, LayoutDashboard, Menu, Monitor, Moon, Newspaper, Search, Settings, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
+import { Activity as ActivityIcon, Bell, CircleHelp, Flame, LayoutDashboard, Maximize2, Menu, Monitor, Moon, Newspaper, Search, Settings, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
 import { BackfillLink, HistoryBanner } from "@/components/progress/history-panel"
 import { applyTheme, isThemeId, type ThemeId } from "@/lib/theme"
 import { ago, eventsOf } from "@/lib/lp/monitor"
@@ -11,6 +11,7 @@ import { useLpMonitor } from "@/components/lp/monitor-context"
 import { parseIdentity } from "@/lib/narrative/text"
 import { CONCEPTS } from "@/lib/narrative/lexicon"
 import { EthMarketWidget, EthereumGasWidget, notifyMarketBlock } from "@/components/shell/market-widgets"
+import { ActivityBoard } from "@/components/shell/activity-board"
 import { LiveActivity } from "@/components/shell/live-activity"
 import { Popover } from "@/components/shell/popover"
 import { activityEngine } from "@/lib/activity/client"
@@ -46,6 +47,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [queryOpen, setQueryOpen] = useState(false)
   const [feed, setFeed] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const closeBoard = useCallback(() => setExpanded(false), [])
+  function setFeedOn(next: boolean) {
+    setFeed(next)
+    if (!next) setExpanded(false)
+    localStorage.setItem("weth-activity-feed", next ? "on" : "off")
+  }
   const [tour, setTour] = useState(false)
   const [now, setNow] = useState<number | null>(null)
   const [theme, setTheme] = useState<ThemeId>("dark")
@@ -156,7 +164,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span>Theme</span>
                   <ThemeSwitch theme={theme} onChange={(next) => { setTheme(next); applyTheme(next) }} />
                 </div>
-                <button type="button" className="mt-3 flex w-full items-center justify-between" onClick={() => { const next = !feed; setFeed(next); localStorage.setItem("weth-activity-feed", next ? "on" : "off") }}>
+                <button type="button" className="mt-3 flex w-full items-center justify-between" onClick={() => setFeedOn(!feed)}>
                   <span>Live activity panel</span>
                   <span className="text-muted-foreground">{feed ? "On" : "Off"}</span>
                 </button>
@@ -178,14 +186,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>Trend data {snapshot && now ? ago(now - Date.parse(snapshot.generatedAt)) : "waiting"}</span>
           <span>Last monitor check {lastCheck && now ? ago(now - lastCheck) : "waiting"}</span>
           <BackfillLink backfill={snapshot?.backfill} />
-          <button type="button" className="ml-auto text-foreground underline" onClick={() => { const next = !feed; setFeed(next); localStorage.setItem("weth-activity-feed", next ? "on" : "off") }}>{feed ? "Hide activity feed" : "Show activity feed"}</button>
+          <span className="ml-auto inline-flex items-center gap-3">
+            {feed && !expanded ? (
+              <button type="button" className="inline-flex items-center gap-1 text-foreground underline xl:hidden" onClick={() => setExpanded(true)}>
+                <Maximize2 size={12} aria-hidden /> Full screen
+              </button>
+            ) : null}
+            <button type="button" className="text-foreground underline" onClick={() => setFeedOn(!feed)}>{feed ? "Hide activity feed" : "Show activity feed"}</button>
+          </span>
         </div>
       </header>
       <HistoryBanner backfill={snapshot?.backfill} />
       <div className="flex min-w-0 flex-1">
         <div className="min-w-0 flex-1">{children}</div>
-        {feed ? <LiveActivity snapshot={snapshot} mode={mode} /> : null}
+        {feed ? <LiveActivity snapshot={snapshot} mode={mode} expanded={expanded} onExpanded={setExpanded} /> : null}
       </div>
+      {feed && expanded ? <ActivityBoard snapshot={snapshot} mode={mode} onClose={closeBoard} /> : null}
       {queryOpen ? <CommandSearch onClose={() => setQueryOpen(false)} /> : null}
       {tour ? <Welcome onClose={(forever) => { if (forever) localStorage.setItem("weth-onboarded", "1"); setTour(false) }} /> : null}
       <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex w-[min(100%-2rem,22rem)] flex-col gap-2">

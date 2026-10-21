@@ -69,7 +69,7 @@ Tokens that are already LP burnt when a search finishes are the baseline, so the
 
 The header shows the ETH/USD price with its 1 hour, 24 hour, and 7 day change, and Ethereum gas (Standard, Fast, Rapid) with the base fee and block. Click either for details, the source, and a Refresh button. Price comes from Coinbase Exchange, with CoinGecko as fallback. Gas comes from Ethereum's own fee history (`eth_feeHistory`), or from the Etherscan gas oracle when `ETHERSCAN_API_KEY` is set on the server. A value that stops updating is kept and marked stale; nothing is invented.
 
-The Live activity panel lists new pairs, LP burns, rising trends, and news matches. Pair cards show Total Tx (swaps since the pair was created), Pooled WETH (from the pair's reserves), and Holders (Blockscout, then Ethplorer). Values fill in after the card appears and update in place. This work uses its own sockets, endpoints, and queue, so it never delays LP burn detection; `npm run test:perf` checks that.
+The Live activity panel lists new pairs, LP burns, rising trends, and news matches. Pair cards show Total Tx (swaps since the pair was created), Pooled WETH (from the pair's reserves), and Holders (Blockscout, then Ethplorer). Values fill in after the card appears and update in place. Full screen opens that feed as columns, starting with News → Tokens (24h), Trends (24h), Pairs, and LP Burns. Add or remove columns to match what you are watching; the layout is saved in the browser. This work uses its own sockets, endpoints, and queue, so it never delays LP burn detection; `npm run test:perf` checks that.
 
 The **Help** page (`/help`) explains every value and its source.
 

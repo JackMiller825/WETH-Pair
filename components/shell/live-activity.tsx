@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
-import { Flame, Lock, Newspaper, TrendingUp, Zap, type LucideIcon } from "lucide-react"
+import { Flame, Lock, Maximize2, Newspaper, TrendingUp, Zap, type LucideIcon } from "lucide-react"
 import { useClock } from "@/components/shell/clock"
 import { Tip } from "@/components/shell/tip"
 import { activityStore, startActivity } from "@/lib/activity/client"
@@ -25,7 +25,7 @@ const TYPE_META: Record<ActivityType, { label: string; icon: LucideIcon; tone: s
   news: { label: "News match", icon: Newspaper, tone: "text-muted-foreground", action: "Open news" },
 }
 
-function statusOf(mode: MonitorMode): { text: string; dot: string; pulse: boolean } {
+export function activityStatus(mode: MonitorMode): { text: string; dot: string; pulse: boolean } {
   if (mode === "realtime") return { text: "Live", dot: "bg-emerald-500", pulse: true }
   if (mode === "error") return { text: "Reconnecting", dot: "bg-destructive", pulse: false }
   if (mode === "paused") return { text: "Paused", dot: "bg-amber-500", pulse: false }
@@ -38,19 +38,19 @@ function readFilter(): ActivityFilter {
   return ACTIVITY_FILTERS.some((item) => item.id === saved) ? (saved as ActivityFilter) : "all"
 }
 
-function useActivityList(): ActivityItem[] {
+export function useActivityList(): ActivityItem[] {
   const store = activityStore()
   return useSyncExternalStore(store.subscribe, store.getList, () => EMPTY)
 }
 
-export function LiveActivity({ snapshot, mode }: { snapshot: SnapshotFile | null; mode: MonitorMode }) {
+export function LiveActivity({ snapshot, mode, expanded, onExpanded }: { snapshot: SnapshotFile | null; mode: MonitorMode; expanded: boolean; onExpanded: (expanded: boolean) => void }) {
   const list = useActivityList()
   const [filter, setFilter] = useState<ActivityFilter>(readFilter)
   const [limit, setLimit] = useState(PAGE)
   const [held, setHeld] = useState<Set<string> | null>(null)
   const [readyAt, setReadyAt] = useState<number | null>(null)
   const scroller = useRef<HTMLElement>(null)
-  const status = statusOf(mode)
+  const status = activityStatus(mode)
 
   useEffect(() => startActivity(), [])
 
@@ -91,6 +91,8 @@ export function LiveActivity({ snapshot, mode }: { snapshot: SnapshotFile | null
     scroller.current?.scrollTo({ top: 0 })
   }
 
+  if (expanded) return null
+
   return (
     <aside ref={scroller} onScroll={onScroll} aria-labelledby="live-activity-title" className="sticky top-[5.75rem] hidden h-[calc(100vh-5.75rem)] w-80 shrink-0 overflow-y-auto border-l border-foreground/10 xl:block">
       <div className="sticky top-0 z-10 border-b border-foreground/10 bg-background/95 px-4 pt-4 pb-3 backdrop-blur">
@@ -100,6 +102,9 @@ export function LiveActivity({ snapshot, mode }: { snapshot: SnapshotFile | null
             <span aria-hidden className={`size-1.5 rounded-full ${status.dot} ${status.pulse ? "live-dot" : ""}`} />
             {status.text}
           </span>
+          <button type="button" onClick={() => onExpanded(true)} aria-label="Expand live activity to full screen" title="Full screen" className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Maximize2 size={14} aria-hidden />
+          </button>
         </div>
         <div className="mt-3 flex flex-wrap gap-1" role="radiogroup" aria-label="Filter activity">
           {ACTIVITY_FILTERS.map((item) => (
@@ -150,7 +155,7 @@ function stepFor(at: string): number {
   return Number.isFinite(age) && age < 60_000 ? 1000 : 15_000
 }
 
-const ActivityCard = memo(function ActivityCard({ item, highlight }: { item: ActivityItem; highlight: boolean }) {
+export const ActivityCard = memo(function ActivityCard({ item, highlight }: { item: ActivityItem; highlight: boolean }) {
   const now = useClock(stepFor(item.occurredAt))
   const meta = TYPE_META[item.type]
   const Icon = meta.icon
