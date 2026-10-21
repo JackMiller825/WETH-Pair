@@ -9,7 +9,7 @@ export function EthChart() {
   const [interval, setIntervalId] = useState("5m")
   const [active, setActive] = useState("5m")
   const [style, setStyle] = useState<"area" | "candles">("area")
-  const [bars, setBars] = useState<PriceBar[] | null>(null)
+  const [view, setView] = useState<{ id: string; bars: PriceBar[]; source: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   if (interval !== active) {
     setActive(interval)
@@ -19,15 +19,19 @@ export function EthChart() {
     let cancel = false
     loadEthBars(interval)
       .then((rows) => {
-        if (!cancel) setBars(rows)
+        if (!cancel) {
+          setView({ id: interval, bars: rows.bars, source: rows.source })
+          setError(null)
+        }
       })
-      .catch((caught: unknown) => {
-        if (!cancel) setError(caught instanceof Error ? caught.message : "The ETH chart failed")
+      .catch(() => {
+        if (!cancel) setError("The ETH chart could not be loaded.")
       })
     return () => {
       cancel = true
     }
   }, [interval])
+  const bars = view?.id === interval ? view.bars : null
   const rising = bars != null && bars.length > 1 && bars[bars.length - 1].close >= bars[0].close
   return (
     <div className="mt-3">
@@ -52,6 +56,7 @@ export function EthChart() {
           formatTime={(index) => new Date(bars[index].at).toLocaleString()}
         />
       ) : error ? null : <p className="py-6 text-center text-xs text-muted-foreground">Loading the ETH chart…</p>}
+      {bars && view ? <p className="mt-1 text-[10px] text-muted-foreground">{view.source} ETH/USD</p> : null}
     </div>
   )
 }

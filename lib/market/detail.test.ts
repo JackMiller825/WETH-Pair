@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { barsFromCandles } from "./chart"
+import { barsFromCandles, bucketBars, candlesFromCoinGecko, candlesFromKraken, clearEthBarCache, loadEthBars } from "./chart"
+import type { FetchLike } from "./types"
 import type { Candle } from "./price"
 import { downsampleGas, pointsFromFeeHistory } from "./gas-history"
 import { absorbReceipt, rankUsage, usageBlocks, type UsageTotals } from "./gas-usage"
@@ -15,6 +16,42 @@ test("ETH bars keep candles inside the span and order them oldest first", () => 
   const bars = barsFromCandles(candles, now, 5 * 60 * 1000)
   assert.deepEqual(bars.map((bar) => bar.close), [3, 4])
   assert.equal(bars[0].at < bars[1].at, true)
+})
+
+test("Kraken and CoinGecko candles become the same bar shape, and 1h bars bucket into 6h", () => {
+  const kraken = candlesFromKraken({
+    error: [],
+    result: { XETHZUSD: [[1_700_000_000, "10", "14", "9", "12", "11", "3", 4]], last: 1 },
+  })
+  assert.deepEqual(kraken[0], [1_700_000_000, 9, 14, 10, 12, 3])
+  const gecko = candlesFromCoinGecko([[1_700_000_000_000, 10, 14, 9, 12]])
+  assert.equal(gecko[0][0], 1_700_000_000)
+  assert.equal(gecko[0][4], 12)
+  const hour = 60 * 60 * 1000
+  const bucket = bucketBars([
+    { at: hour, open: 10, high: 12, low: 9, close: 11 },
+    { at: hour * 2, open: 11, high: 15, low: 8, close: 14 },
+    { at: hour * 7, open: 14, high: 16, low: 13, close: 15 },
+  ], 6 * hour)
+  assert.equal(bucket.length, 2)
+  assert.deepEqual(bucket[0], { at: 0, open: 10, high: 15, low: 8, close: 14 })
+})
+
+test("the ETH chart uses Kraken when Coinbase does not answer", async () => {
+  clearEthBarCache()
+  const now = Date.parse("2026-10-21T12:00:00Z")
+  const fetcher: FetchLike = async (input) => {
+    const url = String(input)
+    if (url.includes("coinbase")) throw new Error("Failed to fetch")
+    if (url.includes("kraken")) {
+      const body = { error: [], result: { XETHZUSD: [[(now - 600_000) / 1000, "10", "12", "9", "11", "10", "1", 1], [(now - 300_000) / 1000, "11", "13", "10", "12", "12", "1", 1]] } }
+      return new Response(JSON.stringify(body), { status: 200 })
+    }
+    throw new Error(url)
+  }
+  const loaded = await loadEthBars("5m", fetcher, now)
+  assert.equal(loaded.source, "Kraken")
+  assert.deepEqual(loaded.bars.map((bar) => bar.close), [11, 12])
 })
 
 test("fee history becomes one gas point per block", () => {
