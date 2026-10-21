@@ -164,3 +164,42 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
+
+.tone-up { color: #15803d; }
+.tone-down { color: #b42318; }
+.dark .tone-up { color: #4ade80; }
+.dark .tone-down { color: #f87171; }
+
+/* A changed number eases in from slightly faded. No color flash. */
+.value-bump {
+  animation: value-bump 600ms ease-out;
+}
+
+/* A new Live Activity card starts with a soft tint that fades over about 1.6 seconds. */
+.activity-arrive {
+  animation: activity-arrive 1.6s ease-out;
+}
+
+.tick-fade {
+  animation: tick-fade 1.8s ease-out forwards;
+}
+
+@keyframes value-bump {
+  from { opacity: 0.45; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes activity-arrive {
+  from { background-color: color-mix(in oklab, var(--primary) 14%, transparent); }
+  to { background-color: transparent; }
+}
+
+@keyframes tick-fade {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .value-bump, .activity-arrive, .tick-fade, .live-dot { animation: none; }
+  .tick-fade { opacity: 0; }
+}

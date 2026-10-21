@@ -1,3 +1,4 @@
+import type { ActivitySignal } from "@/lib/activity/store"
 import type { BackfillState } from "@/lib/history/plan"
 import type { ChainCheckpoint } from "@/lib/lp/burn-logic"
 import type { LpBurnEvent, LpScan } from "@/lib/lp/monitor"
@@ -52,6 +53,8 @@ export type SnapshotFile = {
   lpScan?: LpScan
   chain?: ChainCheckpoint
   backfill?: BackfillState
+  /** Rising trends and news-matched tokens for Live Activity, computed at publish time. */
+  signals?: ActivitySignal[]
 }
 
 export type TokenRef = {

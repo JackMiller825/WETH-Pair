@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { buildSignals } from "../lib/activity/signals"
 import { fetchPairDetails } from "../lib/details"
+import { freshMarketStatus } from "../lib/market/server"
 import { captureHistory } from "../lib/narrative/engine"
 import { fetchNews } from "../lib/narrative/rss"
 import type { HistoryPoint, SnapshotFile } from "../lib/narrative/types"
@@ -111,12 +113,29 @@ async function main() {
     chain,
     backfill,
   }
+  try {
+    snapshot.signals = buildSignals(snapshot)
+  } catch (error) {
+    console.warn(`[ACTIVITY] Signals skipped. ${error instanceof Error ? error.message : "unknown error"}`)
+  }
   const file = path.join("public", "data", "snapshot.json")
   await mkdir(path.dirname(file), { recursive: true })
   await writeFile(file, JSON.stringify(snapshot))
+  await writeMarket()
   console.log(
     `Wrote ${file} (${records.length} rows, ${news.length} headlines, ${history.length} history points, ${lp.events.length} LP burns).`,
   )
+}
+
+/** Seed for the header so a first visit shows ETH and gas before the browser's own refresh answers. */
+async function writeMarket() {
+  try {
+    const status = await freshMarketStatus()
+    await writeFile(path.join("public", "data", "market.json"), JSON.stringify(status))
+    console.log(`[MARKET] ETH ${status.eth.data?.priceUsd ?? "unavailable"} via ${status.eth.data?.source ?? "-"} · gas ${status.gas.data?.standard.gwei.toFixed(4) ?? "unavailable"} gwei via ${status.gas.data?.source ?? "-"}`)
+  } catch (error) {
+    console.warn(`[MARKET] Seed skipped. ${error instanceof Error ? error.message : "unknown error"}`)
+  }
 }
 
 async function loadPrevious(): Promise<SnapshotFile | null> {

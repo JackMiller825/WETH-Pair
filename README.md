@@ -65,6 +65,22 @@ Tokens that are already LP burnt when a search finishes are the baseline, so the
 
 **Test alert** plays the same sound and shows a sample card, so you can check it before a real token appears. Pools on an unknown exchange stay out of these alerts, because DEXTools does not show them as burnt.
 
+## ETH price, gas, and Live Activity
+
+The header shows the ETH/USD price with its 1 hour, 24 hour, and 7 day change, and Ethereum gas (Standard, Fast, Rapid) with the base fee and block. Click either for details, the source, and a Refresh button. Price comes from Coinbase Exchange, with CoinGecko as fallback. Gas comes from Ethereum's own fee history (`eth_feeHistory`), or from the Etherscan gas oracle when `ETHERSCAN_API_KEY` is set on the server. A value that stops updating is kept and marked stale; nothing is invented.
+
+The Live activity panel lists new pairs, LP burns, rising trends, and news matches. Pair cards show Total Tx (swaps since the pair was created), Pooled WETH (from the pair's reserves), and Holders (Blockscout, then Ethplorer). Values fill in after the card appears and update in place. This work uses its own sockets, endpoints, and queue, so it never delays LP burn detection; `npm run test:perf` checks that.
+
+The **Help** page (`/help`) explains every value and its source.
+
+Server settings, all optional:
+
+- `MARKET_PRICE_REFRESH_MS` — ETH price refresh, default 10000
+- `GAS_REFRESH_MS` — gas refresh, default 12000
+- `ETHERSCAN_API_KEY` — use the Etherscan gas oracle; read only on the server, never sent to the browser
+
+On GitHub Pages there is no server, so `/api/market/status` is not available. The published `data/market.json` gives the first value instantly, and each browser then refreshes on its own and shares the result between its tabs.
+
 ## Back and pagination
 
 The burnt view has a **Back to all pairs** button. It returns to the full list for the same period, instantly if Start already loaded it, otherwise it loads the list first.

@@ -3,13 +3,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity as ActivityIcon, Bell, Flame, LayoutDashboard, Menu, Monitor, Moon, Newspaper, Search, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
+import { Activity as ActivityIcon, Bell, CircleHelp, Flame, LayoutDashboard, Menu, Monitor, Moon, Newspaper, Search, Settings, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
 import { BackfillLink, HistoryBanner } from "@/components/progress/history-panel"
 import { applyTheme, isThemeId, type ThemeId } from "@/lib/theme"
 import { ago, eventsOf } from "@/lib/lp/monitor"
 import { useLpMonitor } from "@/components/lp/monitor-context"
 import { parseIdentity } from "@/lib/narrative/text"
 import { CONCEPTS } from "@/lib/narrative/lexicon"
+import { EthMarketWidget, EthereumGasWidget, notifyMarketBlock } from "@/components/shell/market-widgets"
+import { LiveActivity } from "@/components/shell/live-activity"
+import { Popover } from "@/components/shell/popover"
+import { activityEngine } from "@/lib/activity/client"
 
 const LINKS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -20,7 +24,12 @@ const LINKS = [
   { href: "/news", label: "News → Tokens", icon: Newspaper },
   { href: "/tokens", label: "Token Explorer", icon: Search },
   { href: "/alerts", label: "Alerts", icon: Bell },
+] as const
+
+/** Shown in the right-hand header cluster on wide screens and in the menu on narrow ones. */
+const UTILITY_LINKS = [
   { href: "/system", label: "Diagnostics", icon: ActivityIcon },
+  { href: "/help", label: "Help", icon: CircleHelp },
 ] as const
 
 const TOUR = [
@@ -76,6 +85,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     setOpen(false)
   }, [pathname])
 
+  useEffect(() => {
+    if (block == null) return
+    notifyMarketBlock()
+    activityEngine()?.onHead(block)
+  }, [block])
+
   const latestPair = useMemo(() => {
     const rows = snapshot?.rows ?? []
     return rows.reduce<string | null>((best, row) => (!best || row.created_at > best ? row.created_at : best), null)
@@ -93,30 +108,65 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-30 border-b border-foreground/10 bg-background/90 backdrop-blur">
-        <div className="page-wrap flex items-center gap-3 py-3">
-          <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">WETH Live</Link>
-          <button type="button" className="rounded-md p-2 text-muted-foreground lg:hidden" aria-label="Open navigation" onClick={() => setOpen((value) => !value)}>
-            {open ? <X size={18} /> : <Menu size={18} />}
-          </button>
-          <nav className={`${open ? "flex" : "hidden"} absolute top-14 right-0 left-0 flex-col gap-1 border-b border-foreground/10 bg-background p-3 lg:static lg:flex lg:flex-1 lg:flex-row lg:gap-1 lg:border-0 lg:bg-transparent lg:p-0`}>
+        <div className="page-wrap flex h-14 items-center gap-1.5 sm:gap-2 xl:gap-3">
+          <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight whitespace-nowrap">WETH Live</Link>
+          <nav aria-label="Main" className={`${open ? "flex" : "hidden"} absolute top-14 right-0 left-0 max-h-[calc(100vh-3.5rem)] flex-col gap-1 overflow-y-auto border-b border-foreground/10 bg-background p-3 xl:static xl:flex xl:min-w-0 xl:flex-1 xl:flex-row xl:gap-0.5 xl:overflow-visible xl:border-0 xl:bg-transparent xl:p-0`}>
             {LINKS.map((link) => {
               const active = link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`)
               const Icon = link.icon
               return (
-                <Link key={link.href} href={link.href} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-                  <Icon size={14} aria-hidden />
+                <Link key={link.href} href={link.href} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap xl:px-1.5 xl:text-[13px] min-[1440px]:px-2 ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                  <Icon size={14} aria-hidden className="xl:hidden min-[1440px]:inline" />
                   {link.label}
                   {active ? <span className="sr-only">, current page</span> : null}
                 </Link>
               )
             })}
+            <div className="mt-2 flex flex-col gap-1 border-t border-foreground/10 pt-2 sm:hidden">
+              {UTILITY_LINKS.map((link) => {
+                const Icon = link.icon
+                return (
+                  <Link key={link.href} href={link.href} className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <Icon size={14} aria-hidden />
+                    {link.label}
+                  </Link>
+                )
+              })}
+              <div className="flex items-center justify-between px-2.5 py-1.5 text-sm text-muted-foreground">
+                Theme
+                <ThemeSwitch theme={theme} onChange={(next) => { setTheme(next); applyTheme(next) }} />
+              </div>
+            </div>
           </nav>
-          <ThemeSwitch theme={theme} onChange={(next) => { setTheme(next); applyTheme(next) }} />
-          <button type="button" onClick={() => setQueryOpen(true)} className="hidden items-center gap-2 rounded-md bg-card px-3 py-1.5 text-xs text-muted-foreground ring-1 ring-foreground/10 sm:flex">
-            <Search size={14} /> Search token, ticker, contract…
-            <kbd className="rounded bg-muted px-1.5 py-0.5">Ctrl K</kbd>
-          </button>
-          <button type="button" className="rounded-md p-2 text-muted-foreground sm:hidden" aria-label="Search" onClick={() => setQueryOpen(true)}><Search size={16} /></button>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <button type="button" onClick={() => setQueryOpen(true)} aria-label="Search token, ticker, or contract (Ctrl K)" className="flex h-8 items-center gap-2 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground min-[1900px]:bg-card min-[1900px]:px-3 min-[1900px]:ring-1 min-[1900px]:ring-foreground/10">
+              <Search size={15} aria-hidden />
+              <span className="hidden min-[1900px]:inline">Search token, ticker, contract…</span>
+              <kbd className="hidden rounded bg-muted px-1.5 py-0.5 min-[1900px]:inline">Ctrl K</kbd>
+            </button>
+            <EthMarketWidget />
+            <EthereumGasWidget />
+            <Link href="/system" aria-label="Diagnostics" title="Diagnostics" className={`hidden h-8 items-center rounded-md px-2 sm:flex ${pathname.startsWith("/system") ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+              <ActivityIcon size={15} aria-hidden />
+            </Link>
+            <div className="hidden sm:block">
+              <Popover label="Settings" className="flex h-8 items-center px-2 text-muted-foreground hover:bg-muted hover:text-foreground" trigger={<Settings size={15} aria-hidden />} panelClassName="w-60">
+                <p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Settings</p>
+                <div className="mt-3 flex items-center justify-between">
+                  <span>Theme</span>
+                  <ThemeSwitch theme={theme} onChange={(next) => { setTheme(next); applyTheme(next) }} />
+                </div>
+                <button type="button" className="mt-3 flex w-full items-center justify-between" onClick={() => { const next = !feed; setFeed(next); localStorage.setItem("weth-activity-feed", next ? "on" : "off") }}>
+                  <span>Live activity panel</span>
+                  <span className="text-muted-foreground">{feed ? "On" : "Off"}</span>
+                </button>
+                <Link href="/help" className="mt-3 flex items-center gap-1.5 text-primary hover:underline"><CircleHelp size={14} aria-hidden /> Help and data sources</Link>
+              </Popover>
+            </div>
+            <button type="button" className="rounded-md p-2 text-muted-foreground xl:hidden" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+              {open ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
         </div>
         <div className="page-wrap flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-foreground/5 py-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5 text-foreground"><span className={`size-1.5 rounded-full ${mode === "error" ? "bg-destructive" : mode === "paused" ? "bg-amber-400" : "bg-emerald-400"} ${mode === "active" || mode === "realtime" ? "live-dot" : ""}`} />{statusText}</span>
@@ -134,7 +184,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <HistoryBanner backfill={snapshot?.backfill} />
       <div className="flex min-w-0 flex-1">
         <div className="min-w-0 flex-1">{children}</div>
-        {feed ? <Activity snapshotRows={snapshot?.rows ?? []} burns={snapshot ? eventsOf(snapshot).slice(0, 6) : []} /> : null}
+        {feed ? <LiveActivity snapshot={snapshot} mode={mode} /> : null}
       </div>
       {queryOpen ? <CommandSearch onClose={() => setQueryOpen(false)} /> : null}
       {tour ? <Welcome onClose={(forever) => { if (forever) localStorage.setItem("weth-onboarded", "1"); setTour(false) }} /> : null}
@@ -163,7 +213,7 @@ function ThemeSwitch({ theme, onChange }: { theme: ThemeId; onChange: (theme: Th
     { id: "system" as const, label: "System", icon: Monitor },
   ]
   return (
-    <div className="ml-auto flex rounded-md bg-card p-0.5 ring-1 ring-foreground/10" role="radiogroup" aria-label="Theme">
+    <div className="flex rounded-md bg-card p-0.5 ring-1 ring-foreground/10" role="radiogroup" aria-label="Theme">
       {options.map((option) => {
         const Icon = option.icon
         const selected = theme === option.id
@@ -183,31 +233,6 @@ function ThemeSwitch({ theme, onChange }: { theme: ThemeId; onChange: (theme: Th
         )
       })}
     </div>
-  )
-}
-
-function Activity({ snapshotRows, burns }: { snapshotRows: { name: string; created_at: string; address: string }[]; burns: { detectedAt: string; symbol: string; tokenName: string }[] }) {
-  const rows = [...snapshotRows].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6)
-  return (
-    <aside className="sticky top-28 hidden h-[calc(100vh-7rem)] w-72 shrink-0 overflow-auto border-l border-foreground/10 px-4 py-6 xl:block">
-      <h2 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Live activity</h2>
-      <ul className="mt-4 flex flex-col gap-3 text-sm">
-        {burns.slice(0, 4).map((event) => (
-          <li key={`${event.symbol}${event.detectedAt}`}>
-            <p className="text-xs text-muted-foreground">{new Date(event.detectedAt).toLocaleTimeString()}</p>
-            <p>LP burned · {event.symbol}</p>
-            <p className="text-xs text-muted-foreground">{event.tokenName}</p>
-          </li>
-        ))}
-        {rows.map((row) => (
-          <li key={row.address}>
-            <p className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleTimeString()}</p>
-            <p>New pair · {row.name}</p>
-          </li>
-        ))}
-        {rows.length === 0 && burns.length === 0 ? <li className="text-muted-foreground">Activity appears after the dataset loads.</li> : null}
-      </ul>
-    </aside>
   )
 }
 
