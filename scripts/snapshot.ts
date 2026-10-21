@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { buildSignals } from "../lib/activity/signals"
 import { fetchPairDetails } from "../lib/details"
+import { fetchGasTracker } from "../lib/market/gas-tracker"
 import { freshMarketStatus } from "../lib/market/server"
 import { defaultFetch } from "../lib/market/types"
 import { buildPumpSeed } from "../lib/pump/sample"
@@ -125,6 +126,7 @@ async function main() {
   await writeFile(file, JSON.stringify(snapshot))
   const ethUsd = await writeMarket()
   await writePumpers(withChain, ethUsd)
+  await writeGasTracker()
   console.log(
     `Wrote ${file} (${records.length} rows, ${news.length} headlines, ${history.length} history points, ${lp.events.length} LP burns).`,
   )
@@ -140,6 +142,17 @@ async function writeMarket(): Promise<number | null> {
   } catch (error) {
     console.warn(`[MARKET] Seed skipped. ${error instanceof Error ? error.message : "unknown error"}`)
     return null
+  }
+}
+
+/** Etherscan's gas guzzler and spender tables. A failed read skips the file and never fails the snapshot. */
+async function writeGasTracker() {
+  try {
+    const board = await fetchGasTracker()
+    await writeFile(path.join("public", "data", "gas-tracker.json"), JSON.stringify(board))
+    console.log(`[GAS] Tracker block ${board.block ?? "?"} · ${board.guzzlers.length} guzzlers · ${board.spenders.length} spenders`)
+  } catch (error) {
+    console.warn(`[GAS] Tracker skipped. ${error instanceof Error ? error.message : "unknown error"}`)
   }
 }
 

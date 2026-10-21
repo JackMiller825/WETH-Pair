@@ -209,8 +209,8 @@ export function EthereumGasWidget() {
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded px-2 py-0.5 text-[11px] ${tab === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{label}</button>
         ))}
       </div>
-      {tab === "guzzlers" ? <div className="mt-2"><GasUsage kind="guzzlers" ethUsd={view.eth.data?.priceUsd ?? null} /></div> : null}
-      {tab === "spenders" ? <div className="mt-2"><GasUsage kind="spenders" ethUsd={view.eth.data?.priceUsd ?? null} /></div> : null}
+      {tab === "guzzlers" ? <div className="mt-2"><GasUsage kind="guzzlers" /></div> : null}
+      {tab === "spenders" ? <div className="mt-2"><GasUsage kind="spenders" /></div> : null}
       {tab === "history" ? <div className="mt-2"><GasHistory /></div> : null}
       {tab === "estimate" ? <>
       <table className="mt-2 w-full">

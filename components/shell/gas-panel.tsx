@@ -1,57 +1,45 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { LineChart } from "lucide-react"
 import { MarketChart } from "@/components/shell/market-chart"
-import { formatUsd } from "@/lib/format"
 import { formatGwei } from "@/lib/market/format"
 import { GAS_RANGES, loadGasSeries, type GasPoint } from "@/lib/market/gas-history"
-import { scanUsage, weiToEth, type UsageProgress, type UsageRank } from "@/lib/market/gas-usage"
+import { loadGasTracker, type GasTrackerFile, type GasTrackerRow } from "@/lib/market/gas-tracker"
 
 const historyCache = new Map<string, GasPoint[]>()
-let usage: UsageProgress | null = null
-let usageError: string | null = null
-let usageTask: Promise<void> | null = null
-const usageListeners = new Set<() => void>()
 
-function emitUsage() {
-  for (const listener of usageListeners) listener()
-}
-
-function ensureUsage() {
-  if (usageTask) return
-  usageTask = scanUsage((progress) => {
-    usage = progress
-    usageError = null
-    emitUsage()
-  }).catch((error: unknown) => {
-    usageError = error instanceof Error ? error.message : "Gas usage failed"
-    usageTask = null
-    emitUsage()
-  })
-}
-
-function useUsage(): { progress: UsageProgress | null; error: string | null } {
-  const [, setTick] = useState(0)
+function useGasTracker(): { board: GasTrackerFile | null; error: string | null } {
+  const [board, setBoard] = useState<GasTrackerFile | null>(null)
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    const listener = () => setTick((value) => value + 1)
-    usageListeners.add(listener)
-    ensureUsage()
+    let cancel = false
+    async function pull() {
+      try {
+        const next = await loadGasTracker()
+        if (!cancel) {
+          setBoard(next)
+          setError(null)
+        }
+      } catch (caught) {
+        if (!cancel) setError(caught instanceof Error ? caught.message : "The gas tracker could not be read")
+      }
+    }
+    void pull()
+    const timer = window.setInterval(() => void pull(), 30_000)
     return () => {
-      usageListeners.delete(listener)
+      cancel = true
+      window.clearInterval(timer)
     }
   }, [])
-  return { progress: usage, error: usageError }
+  return { board, error }
 }
 
-function short(address: string): string {
-  return `${address.slice(0, 8)}…${address.slice(-6)}`
-}
-
-function AddressCell({ address }: { address: string }) {
+function AddressCell({ name, address }: { name: string; address: string }) {
   const [copied, setCopied] = useState(false)
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <a href={`https://etherscan.io/address/${address}`} target="_blank" rel="noreferrer" className="font-mono text-foreground hover:underline" title={address}>{short(address)}</a>
+    <span className="inline-flex max-w-[16rem] items-center gap-1.5">
+      <a href={`https://etherscan.io/address/${address}`} target="_blank" rel="noreferrer" className="truncate text-foreground hover:underline" title={`${name}\n${address}`}>{name}</a>
       <button
         type="button"
         aria-label={`Copy ${address}`}
@@ -61,7 +49,7 @@ function AddressCell({ address }: { address: string }) {
             window.setTimeout(() => setCopied(false), 1200)
           })
         }}
-        className="text-[10px] text-primary hover:underline"
+        className="shrink-0 text-[10px] text-primary hover:underline"
       >
         {copied ? "Copied" : "Copy"}
       </button>
@@ -69,26 +57,20 @@ function AddressCell({ address }: { address: string }) {
   )
 }
 
-function feeLabel(wei: bigint, ethUsd: number | null): string {
-  const eth = weiToEth(wei)
-  const usd = ethUsd != null && ethUsd > 0 ? formatUsd(eth * ethUsd) : null
-  const ethText = `${eth >= 100 ? eth.toFixed(1) : eth >= 1 ? eth.toFixed(2) : eth.toFixed(4)} ETH`
-  return usd ? `${usd} (${ethText})` : ethText
-}
-
-function UsageTable({ rows, kind, ethUsd }: { rows: UsageRank[]; kind: "guzzlers" | "spenders"; ethUsd: number | null }) {
+function UsageTable({ rows, kind }: { rows: GasTrackerRow[]; kind: "guzzlers" | "spenders" }) {
   const used = kind === "guzzlers"
+  const peak = Math.max(...rows.map((row) => row.share3), 0)
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] text-left text-xs">
+      <table className="w-full min-w-[44rem] text-left text-xs">
         <thead className="text-[10px] tracking-wide text-muted-foreground uppercase">
           <tr>
             <th className="py-1 pr-2 font-medium">Rank</th>
             <th className="py-1 pr-2 font-medium">Address</th>
-            <th className="py-1 pr-2 text-right font-medium">Fees last 3h</th>
-            <th className="py-1 pr-2 text-right font-medium">{used ? "% used 3h" : "% spent 3h"}</th>
-            <th className="py-1 pr-2 text-right font-medium">Fees last 24h</th>
-            <th className="py-1 pr-2 text-right font-medium">{used ? "% used 24h" : "% spent 24h"}</th>
+            <th className="py-1 pr-2 text-right font-medium">Fees Last 3hrs</th>
+            <th className="py-1 pr-3 text-right font-medium">{used ? "% Used 3hrs" : "% Spent 3hrs"}</th>
+            <th className="py-1 pr-2 text-right font-medium">Fees Last 24hrs</th>
+            <th className="py-1 pr-2 text-right font-medium">{used ? "% Used 24hrs" : "% Spent 24hrs"}</th>
             <th className="py-1 text-right font-medium">Analytics</th>
           </tr>
         </thead>
@@ -96,12 +78,15 @@ function UsageTable({ rows, kind, ethUsd }: { rows: UsageRank[]; kind: "guzzlers
           {rows.map((row) => (
             <tr key={row.address}>
               <td className="py-1.5 pr-2 tabular-nums">{row.rank}</td>
-              <td className="py-1.5 pr-2"><AddressCell address={row.address} /></td>
-              <td className="py-1.5 pr-2 text-right tabular-nums">{feeLabel(row.fee3, ethUsd)}</td>
-              <td className="py-1.5 pr-2 text-right tabular-nums">{row.share3.toFixed(2)}%</td>
-              <td className="py-1.5 pr-2 text-right tabular-nums">{feeLabel(row.fee24, ethUsd)}</td>
-              <td className="py-1.5 pr-2 text-right tabular-nums">{row.share24.toFixed(2)}%</td>
-              <td className="py-1.5 text-right"><a href={`https://etherscan.io/address/${row.address}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">View</a></td>
+              <td className="py-1.5 pr-2"><AddressCell name={row.name} address={row.address} /></td>
+              <td className="py-1.5 pr-2 text-right tabular-nums">{row.fee3Usd}{row.fee3Eth ? <span className="text-muted-foreground"> ({row.fee3Eth})</span> : null}</td>
+              <td className="py-1.5 pr-3 text-right tabular-nums" title={row.gas3 ? `Gas units used: ${row.gas3}` : undefined}>
+                {row.share3Text}
+                <span className="mt-1 block h-0.5 overflow-hidden rounded-full bg-muted"><span className="block h-full bg-sky-500" style={{ width: `${peak > 0 ? (row.share3 / peak) * 100 : 0}%` }} /></span>
+              </td>
+              <td className="py-1.5 pr-2 text-right tabular-nums">{row.fee24Usd}{row.fee24Eth ? <span className="text-muted-foreground"> ({row.fee24Eth})</span> : null}</td>
+              <td className="py-1.5 pr-2 text-right tabular-nums" title={row.gas24 ? `Gas units used: ${row.gas24}` : undefined}>{row.share24Text}</td>
+              <td className="py-1.5 text-right"><a href={`https://etherscan.io/address/${row.address}#analytics-txfees`} target="_blank" rel="noreferrer" aria-label={`${row.name} analytics`} className="inline-flex text-primary hover:underline"><LineChart size={14} aria-hidden /></a></td>
             </tr>
           ))}
         </tbody>
@@ -110,18 +95,16 @@ function UsageTable({ rows, kind, ethUsd }: { rows: UsageRank[]; kind: "guzzlers
   )
 }
 
-export function GasUsage({ kind, ethUsd }: { kind: "guzzlers" | "spenders"; ethUsd: number | null }) {
-  const { progress, error } = useUsage()
-  const eth = ethUsd
-  const rows = kind === "guzzlers" ? progress?.guzzlers ?? [] : progress?.spenders ?? []
+export function GasUsage({ kind }: { kind: "guzzlers" | "spenders" }) {
+  const { board, error } = useGasTracker()
+  const rows = kind === "guzzlers" ? board?.guzzlers ?? [] : board?.spenders ?? []
   return (
     <div>
       <p className="text-[11px] text-muted-foreground">
-        {kind === "guzzlers" ? "Contracts that consumed gas." : "Accounts that paid the gas."} Fees are summed from sampled block receipts, denser over the last 3 hours and wider across 24 hours. The percentages are the share of that sample for each address.
-        {progress ? ` ${progress.read} of ${progress.total} blocks.` : " Reading blocks…"}
+        {kind === "guzzlers" ? "Contracts that consume gas." : "Accounts that pay the gas."} Names, fees, and percentages are Etherscan&apos;s gas tracker{board?.block != null ? ` at block ${board.block.toLocaleString("en-US")}` : ""}. Copy copies the address.
       </p>
       {error ? <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{error}</p> : null}
-      {rows.length > 0 ? <UsageTable rows={rows} kind={kind} ethUsd={eth} /> : <p className="py-4 text-xs text-muted-foreground">{error ? "No rows yet." : "The first blocks are loading."}</p>}
+      {rows.length > 0 ? <UsageTable rows={rows} kind={kind} /> : <p className="py-4 text-xs text-muted-foreground">{error ? "No rows yet." : "Loading the gas tracker…"}</p>}
     </div>
   )
 }
