@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Flame, Minimize2, Newspaper, Plus, TrendingUp, X, Zap, type LucideIcon } from "lucide-react"
+import { ArrowUpRight, Flame, Minimize2, Newspaper, Plus, TrendingUp, X, Zap, type LucideIcon } from "lucide-react"
 import { useClock } from "@/components/shell/clock"
 import { ActivityCard, activityStatus, useActivityList } from "@/components/shell/live-activity"
 import { Popover } from "@/components/shell/popover"
-import { addColumn, BOARD_COLUMNS_KEY, columnById, columnsFrom, removeColumn, type BoardColumnId } from "@/lib/activity/board"
+import { addColumn, BOARD_COLUMNS, BOARD_COLUMNS_KEY, columnById, columnsFrom, LEGACY_BOARD_COLUMNS_KEY, placePumpers, removeColumn, type BoardColumnId } from "@/lib/activity/board"
+import { TopPumpers } from "@/components/shell/top-pumpers"
 import { filterActivity, type ActivityItem } from "@/lib/activity/store"
 import { buildIntelligence } from "@/lib/narrative/engine"
 import { analyzeEvents, eventInWindow, type EventAnalysis } from "@/lib/narrative/events"
@@ -20,8 +21,17 @@ const PAGE = 100
 const COLUMN_ICON: Record<BoardColumnId, LucideIcon> = {
   news: Newspaper,
   trends: TrendingUp,
+  pumpers: ArrowUpRight,
   pairs: Zap,
   burns: Flame,
+}
+
+function readColumns(): BoardColumnId[] {
+  if (typeof localStorage === "undefined") return columnsFrom(null)
+  const saved = localStorage.getItem(BOARD_COLUMNS_KEY)
+  if (saved != null) return columnsFrom(saved)
+  const legacy = localStorage.getItem(LEGACY_BOARD_COLUMNS_KEY)
+  return legacy == null ? columnsFrom(null) : placePumpers(columnsFrom(legacy))
 }
 
 type BoardWindow = {
@@ -73,19 +83,23 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
   const openedOn = useRef<string | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
-  const [columns, setColumns] = useState<BoardColumnId[]>(() => columnsFrom(typeof localStorage === "undefined" ? null : localStorage.getItem(BOARD_COLUMNS_KEY)))
+  const [columns, setColumns] = useState<BoardColumnId[]>(readColumns)
   const [openedAt] = useState(() => Date.now())
   const [windowData, setWindowData] = useState<BoardWindow | null>(null)
   const [windowError, setWindowError] = useState<string | null>(null)
   const builtAt = useRef<string | null>(null)
   const status = activityStatus(mode)
-  const missing = (["news", "trends", "pairs", "burns"] as const).filter((id) => !columns.includes(id))
+  const missing = BOARD_COLUMNS.map((column) => column.id).filter((id) => !columns.includes(id))
   const needsWindow = columns.some((id) => id === "news" || id === "trends")
 
   function onColumns(next: BoardColumnId[]) {
     setColumns(next)
     localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(next))
   }
+
+  useEffect(() => {
+    if (localStorage.getItem(BOARD_COLUMNS_KEY) == null) localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(columns))
+  }, [columns])
 
   useEffect(() => {
     if (openedOn.current == null) openedOn.current = pathname
@@ -192,6 +206,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
             now={now}
             windowData={windowData}
             windowError={windowError}
+            snapshot={snapshot}
             canRemove={columns.length > 1}
             onRemove={() => onColumns(removeColumn(columns, id))}
           />
@@ -208,6 +223,7 @@ function BoardColumn({
   now,
   windowData,
   windowError,
+  snapshot,
   canRemove,
   onRemove,
 }: {
@@ -217,25 +233,28 @@ function BoardColumn({
   now: number | null
   windowData: BoardWindow | null
   windowError: string | null
+  snapshot: SnapshotFile | null
   canRemove: boolean
   onRemove: () => void
 }) {
   const column = columnById(id)
   const Icon = COLUMN_ICON[id]
   const live = id === "pairs" || id === "burns" ? filterActivity(list, id === "pairs" ? "pairs" : "burns") : []
-  const count = id === "news" ? (windowData ? windowData.news.length + windowData.generic.length : null) : id === "trends" ? windowData?.trends.length ?? null : live.length
+  const count = id === "news" ? (windowData ? windowData.news.length + windowData.generic.length : null) : id === "trends" ? windowData?.trends.length ?? null : id === "pumpers" ? null : live.length
   return (
-    <section aria-labelledby={`board-${id}`} className="flex h-full min-w-72 flex-1 flex-col">
+    <section aria-labelledby={`board-${id}`} className={`flex h-full flex-col ${id === "pumpers" ? "min-w-[22rem] flex-[1.3]" : "min-w-72 flex-1"}`}>
       <header className="flex items-center gap-2 border-b border-foreground/10 px-3 py-2">
         <Icon size={14} aria-hidden className="shrink-0 text-muted-foreground" />
         <h3 id={`board-${id}`} className="truncate text-sm font-medium">{column.label}</h3>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">{column.detail}</span>
-        <span className="ml-auto text-xs text-muted-foreground tabular-nums">{count ?? "…"}</span>
+        {count == null ? <span className="ml-auto" /> : <span className="ml-auto text-xs text-muted-foreground tabular-nums">{count}</span>}
         <button type="button" onClick={onRemove} disabled={!canRemove} aria-label={`Remove ${column.label} column`} title={canRemove ? `Remove ${column.label}` : "At least one column stays open"} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40">
           <X size={14} aria-hidden />
         </button>
       </header>
-      {id === "pairs" || id === "burns" ? (
+      {id === "pumpers" ? (
+        <TopPumpers snapshot={snapshot} />
+      ) : id === "pairs" || id === "burns" ? (
         <LiveColumn items={live} readyAt={readyAt} waiting={list.length === 0} empty={id === "pairs" ? "No new pairs yet." : "No LP burns yet."} />
       ) : (
         <WindowColumn id={id} now={now} data={windowData} error={windowError} />

@@ -6,6 +6,7 @@ import { Flame, Lock, Maximize2, Newspaper, TrendingUp, Zap, type LucideIcon } f
 import { useClock } from "@/components/shell/clock"
 import { Tip } from "@/components/shell/tip"
 import { activityStore, startActivity } from "@/lib/activity/client"
+import { watchPumpTape } from "@/lib/pump/client"
 import type { MetricSlot } from "@/lib/activity/metrics"
 import { ACTIVITY_FILTERS, filterActivity, type ActivityFilter, type ActivityItem, type ActivityType } from "@/lib/activity/store"
 import { DEFINITIONS, SOURCE_LABEL } from "@/lib/market/copy"
@@ -52,7 +53,14 @@ export function LiveActivity({ snapshot, mode, expanded, onExpanded }: { snapsho
   const scroller = useRef<HTMLElement>(null)
   const status = activityStatus(mode)
 
-  useEffect(() => startActivity(), [])
+  useEffect(() => {
+    const stopActivity = startActivity()
+    const stopTape = watchPumpTape()
+    return () => {
+      stopActivity()
+      stopTape()
+    }
+  }, [])
 
   useEffect(() => {
     if (!snapshot) return

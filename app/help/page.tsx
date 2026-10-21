@@ -1,6 +1,8 @@
 import type { ReactNode } from "react"
 import { PageFrame } from "@/components/trends/widgets"
 import { DEFINITIONS } from "@/lib/market/copy"
+import { MIN_RELIABLE_WETH, PUMP_TOOLTIP } from "@/lib/pump/price"
+import { TIE_BREAK } from "@/lib/pump/rank"
 import { GAS_PERCENTILES } from "@/lib/market/gas"
 import { DEFAULT_GAS_REFRESH_MS, DEFAULT_PRICE_REFRESH_MS, GAS_STALE_MS, PRICE_STALE_MS, PRIMARY_RETRY_MS } from "@/lib/market/service"
 
@@ -32,7 +34,7 @@ const seconds = (ms: number) => `${Math.round(ms / 1000)} seconds`
 
 export default function HelpPage() {
   return (
-    <PageFrame eyebrow="Help" title="Market header and Live Activity" lede="What the ETH price, gas, and Live Activity numbers mean, where they come from, and how fresh they are. LP burn detection always runs first; none of this can delay it.">
+    <PageFrame eyebrow="Help" title="Market header, Live Activity, and Top Pumpers" lede="What the ETH price, gas, Live Activity numbers, and Top Pumpers ranking mean, where they come from, and how fresh they are. LP burn detection always runs first; none of this can delay it.">
       <Section title="ETH price in the header">
         <p>The header shows the ETH/USD price and its change over 1 hour, 24 hours, and 7 days. A plus or minus sign and an arrow show the direction, so it never depends on color alone. Changes under 0.05% are shown neutral.</p>
         <Terms items={[["1H", DEFINITIONS.change1h], ["24H", DEFINITIONS.change24h], ["7D", DEFINITIONS.change7d]]} />
@@ -62,11 +64,28 @@ export default function HelpPage() {
 
       <Section title="Live Activity">
         <p>The right-hand panel lists new WETH pairs, LP burns, rising trends, and news that matched new tokens. Filter by All, Pairs, LP Burns, Trends, or News. The status reads Live while the Ethereum socket is open, Reconnecting when it dropped, and Polling when only the published scan is updating.</p>
-        <p>Full screen replaces the page with columns. The starting layout is News → Tokens (24 hours), Trends (24 hours), Pairs, and LP Burns. Add column puts back one you removed, and the button on a column removes it. At least one column stays open, and the layout is remembered in this browser. News and trends are the same 24 hour lists as those pages. Pairs and LP burns stay live. Escape, or Exit full screen, returns to the page. On a narrow screen the columns sit side by side and scroll sideways.</p>
+        <p>Full screen replaces the page with columns. The starting layout is News → Tokens (24 hours), Trends (24 hours), Top Pumpers, Pairs, and LP Burns. Add column puts back one you removed, and the button on a column removes it. At least one column stays open, and the layout is remembered in this browser. A layout saved before Top Pumpers is given that column once, between Trends and Pairs; removing it after that stays removed. News and trends are the same 24 hour lists as those pages. Pairs and LP burns stay live. Escape, or Exit full screen, returns to the page. On a narrow screen the columns sit side by side and scroll sideways.</p>
         <p>Cards appear the moment an event is seen. Total Tx, Pooled WETH, and Holders fill in afterwards and update inside the same card; a second card is never created for an update. A new card has a brief soft highlight. When you scroll down to read, new events wait behind a &quot;new events&quot; button instead of moving the list.</p>
         <Terms items={[["Total Tx", `${DEFINITIONS.totalTx} Buys plus sells: every Swap event on the pair since it was created. For pairs younger than about 6 hours it is counted on chain from the creation block. Older pairs start from the DEXTools count and add swaps seen live. The same transaction and log index is never counted twice. It is not the number of Ethereum transactions that touched the token contract.`], ["Pooled WETH", `${DEFINITIONS.pooledWeth} Uniswap V2-style pairs read getReserves on chain, check whether WETH is token0 or token1, and update on every Sync event. V3 pools read the pool's WETH balance after each swap. V4 pools share one contract, so their value comes from DEXTools.`], ["Holders", `${DEFINITIONS.holders} From Blockscout, with Ethplorer as fallback, and DEXTools until either answers. Refreshed every 20 seconds for tokens under 10 minutes old, every minute under an hour, every 3 minutes under a day or while trading, and every 10 minutes otherwise.`]]} />
         <p>Three dots mean the value is still loading. N/A means no source has it; hover it for the reason, for example &quot;Holder provider temporarily unavailable&quot;. 0 is shown only when the source reports zero; DEXTools zeros for a pool it has not priced yet are treated as unknown. A token with a pool always has at least one holder, so an indexer reporting 0 holders, or 0 transfers, has not caught up with that token yet: the next source is used instead.</p>
         <p>Every value carries a block number or time. A delayed or older reply never replaces a newer value, and an on-chain value with a block is only replaced by a later block.</p>
+      </Section>
+
+      <Section title="Top Pumpers">
+        <p>{PUMP_TOOLTIP} The column sits between Trends and Pairs. Changing the interval updates the list in place.</p>
+        <p>The multiple is the latest USD price divided by the reference USD price. The percentage is (multiple − 1) × 100. A price that doubles is 2.00x and +100%. A price that is four times the reference is 4.00x and +300%. The two USD prices each include the ETH price at the moment they were recorded, so ETH&apos;s own move between those moments is part of the result.</p>
+        <Terms
+          items={[
+            ["Window return", "Tokens with a recorded price at, or just before, the start of the selected interval. The gap can be at most 2 minutes or 5% of the interval, whichever is longer. A token created after the interval started is left out, because it has no price for the full window."],
+            ["New launch", "Tokens created during the interval. The reference is the first price after the pool held at least " + MIN_RELIABLE_WETH + " WETH. The row is labeled Since launch. It is a different list from Window return."],
+            ["Peak", "The highest price observed between the reference and now, shown as its own multiple. Retracement is how far the current price sits below that peak."],
+            ["Confidence", "High when the baseline pool held at least 1 WETH, at least three prices are indexed, the baseline sits within 2 minutes of the window start, and at least 10 transactions are recorded. Low when the baseline pool held under " + MIN_RELIABLE_WETH + " WETH, fewer than 3 transactions are recorded, or only one price is indexed. Medium is everything between. Low-confidence rows stay out of the numbered list until Show low confidence is on, and each one keeps its reason."],
+            ["Tie", "Equal multiples are ordered by " + TIE_BREAK + "."],
+          ]}
+        />
+        <p>A decline, such as 0.50x and -50%, stays off the list while Only above 1.00x is on. Filters for pooled WETH, transactions, holders, liquidity, and age are listed under the interval, so a token is never dropped by a rule you cannot see. Still rising and Retracing describe the latest observed moves. They are a record of what already happened.</p>
+        <p>Prices come from Uniswap V2-style reserves. WETH may be token0 or token1, and the token&apos;s own decimals are used. Sync events on the Live Activity socket store a point about every 5 seconds. The publish job also stores reserve readings at 15 minutes, 30 minutes, 1 hour, 3 hours, 6 hours, 12 hours, 24 hours, 3 days, and 7 days for the newest V2 pairs. Each browser keeps that seed plus its own history. There is no shared live ranking server on the static site. While the column is open, missing buckets are read one at a time in the background.</p>
+        <p>The list refreshes about every 5 seconds from the stored book. A common interval is reused until a price changes. 3 days uses a 72 hour baseline and 7 days uses 168 hours; a shorter history is never relabeled as the longer interval. When the oldest indexed point is inside the requested window, the column shows how much history is indexed and that the result is partial. A rank that moves shows an arrow, and a token that enters the list shows NEW. Click a token for the existing token page, or Details for the peak, the reference price, DEXTools, and Etherscan.</p>
       </Section>
 
       <Section title="Data sources">
@@ -77,6 +96,7 @@ export default function HelpPage() {
             ["Pool data", "Ethereum logs and eth_call via rpc.mevblocker.io and eth.drpc.org, and a separate eth.drpc.org socket."],
             ["Holders", "Blockscout, Ethplorer, DEXTools."],
             ["Trends and news", "Computed once per publish from the pair snapshot and RSS headlines."],
+            ["Top Pumpers", "Uniswap V2 reserves from Sync events and from historical eth_call reads via rpc.mevblocker.io and eth.drpc.org, priced with the header ETH/USD rate. The published seed is data/pumpers.json."],
           ]}
         />
         <p>This site is a static GitHub Pages build, so there is no server to fetch prices for everyone. The publish job writes a market seed every run, and each browser then refreshes from the providers above. Run locally with npm run dev and the browser instead reads the cached /api/market/status endpoint, where one server worker calls the providers. No API key is ever sent to the browser.</p>

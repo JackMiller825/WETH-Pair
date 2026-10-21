@@ -1,12 +1,20 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { addColumn, columnsFrom, DEFAULT_BOARD_COLUMNS, removeColumn } from "./board"
+import { addColumn, columnsFrom, DEFAULT_BOARD_COLUMNS, placePumpers, removeColumn } from "./board"
 
-test("a first visit opens News, Trends, Pairs, and LP Burns", () => {
-  assert.deepEqual(columnsFrom(null), ["news", "trends", "pairs", "burns"])
+test("a first visit opens News, Trends, Top Pumpers, Pairs, and LP Burns", () => {
+  assert.deepEqual(columnsFrom(null), ["news", "trends", "pumpers", "pairs", "burns"])
   assert.deepEqual(columnsFrom("not json"), DEFAULT_BOARD_COLUMNS)
   assert.deepEqual(columnsFrom("[]"), DEFAULT_BOARD_COLUMNS)
   assert.deepEqual(columnsFrom("{}"), DEFAULT_BOARD_COLUMNS)
+})
+
+test("a saved layout is kept as stored, and the first migration places Top Pumpers before Pairs", () => {
+  assert.deepEqual(columnsFrom(JSON.stringify(["news", "trends", "pairs", "burns"])), ["news", "trends", "pairs", "burns"])
+  assert.deepEqual(placePumpers(["news", "trends", "pairs", "burns"]), ["news", "trends", "pumpers", "pairs", "burns"])
+  assert.deepEqual(placePumpers(["burns", "pairs"]), ["burns", "pumpers", "pairs"])
+  assert.deepEqual(placePumpers(["news", "trends"]), ["news", "trends", "pumpers"])
+  assert.deepEqual(placePumpers(["pumpers", "pairs"]), ["pumpers", "pairs"])
 })
 
 test("a saved layout keeps its order and drops unknown or repeated columns", () => {

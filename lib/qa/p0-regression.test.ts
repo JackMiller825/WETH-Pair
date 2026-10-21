@@ -10,6 +10,7 @@ import { liveBurnEvent, sightingFromMessage } from "../lp/live-feed"
 import { DEFAULT_CONFIG } from "../lp/monitor"
 import { GasStatusService, MarketStatusService } from "../market/service"
 import type { FetchLike } from "../market/types"
+import { rankPumpers, type TokenCandidate } from "../pump/rank"
 import { EMPTY_DETAIL, type PairRecord } from "../types"
 
 /** P0 target for this test: an injected LP burn is turned into an alert within one 60 Hz frame. */
@@ -129,9 +130,31 @@ test("P0: LP burn alert latency stays within one frame while ETH price, gas, hol
   let running = true
   let marketRefreshes = 0
   let metricUpdates = 0
+  let pumpRanks = 0
+  const pumpTokens: TokenCandidate[] = Array.from({ length: 2000 }, (_, index) => ({
+    pair: `0x${index.toString(16).padStart(40, "a")}`,
+    token: `0x${index.toString(16).padStart(40, "b")}`,
+    name: `Token ${index}`,
+    symbol: `T${index}`,
+    createdAt: Date.now() - 10 * 24 * 60 * 60 * 1000,
+    url: "https://example.com",
+    points: [
+      { pair: `0x${index.toString(16).padStart(40, "a")}`, token: `0x${index.toString(16).padStart(40, "b")}`, block: 1, at: Date.now() - 24 * 60 * 60 * 1000, priceWeth: 1, priceUsd: 1, reserveWeth: 2, liquidityUsd: 1000, source: "chain" as const },
+      { pair: `0x${index.toString(16).padStart(40, "a")}`, token: `0x${index.toString(16).padStart(40, "b")}`, block: 2, at: Date.now(), priceWeth: 1 + (index % 5), priceUsd: 1 + (index % 5), reserveWeth: 2, liquidityUsd: 1000, source: "chain" as const },
+    ],
+    pooledWeth: 2,
+    liquidityUsd: 1000,
+    volumeUsd: index,
+    totalTx: 20,
+    holders: 10,
+    lpBurnPercent: null,
+  }))
   const marketLoop = (async () => {
     while (running) {
       await Promise.all([eth.refresh(), gas.refresh()])
+      const stamp = Date.now()
+      rankPumpers(pumpTokens, { start: stamp - 24 * 60 * 60 * 1000, end: stamp, mode: "window", limit: 20, pumpsOnly: true, hideLowConfidence: true, minLiquidityUsd: null, minWeth: null, minTx: null, minHolders: null, minAgeMs: null, movement: "all", sort: "multiple", coverageOldest: stamp - 8 * 24 * 60 * 60 * 1000 })
+      pumpRanks += 1
       marketRefreshes += 1
       await new Promise((resolve) => setTimeout(resolve, 2))
     }
@@ -154,9 +177,9 @@ test("P0: LP burn alert latency stays within one frame while ETH price, gas, hol
 
   const idleP95 = p95(idle.latencies)
   const loadedP95 = p95(loaded.latencies)
-  console.log(`[P0] Burn-to-alert p95 idle ${idleP95.toFixed(2)}ms, under load ${loadedP95.toFixed(2)}ms (${marketRefreshes} market refreshes, ${metricUpdates} metric updates, ${store.getList().length} activity cards)`)
+  console.log(`[P0] Burn-to-alert p95 idle ${idleP95.toFixed(2)}ms, under load ${loadedP95.toFixed(2)}ms (${marketRefreshes} market refreshes, ${pumpRanks} pump rankings, ${metricUpdates} metric updates, ${store.getList().length} activity cards)`)
   assert.equal(loaded.latencies.length, BURNS)
-  assert.ok(marketRefreshes > 5 && metricUpdates > 1000, "the load actually ran")
+  assert.ok(marketRefreshes > 5 && pumpRanks > 5 && metricUpdates > 1000, "the load actually ran")
   assert.ok(loadedP95 < P0_TARGET_MS, `p95 ${loadedP95}ms exceeds the ${P0_TARGET_MS}ms P0 target`)
   assert.ok(idle.order && loaded.order, "Live Activity only hears about a burn after its alert was decided")
   assert.ok(store.getList().some((item) => item.type === "lp-burn"), "burns still reach Live Activity")
@@ -166,7 +189,7 @@ test("P0 isolation: LP monitoring code imports nothing from market data or Live 
   const dir = path.join(process.cwd(), "lib", "lp")
   for (const file of readdirSync(dir).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))) {
     const source = readFileSync(path.join(dir, file), "utf8")
-    assert.doesNotMatch(source, /@\/lib\/(market|activity)|\.\.\/(market|activity)\//, `${file} must not depend on enrichment`)
+    assert.doesNotMatch(source, /@\/lib\/(market|activity|pump)|\.\.\/(market|activity|pump)\//, `${file} must not depend on enrichment`)
   }
 })
 

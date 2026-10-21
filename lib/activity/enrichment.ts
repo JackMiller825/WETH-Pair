@@ -2,6 +2,7 @@ import { BlockscoutHolderProvider, EthplorerHolderProvider, holderRefreshMs, typ
 import { GET_RESERVES, POOL_MANAGER, POOL_TOPICS, balanceOfCall, classifyPoolLog, decodeReserves, decodeUint, pooledWethFromReserves, toWeth, type PoolEvent } from "@/lib/activity/pool"
 import type { ActivityStore } from "@/lib/activity/store"
 import { WETH } from "@/lib/history/plan"
+import { noteReserves } from "@/lib/pump/tape"
 import { defaultFetch, type FetchLike } from "@/lib/market/types"
 
 /** Not publicnode: that endpoint carries the LP burn socket, and enrichment must never compete with it. */
@@ -371,6 +372,7 @@ export class EnrichmentEngine {
     }
     if (event.kind === "sync" && state.kind === "v2") {
       this.store.setPooledWeth(event.pair, { value: pooledWethFromReserves(event.reserve0, event.reserve1, state.wethFirst), source: "chain", observedAt: this.now(), block: event.block })
+      noteReserves({ pair: event.pair, token: state.info.token, wethFirst: state.wethFirst, reserve0: event.reserve0, reserve1: event.reserve1, block: event.block, at: this.now() })
       return
     }
     if (event.kind === "liquidity" && state.kind === "v3") this.refreshV3(event.pair, event.block)

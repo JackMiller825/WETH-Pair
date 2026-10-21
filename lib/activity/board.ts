@@ -1,16 +1,21 @@
-/** Columns of the full-screen Live Activity board. The first visit opens all four, in this order. */
+/** Columns of the full-screen Live Activity board. The first visit opens all five, in this order. */
 export const BOARD_COLUMNS = [
   { id: "news", label: "News → Tokens", detail: "24h" },
   { id: "trends", label: "Trends", detail: "24h" },
+  { id: "pumpers", label: "Top Pumpers", detail: "Ranked" },
   { id: "pairs", label: "Pairs", detail: "Live" },
   { id: "burns", label: "LP Burns", detail: "Live" },
 ] as const
 
 export type BoardColumnId = (typeof BOARD_COLUMNS)[number]["id"]
 
-export const DEFAULT_BOARD_COLUMNS: BoardColumnId[] = ["news", "trends", "pairs", "burns"]
+export const DEFAULT_BOARD_COLUMNS: BoardColumnId[] = ["news", "trends", "pumpers", "pairs", "burns"]
 
-export const BOARD_COLUMNS_KEY = "weth-activity-columns"
+/** Current layout. A saved list is used as stored, including one that has no Top Pumpers column. */
+export const BOARD_COLUMNS_KEY = "weth-activity-columns-v2"
+
+/** Layouts saved before Top Pumpers existed. Read once, then rewritten under the current key. */
+export const LEGACY_BOARD_COLUMNS_KEY = "weth-activity-columns"
 
 const KNOWN = new Set<string>(BOARD_COLUMNS.map((column) => column.id))
 
@@ -35,6 +40,17 @@ export function columnsFrom(raw: string | null): BoardColumnId[] {
   } catch {
     return [...DEFAULT_BOARD_COLUMNS]
   }
+}
+
+/** Puts Top Pumpers before Pairs, or after Trends when Pairs is closed. A layout that already has it is unchanged. */
+export function placePumpers(columns: readonly BoardColumnId[]): BoardColumnId[] {
+  if (columns.includes("pumpers")) return [...columns]
+  const next = [...columns]
+  const pairs = next.indexOf("pairs")
+  const trends = next.indexOf("trends")
+  const at = pairs >= 0 ? pairs : trends >= 0 ? trends + 1 : next.length
+  next.splice(at, 0, "pumpers")
+  return next
 }
 
 export function addColumn(columns: readonly BoardColumnId[], id: BoardColumnId): BoardColumnId[] {

@@ -199,7 +199,16 @@
   100% { opacity: 0; }
 }
 
+.rank-enter {
+  animation: rank-enter 1.2s ease-out;
+}
+
+@keyframes rank-enter {
+  from { background-color: color-mix(in oklab, var(--primary) 16%, transparent); }
+  to { background-color: transparent; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .value-bump, .activity-arrive, .tick-fade, .live-dot { animation: none; }
+  .value-bump, .activity-arrive, .tick-fade, .live-dot, .rank-enter { animation: none; }
   .tick-fade { opacity: 0; }
 }

@@ -3,6 +3,8 @@ import path from "node:path"
 import { buildSignals } from "../lib/activity/signals"
 import { fetchPairDetails } from "../lib/details"
 import { freshMarketStatus } from "../lib/market/server"
+import { defaultFetch } from "../lib/market/types"
+import { buildPumpSeed } from "../lib/pump/sample"
 import { captureHistory } from "../lib/narrative/engine"
 import { fetchNews } from "../lib/narrative/rss"
 import type { HistoryPoint, SnapshotFile } from "../lib/narrative/types"
@@ -121,20 +123,38 @@ async function main() {
   const file = path.join("public", "data", "snapshot.json")
   await mkdir(path.dirname(file), { recursive: true })
   await writeFile(file, JSON.stringify(snapshot))
-  await writeMarket()
+  const ethUsd = await writeMarket()
+  await writePumpers(withChain, ethUsd)
   console.log(
     `Wrote ${file} (${records.length} rows, ${news.length} headlines, ${history.length} history points, ${lp.events.length} LP burns).`,
   )
 }
 
 /** Seed for the header so a first visit shows ETH and gas before the browser's own refresh answers. */
-async function writeMarket() {
+async function writeMarket(): Promise<number | null> {
   try {
     const status = await freshMarketStatus()
     await writeFile(path.join("public", "data", "market.json"), JSON.stringify(status))
     console.log(`[MARKET] ETH ${status.eth.data?.priceUsd ?? "unavailable"} via ${status.eth.data?.source ?? "-"} · gas ${status.gas.data?.standard.gwei.toFixed(4) ?? "unavailable"} gwei via ${status.gas.data?.source ?? "-"}`)
+    return status.eth.data?.priceUsd ?? null
   } catch (error) {
     console.warn(`[MARKET] Seed skipped. ${error instanceof Error ? error.message : "unknown error"}`)
+    return null
+  }
+}
+
+/** Historical reserve buckets for Top Pumpers. A failed read skips the seed and never fails the snapshot. */
+async function writePumpers(rows: PairRecord[], ethUsd: number | null) {
+  try {
+    if (ethUsd == null || !(ethUsd > 0)) {
+      console.warn("[PUMP] Seed skipped. No ETH price.")
+      return
+    }
+    const seed = await buildPumpSeed({ rows, fetcher: defaultFetch, ethUsd, budgetMs: 20_000 })
+    await writeFile(path.join("public", "data", "pumpers.json"), JSON.stringify(seed))
+    console.log(`[PUMP] ${seed.points.length} price points across ${seed.decimals ? Object.keys(seed.decimals).length : 0} tokens`)
+  } catch (error) {
+    console.warn(`[PUMP] Seed skipped. ${error instanceof Error ? error.message : "unknown error"}`)
   }
 }
 
