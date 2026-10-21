@@ -3,12 +3,12 @@ import { defaultFetch, type FetchLike } from "@/lib/market/types"
 
 /** Candle size for the ETH chart. Coinbase returns at most 300 candles per request. */
 export const ETH_CHARTS = [
-  { id: "1m", label: "1m", granularity: 60, spanMs: 4 * 60 * 60 * 1000 },
-  { id: "5m", label: "5m", granularity: 300, spanMs: 24 * 60 * 60 * 1000 },
-  { id: "15m", label: "15m", granularity: 900, spanMs: 3 * 24 * 60 * 60 * 1000 },
-  { id: "1h", label: "1H", granularity: 3600, spanMs: 14 * 24 * 60 * 60 * 1000 },
-  { id: "6h", label: "6H", granularity: 21600, spanMs: 60 * 24 * 60 * 60 * 1000 },
-  { id: "1d", label: "1D", granularity: 86400, spanMs: 300 * 24 * 60 * 60 * 1000 },
+  { id: "1m", label: "1m", granularity: 60, spanMs: 4 * 60 * 60 * 1000, tv: "1" },
+  { id: "5m", label: "5m", granularity: 300, spanMs: 24 * 60 * 60 * 1000, tv: "5" },
+  { id: "15m", label: "15m", granularity: 900, spanMs: 3 * 24 * 60 * 60 * 1000, tv: "15" },
+  { id: "1h", label: "1H", granularity: 3600, spanMs: 14 * 24 * 60 * 60 * 1000, tv: "60" },
+  { id: "6h", label: "6H", granularity: 21600, spanMs: 60 * 24 * 60 * 60 * 1000, tv: "360" },
+  { id: "1d", label: "1D", granularity: 86400, spanMs: 300 * 24 * 60 * 60 * 1000, tv: "D" },
 ] as const
 
 export type EthChartId = (typeof ETH_CHARTS)[number]["id"]
@@ -94,6 +94,64 @@ async function readJson(fetcher: FetchLike, url: string): Promise<unknown> {
   const response = await fetcher(url, { signal: AbortSignal.timeout(8000), cache: "no-store" })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json()
+}
+
+/** Time left until the current candle closes. Buckets start on the UTC epoch. */
+export function candleCountdown(now: number, intervalMs: number): { remainingMs: number; closesAt: number } {
+  if (!(intervalMs > 0)) return { remainingMs: 0, closesAt: now }
+  const elapsed = ((now % intervalMs) + intervalMs) % intervalMs
+  const remainingMs = elapsed === 0 ? intervalMs : intervalMs - elapsed
+  return { remainingMs, closesAt: now + remainingMs }
+}
+
+/** 70 seconds is 01:10. An hour or more includes the hour. */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+  const clock = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+  return hours > 0 ? `${hours}:${clock}` : clock
+}
+
+/** Move the open candle to the latest trade, or start the next candle when the bucket rolls. */
+export function applyLivePrice(bars: readonly PriceBar[], price: number, now: number, intervalMs: number): PriceBar[] {
+  if (!Number.isFinite(price) || price <= 0 || bars.length === 0 || !(intervalMs > 0)) return bars.map((bar) => ({ ...bar }))
+  const bucket = Math.floor(now / intervalMs) * intervalMs
+  const next = bars.map((bar) => ({ ...bar }))
+  const last = next[next.length - 1]
+  if (bucket <= last.at) {
+    last.close = price
+    last.high = Math.max(last.high, price)
+    last.low = Math.min(last.low, price)
+    return next
+  }
+  next.push({ at: bucket, open: last.close, high: Math.max(last.close, price), low: Math.min(last.close, price), close: price })
+  return next
+}
+
+export function lastPriceFromKraken(payload: unknown): number {
+  if (!payload || typeof payload !== "object") throw new Error("Kraken ticker was not a document")
+  const body = payload as { error?: unknown; result?: Record<string, unknown> }
+  if (Array.isArray(body.error) && body.error.length > 0) throw new Error("Kraken rejected the ticker")
+  const pair = Object.entries(body.result ?? {}).find(([key, value]) => key !== "last" && value && typeof value === "object")?.[1] as { c?: unknown } | undefined
+  const last = pair && Array.isArray(pair.c) ? asNumber(pair.c[0]) : null
+  if (last == null || last <= 0) throw new Error("Kraken ticker had no last price")
+  return last
+}
+
+export function lastPriceFromCoinGecko(payload: unknown): number {
+  const price = payload && typeof payload === "object" ? asNumber((payload as { ethereum?: { usd?: unknown } }).ethereum?.usd) : null
+  if (price == null || price <= 0) throw new Error("CoinGecko ticker had no last price")
+  return price
+}
+
+export async function loadLastEthPrice(fetcher: FetchLike = defaultFetch): Promise<{ price: number; source: string }> {
+  try {
+    return { price: lastPriceFromKraken(await readJson(fetcher, "https://api.kraken.com/0/public/Ticker?pair=ETHUSD")), source: "Kraken" }
+  } catch {
+    return { price: lastPriceFromCoinGecko(await readJson(fetcher, "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")), source: "CoinGecko" }
+  }
 }
 
 export function chartById(id: string): (typeof ETH_CHARTS)[number] {

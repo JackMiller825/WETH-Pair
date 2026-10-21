@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { barsFromCandles, bucketBars, candlesFromCoinGecko, candlesFromKraken, clearEthBarCache, loadEthBars } from "./chart"
+import { applyLivePrice, barsFromCandles, bucketBars, candleCountdown, candlesFromCoinGecko, candlesFromKraken, clearEthBarCache, formatCountdown, lastPriceFromCoinGecko, lastPriceFromKraken, loadEthBars } from "./chart"
 import type { FetchLike } from "./types"
 import type { Candle } from "./price"
 import { downsampleGas, pointsFromFeeHistory } from "./gas-history"
@@ -35,6 +35,26 @@ test("Kraken and CoinGecko candles become the same bar shape, and 1h bars bucket
   ], 6 * hour)
   assert.equal(bucket.length, 2)
   assert.deepEqual(bucket[0], { at: 0, open: 10, high: 15, low: 8, close: 14 })
+})
+
+test("the countdown is the time left in the candle, and a live trade moves the open candle", () => {
+  const minute = 60_000
+  const now = Date.parse("2026-10-21T12:00:40.000Z")
+  const left = candleCountdown(now, minute)
+  assert.equal(left.remainingMs, 20_000)
+  assert.equal(formatCountdown(left.remainingMs), "00:20")
+  assert.equal(formatCountdown(70_000), "01:10")
+  assert.equal(formatCountdown(3_661_000), "1:01:01")
+  assert.equal(candleCountdown(Date.parse("2026-10-21T12:00:00.000Z"), minute).remainingMs, minute)
+  const bars = applyLivePrice([{ at: now - 40_000, open: 10, high: 11, low: 9, close: 10 }], 12, now, minute)
+  assert.equal(bars[0].close, 12)
+  assert.equal(bars[0].high, 12)
+  const rolled = applyLivePrice(bars, 13, now + minute, minute)
+  assert.equal(rolled.length, 2)
+  assert.equal(rolled[1].open, 12)
+  assert.equal(rolled[1].close, 13)
+  assert.equal(lastPriceFromKraken({ error: [], result: { XETHZUSD: { c: ["2436.47", "0.1"] } } }), 2436.47)
+  assert.equal(lastPriceFromCoinGecko({ ethereum: { usd: 2435.1 } }), 2435.1)
 })
 
 test("the ETH chart uses Kraken when Coinbase does not answer", async () => {

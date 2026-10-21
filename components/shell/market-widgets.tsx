@@ -26,7 +26,7 @@ export function notifyMarketBlock() {
   marketClient().onBlock()
 }
 
-const ETH_PANEL = "w-[min(36rem,calc(100vw-1.5rem))] max-h-[min(34rem,calc(100vh-5rem))] overflow-y-auto max-sm:fixed max-sm:top-14 max-sm:right-3 max-sm:left-3 max-sm:w-auto"
+const ETH_PANEL = "w-[min(56rem,calc(100vw-1.5rem))] max-h-[min(48rem,calc(100vh-4.5rem))] overflow-y-auto max-lg:fixed max-lg:top-14 max-lg:right-3 max-lg:left-3 max-lg:w-auto"
 const GAS_PANEL = "w-[min(54rem,calc(100vw-1.5rem))] max-h-[min(34rem,calc(100vh-5rem))] overflow-y-auto max-sm:fixed max-sm:top-14 max-sm:right-3 max-sm:left-3 max-sm:w-auto"
 
 function toneClass(tone: Tone) {
