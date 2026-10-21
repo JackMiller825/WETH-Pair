@@ -25,6 +25,13 @@ export type GasTrackerFile = {
 
 const PAGE = "https://etherscan.io/gastracker"
 const TABLE = "https://etherscan.io/datasourceHandler"
+const BROWSER = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+
+export const GAS_TRACKER_PAGE = PAGE
+
+export function gasTrackerTableUrl(kind: "gasguzzler" | "gasspender"): string {
+  return `${TABLE}?q=${kind}`
+}
 let memory: { at: number; file: GasTrackerFile } | null = null
 
 const COLUMNS = ["rank", "address", "txfee_3h", "gasused_3h", "txfee_24h", "gasused_24h", "analytics"] as const
@@ -154,7 +161,8 @@ export function rowsFromTrackerPayload(payload: unknown): GasTrackerRow[] {
   return rows
 }
 
-function tableBody(): string {
+/** The same form body the gas tracker page posts for its top 50. */
+export function gasTrackerForm(): string {
   const params = new URLSearchParams()
   params.set("draw", "1")
   params.set("start", "0")
@@ -176,20 +184,24 @@ function tableBody(): string {
 }
 
 async function readTable(fetcher: FetchLike, kind: "gasguzzler" | "gasspender"): Promise<GasTrackerRow[]> {
-  const response = await fetcher(`${TABLE}?q=${kind}`, {
+  const response = await fetcher(gasTrackerTableUrl(kind), {
     method: "POST",
     headers: {
       accept: "application/json, text/javascript, */*; q=0.01",
+      "accept-language": "en-US,en;q=0.9",
       "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
       referer: PAGE,
-      "user-agent": "Mozilla/5.0",
+      "user-agent": BROWSER,
       "x-requested-with": "XMLHttpRequest",
     },
-    body: tableBody(),
+    body: gasTrackerForm(),
     signal: AbortSignal.timeout(20_000),
     cache: "no-store",
   })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  if (!response.ok) {
+    const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 160)
+    throw new Error(`HTTP ${response.status}${detail ? ` ${detail}` : ""}`)
+  }
   const rows = rowsFromTrackerPayload(await response.json())
   if (rows.length < 10) throw new Error(`The ${kind} table was incomplete`)
   return rows
@@ -198,7 +210,7 @@ async function readTable(fetcher: FetchLike, kind: "gasguzzler" | "gasspender"):
 async function readBlock(fetcher: FetchLike): Promise<number | null> {
   try {
     const response = await fetcher(PAGE, {
-      headers: { accept: "text/html", referer: PAGE, "user-agent": "Mozilla/5.0" },
+      headers: { accept: "text/html", "accept-language": "en-US,en;q=0.9", referer: PAGE, "user-agent": BROWSER },
       signal: AbortSignal.timeout(20_000),
       cache: "no-store",
     })

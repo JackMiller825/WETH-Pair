@@ -39,4 +39,3 @@ yarn-error.log*
 next-env.d.ts
 /public/data/market.json
 /public/data/pumpers.json
-/public/data/gas-tracker.json

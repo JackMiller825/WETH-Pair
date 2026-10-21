@@ -1,8 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { access, mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { buildSignals } from "../lib/activity/signals"
 import { fetchPairDetails } from "../lib/details"
 import { fetchGasTracker } from "../lib/market/gas-tracker"
+import { fetchGasTrackerBrowser } from "./gas-live"
 import { freshMarketStatus } from "../lib/market/server"
 import { defaultFetch } from "../lib/market/types"
 import { buildPumpSeed } from "../lib/pump/sample"
@@ -145,14 +146,33 @@ async function writeMarket(): Promise<number | null> {
   }
 }
 
-/** Etherscan's gas guzzler and spender tables. A failed read skips the file and never fails the snapshot. */
+/** Etherscan's gas guzzler and spender tables. A failed read keeps the last file and never fails the snapshot. */
 async function writeGasTracker() {
+  const file = path.join("public", "data", "gas-tracker.json")
   try {
-    const board = await fetchGasTracker()
-    await writeFile(path.join("public", "data", "gas-tracker.json"), JSON.stringify(board))
+    const board = await readGasTracker()
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, JSON.stringify(board))
     console.log(`[GAS] Tracker block ${board.block ?? "?"} · ${board.guzzlers.length} guzzlers · ${board.spenders.length} spenders`)
   } catch (error) {
-    console.warn(`[GAS] Tracker skipped. ${error instanceof Error ? error.message : "unknown error"}`)
+    let kept = false
+    try {
+      await access(file)
+      kept = true
+    } catch {
+      kept = false
+    }
+    console.warn(`[GAS] Tracker skipped. ${error instanceof Error ? error.message : "unknown error"}${kept ? " Keeping the last table." : ""}`)
+  }
+}
+
+async function readGasTracker() {
+  try {
+    return await fetchGasTracker()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error"
+    console.warn(`[GAS] Direct read failed. ${message} Retrying with a browser request.`)
+    return fetchGasTrackerBrowser()
   }
 }
 

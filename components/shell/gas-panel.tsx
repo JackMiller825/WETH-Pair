@@ -35,6 +35,13 @@ function useGasTracker(): { board: GasTrackerFile | null; error: string | null }
   return { board, error }
 }
 
+function freshLabel(board: GasTrackerFile): string {
+  const block = board.block != null ? ` at block ${board.block.toLocaleString("en-US")}` : ""
+  const when = new Date(board.fetchedAt)
+  const time = Number.isNaN(when.getTime()) ? "" : `, read ${when.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+  return `${block}${time}`
+}
+
 function AddressCell({ name, address }: { name: string; address: string }) {
   const [copied, setCopied] = useState(false)
   return (
@@ -101,7 +108,7 @@ export function GasUsage({ kind }: { kind: "guzzlers" | "spenders" }) {
   return (
     <div>
       <p className="text-[11px] text-muted-foreground">
-        {kind === "guzzlers" ? "Contracts that consume gas." : "Accounts that pay the gas."} Names, fees, and percentages are Etherscan&apos;s gas tracker{board?.block != null ? ` at block ${board.block.toLocaleString("en-US")}` : ""}. Copy copies the address.
+        {kind === "guzzlers" ? "Contracts that consume gas." : "Accounts that pay the gas."} Names, fees, and percentages are Etherscan&apos;s gas tracker{board ? freshLabel(board) : ""}. Copy copies the address.
       </p>
       {error ? <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{error}</p> : null}
       {rows.length > 0 ? <UsageTable rows={rows} kind={kind} /> : <p className="py-4 text-xs text-muted-foreground">{error ? "No rows yet." : "Loading the gas tracker…"}</p>}
