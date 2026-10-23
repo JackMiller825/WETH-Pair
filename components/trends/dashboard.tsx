@@ -29,6 +29,7 @@ export function Dashboard() {
   return (
     <PageFrame eyebrow="Name and ticker intelligence" title="What is being named right now?" lede="Discover which names, tickers, memes, people, and narratives are appearing across newly launched WETH pairs." updated={snapshot ? `Dataset updated ${formatCreated(snapshot.generatedAt, "local")}` : undefined}>
       <WindowPicker value={windowId} onChange={setWindowId} />
+      <p className="text-sm text-muted-foreground"><Link href="/chart/" className="text-primary">Chart Intelligence</Link> keeps a 60-second evidence review and a daily drill beside this board. It does not sit on LP burn detection.</p>
       <DataGate loading={loading} error={error} ready={Boolean(intel && pulse)}>
         {intel && pulse && snapshot ? (
           <>

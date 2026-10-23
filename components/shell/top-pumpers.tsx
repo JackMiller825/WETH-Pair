@@ -375,6 +375,7 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
           </div>
         ) : (
           <ol className="flex flex-col gap-2 px-3 py-3">
+            {ranked.items.length >= 3 ? <p className="px-1 text-[11px]"><Link href={`/chart/?set=${ranked.items.slice(0, 3).map((row) => row.pair).join(",")}`} className="text-primary hover:underline">Compare top 3</Link></p> : null}
             {ranked.items.map((row) => <PumpCard key={row.pair} row={row} now={now} label={label} move={track.moves.get(row.pair) ?? null} />)}
           </ol>
         )}
@@ -426,6 +427,7 @@ function PumpDetail({ row, now }: { row: PumpRow; now: number }) {
       {row.confidenceReason ? <p className="break-words text-muted-foreground">{row.confidenceReason}</p> : null}
       <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-foreground/10 pt-2">
         <Link href={`/tokens/${row.token}`} className="text-primary hover:underline">Full analysis</Link>
+        <Link href={`/chart/?pair=${encodeURIComponent(row.pair.toLowerCase())}`} className="text-primary hover:underline">Analyze chart</Link>
         <a href={row.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">DEXTools</a>
         <a href={`https://etherscan.io/token/${row.token}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">Etherscan</a>
       </div>
@@ -440,6 +442,7 @@ function ActivityCard({ row, rangeLabel }: { row: ActivityRank; rangeLabel: stri
       <div className="flex items-baseline gap-2">
         <span className={`text-xs font-semibold tabular-nums ${row.rank <= 3 ? "text-primary" : "text-muted-foreground"}`}>#{row.rank}</span>
         <Link href={`/tokens/${row.token}`} className="truncate text-sm font-semibold hover:underline">{ticker(row.symbol)}</Link>
+        <Link href={`/chart/?pair=${encodeURIComponent(row.pair)}`} className="text-[11px] text-primary hover:underline">Analyze chart</Link>
         <span className="ml-auto text-sm font-semibold tabular-nums">TX {formatCompact(row.tx)}</span>
       </div>
       <p className="truncate text-[11px] text-muted-foreground">{row.name}</p>
@@ -474,6 +477,7 @@ function PumpCard({ row, now, label, move }: { row: PumpRow; now: number; label:
       <div className="flex items-baseline gap-2">
         <span className={`text-xs font-semibold tabular-nums ${row.rank <= 3 ? "text-primary" : "text-muted-foreground"}`}>#{row.rank}</span>
         <Link href={`/tokens/${row.token}`} className="truncate text-sm font-semibold hover:underline">{ticker(row.symbol)}</Link>
+        <Link href={`/chart/?pair=${encodeURIComponent(row.pair)}`} className="text-[11px] text-primary hover:underline">Analyze chart</Link>
         {move === "new" ? <span className="rounded bg-primary/15 px-1 text-[10px] font-semibold tracking-wide text-primary">NEW</span> : null}
         {typeof move === "number" && move > 0 ? <span className="text-[10px] text-muted-foreground tabular-nums">↑{move}</span> : null}
         {typeof move === "number" && move < 0 ? <span className="text-[10px] text-muted-foreground tabular-nums">↓{Math.abs(move)}</span> : null}

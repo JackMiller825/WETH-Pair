@@ -38,7 +38,7 @@ export function TokensView() {
                   <td className="px-3 py-2">{formatUsd(token.liquidity)}</td>
                   <td className="px-3 py-2">{formatUsd(token.marketCap)}</td>
                   <td className="px-3 py-2 text-muted-foreground">{token.concepts.map((concept) => concept.label).join(", ") || "No lexicon match"}</td>
-                  <td className="px-3 py-2"><button type="button" className="text-primary" onClick={() => setPreview(token)}>Quick view</button> <Link href={`/tokens/${token.tokenAddress}`} className="text-primary">Full analysis</Link></td>
+                  <td className="px-3 py-2"><button type="button" className="text-primary" onClick={() => setPreview(token)}>Quick view</button> <Link href={`/tokens/${token.tokenAddress}`} className="text-primary">Full analysis</Link> <Link href={`/chart/?pair=${encodeURIComponent(token.address.toLowerCase())}`} className="text-primary">Analyze chart</Link></td>
                 </tr>
               ))}
             </tbody>
@@ -57,6 +57,7 @@ export function TokensView() {
           <p className="text-sm">Narrative {preview.concepts.map((concept) => concept.label).join(" + ") || "No lexicon match"}</p>
           <p className="text-sm break-all">Creator {preview.deployer || "not in the pair record"}</p>
           <Link href={`/tokens/${preview.tokenAddress}`} className="text-sm text-primary">Full analysis</Link>
+          <Link href={`/chart/?pair=${encodeURIComponent(preview.address.toLowerCase())}`} className="text-sm text-primary">Analyze chart</Link>
           <a href={preview.url} target="_blank" rel="noreferrer" className="text-sm text-primary">DEXTools</a>
           <a href={`https://etherscan.io/token/${preview.tokenAddress}`} target="_blank" rel="noreferrer" className="text-sm text-primary">Etherscan</a>
         </aside>

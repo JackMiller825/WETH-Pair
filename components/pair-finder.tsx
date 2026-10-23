@@ -1075,6 +1075,7 @@ export function PairFinder() {
                     <TableRow key={record.address}>
                       <TableCell className="font-medium whitespace-nowrap">
                         <Link href={`/tokens/${record.tokenAddress.toLowerCase()}`} className="hover:underline">{record.name}</Link>
+                        <Link href={`/chart/?pair=${encodeURIComponent(record.address.toLowerCase())}`} className="ml-2 text-xs text-primary hover:underline">Analyze chart</Link>
                         {newAddresses.has(record.address.toLowerCase()) ? (
                           <Badge className="ml-2 bg-emerald-400/20 text-emerald-300">NEW</Badge>
                         ) : null}

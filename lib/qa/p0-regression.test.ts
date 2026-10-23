@@ -189,7 +189,12 @@ test("P0 isolation: LP monitoring code imports nothing from market data or Live 
   const dir = path.join(process.cwd(), "lib", "lp")
   for (const file of readdirSync(dir).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))) {
     const source = readFileSync(path.join(dir, file), "utf8")
-    assert.doesNotMatch(source, /@\/lib\/(market|activity|pump)|\.\.\/(market|activity|pump)\//, `${file} must not depend on enrichment`)
+    assert.doesNotMatch(source, /@\/lib\/(market|activity|pump|chart)|\.\.\/(market|activity|pump|chart)\//, `${file} must not depend on enrichment or chart intelligence`)
+  }
+  const chartDir = path.join(process.cwd(), "lib", "chart")
+  for (const file of readdirSync(chartDir).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))) {
+    const source = readFileSync(path.join(chartDir, file), "utf8")
+    assert.doesNotMatch(source, /@\/lib\/lp|\.\.\/lp\//, `${file} must not sit on the LP burn path`)
   }
 })
 

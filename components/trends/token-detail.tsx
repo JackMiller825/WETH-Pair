@@ -82,6 +82,7 @@ export function TokenDetail({ address }: { address: string }) {
             </div>
             <p className="text-xs text-muted-foreground">Snapshot {formatCreated(snapshot.generatedAt, "local")} · Contract read {chainAt ? formatCreated(chainAt, "local") : chainState}</p>
             <div className="flex flex-wrap gap-3 text-sm">
+              <Link href={`/chart/?pair=${encodeURIComponent(token.address.toLowerCase())}`} className="text-primary">Analyze chart</Link>
               <button type="button" className="text-primary" onClick={() => { setChain(null); setChainState("waiting"); setChainTick((value) => value + 1); reload() }}>Refresh analysis</button>
               <button type="button" className="text-primary" onClick={() => reload()}>Reload published news</button>
             </div>

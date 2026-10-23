@@ -197,6 +197,7 @@ export const ActivityCard = memo(function ActivityCard({ item, highlight }: { it
         ) : (
           <Link href={item.href} className="text-xs text-primary hover:underline">{meta.action} →</Link>
         )}
+        {item.pairAddress ? <Link href={`/chart/?pair=${encodeURIComponent(item.pairAddress)}`} className="ml-3 text-xs text-primary hover:underline">Analyze chart</Link> : null}
       </div>
     </li>
   )

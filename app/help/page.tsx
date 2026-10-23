@@ -99,6 +99,24 @@ export default function HelpPage() {
         <p>The event activity ratio is LP burns divided by pair launches in the same hour. The cohort LP burn rate is the share of pairs created in the previous hour that have since burned. They are different numbers. Recent launch multiples use tokens created in the last 6 hours that have two observed prices. The median is shown with the 25th, 75th, and 90th percentiles. Continued prices count a pair when a later indexed price exists 15 minutes, 30 minutes, 1 hour, or 3 hours after creation. The 7 day heatmap and historically active hours count pair creations by the display timezone. Stored times stay in UTC. Each hour this browser records the score. The chart shows that local record only, and hours before it stay blank. Those hours are the busiest observed hours. They are not a recommended time to launch, and the score is not a chance that a new token succeeds.</p>
       </Section>
 
+      <Section title="Chart Intelligence">
+        <p>Chart Intelligence is a training screen for reading a launch. It is not a buy or sell signal, and it does not say a chart will pump. LP burn detection still runs first. Opening a chart never sits on that path.</p>
+        <p>A 60-second review walks structure, buy and sell flow, buyer cadence, liquidity and pooled WETH, wallets, then execution quality. The timer only highlights those sections. The measurements are already computed from the data this browser has.</p>
+        <Terms
+          items={[
+            ["Net flow", "Executed buy WETH minus executed sell WETH. A high buy count can still be negative flow when the sells are larger."],
+            ["Buyer cadence", "The median time between buys. Median is used because one late trade can distort an average. Shorter, stable, or longer is descriptive."],
+            ["Independent buyers", "Unknown until a transaction origin is read. Swap senders are usually routers, so they are not counted as buyers."],
+            ["WETH reserves", "The pooled WETH series from observed Sync and reserve reads. A USD liquidity change can come from the ETH price and is shown separately."],
+            ["Score", "Training weights across the parts that have measurements. Unknown parts are left out. They are not scored as zero."],
+            ["Confidence", "How much history and coverage the score has. A one-minute pair cannot show a high confidence."],
+            ["Safety gate", "LP status from the pair record. Contract verification, mint, blacklist, tax, and proxy stay unknown here."],
+            ["Replay and blind review", "A cutoff hides later prices, swaps, and LP events. Your verdict is stored in this browser and is not rewritten when a later outcome is added."],
+            ["What stays unknown", "Holder retention, wallet clusters, deployer balances, and MEV identity. DEXTools 24h makers and buys are shown only on a pair at least a day old, and only as 24-hour figures."],
+          ]}
+        />
+      </Section>
+
       <Section title="Data sources">
         <Terms
           items={[

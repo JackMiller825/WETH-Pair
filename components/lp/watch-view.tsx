@@ -474,6 +474,7 @@ function BurnActions({ event }: { event: LpBurnEvent }) {
   return (
     <div className="flex flex-wrap gap-2 text-sm">
       <Link href={`/tokens/${event.tokenAddress}`} className={chip(false)}>View Token</Link>
+      <Link href={`/chart/?pair=${encodeURIComponent(event.pair.toLowerCase())}`} className={chip(false)}>Analyze chart</Link>
       <a href={event.url} target="_blank" rel="noreferrer" className={chip(false)}>View Pair</a>
       <a href={event.url} target="_blank" rel="noreferrer" className={chip(false)}>Open DEXTools</a>
       <a href={event.burnTx ? `https://etherscan.io/tx/${event.burnTx}` : `https://etherscan.io/token/${event.tokenAddress}`} target="_blank" rel="noreferrer" className={chip(false)}>Open Etherscan</a>

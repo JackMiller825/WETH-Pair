@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity as ActivityIcon, Bell, CircleHelp, Flame, LayoutDashboard, Maximize2, Menu, Monitor, Moon, Newspaper, Search, Settings, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
+import { Activity as ActivityIcon, Bell, CircleHelp, Flame, LayoutDashboard, LineChart, Maximize2, Menu, Monitor, Moon, Newspaper, Search, Settings, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
 import { BackfillLink, HistoryBanner } from "@/components/progress/history-panel"
 import { applyTheme, isThemeId, type ThemeId } from "@/lib/theme"
 import { ago, eventsOf } from "@/lib/lp/monitor"
@@ -27,6 +27,7 @@ const LINKS = [
   { href: "/trends", label: "Trends", icon: TrendingUp },
   { href: "/narratives", label: "Narratives", icon: Waypoints },
   { href: "/news", label: "News → Tokens", icon: Newspaper },
+  { href: "/chart", label: "Chart Intelligence", icon: LineChart },
   { href: "/tokens", label: "Token Explorer", icon: Search },
   { href: "/alerts", label: "Alerts", icon: Bell },
 ] as const
