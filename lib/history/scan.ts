@@ -3,7 +3,8 @@ import { TRANSFER_TOPIC, burnPercent, classifyLpTransfer, isBurnAddress, parseTr
 import type { ChainBurn } from "@/lib/lp/chain-scan"
 import { EMPTY_DETAIL, type PairRecord } from "@/lib/types"
 
-const RPCS = ["https://ethereum-rpc.publicnode.com", "https://rpc.mevblocker.io", "https://ethereum.publicnode.com"]
+const RPCS = ["https://rpc.mevblocker.io", "https://mainnet.gateway.tenderly.co", "https://rpc.flashbots.net", "https://ethereum-rpc.publicnode.com"]
+let preferredRpc = 0
 const PAIR_CHUNK = 500
 const BURN_CHUNK = 2_000
 const MIN_CHUNK = 20
@@ -31,9 +32,12 @@ async function callRpc(url: string, method: string, params: unknown[]): Promise<
 
 async function rpc(method: string, params: unknown[]): Promise<unknown> {
   let last = "RPC failed"
-  for (const url of RPCS) {
+  for (let index = 0; index < RPCS.length; index += 1) {
+    const choice = (preferredRpc + index) % RPCS.length
     try {
-      return await callRpc(url, method, params)
+      const result = await callRpc(RPCS[choice], method, params)
+      preferredRpc = choice
+      return result
     } catch (error) {
       last = error instanceof Error ? error.message : "RPC error"
       if (classifyRpcFailure(last) === "rate-limit") await sleep(1_000)
@@ -229,6 +233,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
         batchSize = 1
         continue
       }
+      if (/archive|personal token/i.test(message)) return { job: paused(current, message, now), burns }
       if (classifyRpcFailure(message) === "rate-limit") {
         await sleep(2_000)
         continue
