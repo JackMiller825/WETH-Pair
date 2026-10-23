@@ -114,6 +114,12 @@ function stored(key: string, fallback: string): string {
   }
 }
 
+function seriesModeFor(column: "pairs" | "burns"): SeriesMode {
+  const fallback = column === "pairs" ? "pairs" : "burns"
+  const saved = stored(column === "pairs" ? "weth-activity-series-pairs" : "weth-activity-series-burns", fallback)
+  return saved === "pairs" || saved === "burns" || saved === "both" ? saved : fallback
+}
+
 const EMPTY_ACTIVITY: ActivityItem[] = []
 const EMPTY_MARKET: MarketView = { eth: { ...EMPTY_FEED }, gas: { ...EMPTY_FEED }, via: "browser", ethMove: null, gasMove: null }
 
@@ -297,7 +303,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
   const [columns, setColumns] = useState<BoardColumnId[]>(readColumns)
   const [feedWindow, setFeedWindow] = useState<FeedWindowId>(() => feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
   const [chartRangeId, setChartRangeId] = useState(() => stored("weth-activity-chart-range", "24h"))
-  const [seriesMode, setSeriesMode] = useState<SeriesMode>(() => (stored("weth-activity-series", "pairs") as SeriesMode))
+  const [seriesMode, setSeriesMode] = useState<{ pairs: SeriesMode; burns: SeriesMode }>(() => ({ pairs: seriesModeFor("pairs"), burns: seriesModeFor("burns") }))
   const [chartOpen, setChartOpen] = useState(() => ({ pairs: stored("weth-chart-pairs-v2", "1") !== "0", burns: stored("weth-chart-burns-v2", "1") !== "0" }))
   const [zoneId, setZoneId] = useState(() => stored("weth-display-zone", LOCAL_ZONE))
   const [baselines, setBaselines] = useState<{ pairs: number | null; burns: number | null } | null>(null)
@@ -407,7 +413,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
     setColumns(readColumns())
     setFeedWindow(feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
     setChartRangeId(stored("weth-activity-chart-range", "24h"))
-    setSeriesMode(stored("weth-activity-series", "pairs") as SeriesMode)
+    setSeriesMode({ pairs: seriesModeFor("pairs"), burns: seriesModeFor("burns") })
     setChartOpen({ pairs: stored("weth-chart-pairs-v2", "1") !== "0", burns: stored("weth-chart-burns-v2", "1") !== "0" })
     setZoneId(stored("weth-display-zone", LOCAL_ZONE))
   }, [])
@@ -607,15 +613,25 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
             pulse={pulse}
             zone={zone}
             chartRangeId={chartRangeId}
-            seriesMode={seriesMode}
+            seriesMode={id === "burns" ? seriesMode.burns : seriesMode.pairs}
             chartOpen={chartOpen}
-            onChartRange={(id) => {
-              setChartRangeId(id)
-              localStorage.setItem("weth-activity-chart-range", id)
+            onChartRange={(rangeId) => {
+              setChartRangeId(rangeId)
+              try {
+                localStorage.setItem("weth-activity-chart-range", rangeId)
+              } catch {
+                // The range still changes in this session when storage is blocked.
+              }
             }}
             onSeries={(mode) => {
-              setSeriesMode(mode)
-              localStorage.setItem("weth-activity-series", mode)
+              if (id !== "pairs" && id !== "burns") return
+              const column = id
+              setSeriesMode((current) => ({ ...current, [column]: mode }))
+              try {
+                localStorage.setItem(column === "pairs" ? "weth-activity-series-pairs" : "weth-activity-series-burns", mode)
+              } catch {
+                // The column still uses the choice in this session when storage is blocked.
+              }
             }}
             onToggleChart={(id) => {
               setChartOpen((current) => {
