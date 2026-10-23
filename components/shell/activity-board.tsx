@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ArrowUpRight, Flame, Minimize2, Newspaper, Plus, TrendingUp, X, Zap, type LucideIcon } from "lucide-react"
@@ -13,6 +13,12 @@ import { filterActivity, type ActivityItem } from "@/lib/activity/store"
 import { buildIntelligence } from "@/lib/narrative/engine"
 import { analyzeEvents, eventInWindow, type EventAnalysis } from "@/lib/narrative/events"
 import { DIRECTION_LABEL, type SnapshotFile, type Trend } from "@/lib/narrative/types"
+import { ActivityMetricHeader, MarketPulse, type SeriesMode } from "@/components/shell/activity-metric"
+import { useMarket } from "@/components/shell/market-widgets"
+import { activityStore } from "@/lib/activity/client"
+import { activityRatio, activitySeries, activityState, chartRange, CHART_RANGES, cohortBurnRate, earliestTimes, launchScore, performanceDistribution, recordConditionHistory, reserveChange, stillTrading, typicalHour, windowStats, type WindowStat } from "@/lib/activity/pulse"
+import { pumpHub } from "@/lib/pump/client"
+import { LOCAL_ZONE, resolveZone, TIME_ZONES, type PairRecord } from "@/lib/types"
 import { formatAge } from "@/lib/market/format"
 import type { MonitorMode } from "@/components/lp/monitor-context"
 
@@ -70,6 +76,50 @@ function loadWindow(snapshot: SnapshotFile): BoardWindow {
   }
 }
 
+function stored(key: string, fallback: string): string {
+  if (typeof localStorage === "undefined") return fallback
+  return localStorage.getItem(key) || fallback
+}
+
+function pairAndBurnTimes(snapshot: SnapshotFile | null, list: readonly ActivityItem[]): { pairs: number[]; burns: number[] } {
+  const pairs: { key: string; at: number }[] = []
+  const burns: { key: string; at: number }[] = []
+  for (const row of snapshot?.rows ?? []) pairs.push({ key: row.address.toLowerCase(), at: Date.parse(row.created_at) })
+  for (const event of snapshot?.lpBurns ?? []) burns.push({ key: event.id, at: Date.parse(event.burnAt ?? event.detectedAt) })
+  for (const item of list) {
+    const at = Date.parse(item.occurredAt)
+    if (item.type === "new-pair" && item.pairAddress) pairs.push({ key: item.pairAddress, at })
+    if (item.type === "lp-burn") burns.push({ key: item.activityId, at })
+  }
+  return { pairs: earliestTimes(pairs), burns: earliestTimes(burns) }
+}
+
+function multiplesOf(rows: readonly PairRecord[], now: number): number[] {
+  const book = pumpHub().book
+  const start = now - 6 * 60 * 60 * 1000
+  const out: number[] = []
+  for (const row of rows) {
+    const created = Date.parse(row.created_at)
+    if (created < start || created > now) continue
+    const prices = book.points(row.address).filter((point) => point.priceUsd > 0 && point.at >= created && point.at <= now)
+    if (prices.length < 2) continue
+    out.push(prices[prices.length - 1].priceUsd / prices[0].priceUsd)
+  }
+  return out
+}
+
+function tradeMarks(rows: readonly PairRecord[]): { createdAt: number; lastTradeAt: number | null }[] {
+  const book = pumpHub().book
+  const out: { createdAt: number; lastTradeAt: number | null }[] = []
+  for (const row of rows) {
+    const created = Date.parse(row.created_at)
+    if (!Number.isFinite(created)) continue
+    const points = book.points(row.address)
+    out.push({ createdAt: created, lastTradeAt: points.length === 0 ? null : points[points.length - 1].at })
+  }
+  return out
+}
+
 function ago(now: number | null, at: string): string {
   const ms = now == null ? NaN : now - Date.parse(at)
   if (!Number.isFinite(ms)) return "—"
@@ -85,6 +135,11 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
   const closeButton = useRef<HTMLButtonElement>(null)
   const [columns, setColumns] = useState<BoardColumnId[]>(readColumns)
   const [feedWindow, setFeedWindow] = useState<FeedWindowId>(() => (typeof localStorage === "undefined" ? "all" : feedWindowById(localStorage.getItem(FEED_WINDOW_KEY) ?? "all").id))
+  const [chartRangeId, setChartRangeId] = useState(() => stored("weth-activity-chart-range", "24h"))
+  const [seriesMode, setSeriesMode] = useState<SeriesMode>(() => (stored("weth-activity-series", "pairs") as SeriesMode))
+  const [chartOpen, setChartOpen] = useState(() => ({ pairs: stored("weth-chart-pairs", "") === "1", burns: stored("weth-chart-burns", "") === "1" }))
+  const [zoneId, setZoneId] = useState(() => stored("weth-display-zone", LOCAL_ZONE))
+  const market = useMarket()
   const [openedAt] = useState(() => Date.now())
   const [windowData, setWindowData] = useState<BoardWindow | null>(null)
   const [windowError, setWindowError] = useState<string | null>(null)
@@ -92,6 +147,80 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
   const status = activityStatus(mode)
   const missing = BOARD_COLUMNS.map((column) => column.id).filter((id) => !columns.includes(id))
   const needsWindow = columns.some((id) => id === "news" || id === "trends")
+  const zone = resolveZone(zoneId)
+  const pulse = useMemo(() => {
+    if (now == null) return null
+    const times = pairAndBurnTimes(snapshot, list)
+    const pairStats = windowStats(times.pairs, now)
+    const burnStats = windowStats(times.burns, now)
+    const range = chartRange(chartRangeId)
+    let tx1h = 0
+    let txPrevious = 0
+    const seen = new Set<string>()
+    for (const swap of activityStore().timedSwaps()) {
+      if (swap.bulk) continue
+      const key = `${swap.pair}:${swap.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const age = now - swap.seenAt
+      if (age >= 0 && age <= 60 * 60 * 1000) tx1h += 1
+      else if (age > 60 * 60 * 1000 && age <= 2 * 60 * 60 * 1000) txPrevious += 1
+    }
+    const rows = snapshot?.rows ?? []
+    const burned = new Set((snapshot?.lpBurns ?? []).map((event) => event.pair.toLowerCase()))
+    const cohort = cohortBurnRate(rows.map((row) => ({ createdAt: Date.parse(row.created_at), burned: row.lpStatus === "burnt" || burned.has(row.address.toLowerCase()) })), now, 60 * 60 * 1000)
+    const samples = rows.map((row) => pumpHub().book.points(row.address).map((point) => ({ at: point.at, weth: point.reserveWeth })))
+    const netWeth = reserveChange(samples, now - 60 * 60 * 1000, now)
+    const distribution = performanceDistribution(multiplesOf(rows, now))
+    const gas = market.gas.data?.standard.gwei ?? null
+    const pairBaseline = typicalHour(times.pairs, now, zone)
+    const burnBaseline = typicalHour(times.burns, now, zone)
+    const marks = tradeMarks(rows)
+    const survival = {
+      m15: stillTrading(marks, now, 15 * 60 * 1000, 6 * 60 * 60 * 1000),
+      m30: stillTrading(marks, now, 30 * 60 * 1000, 6 * 60 * 60 * 1000),
+      h1: stillTrading(marks, now, 60 * 60 * 1000, 6 * 60 * 60 * 1000),
+      h3: stillTrading(marks, now, 3 * 60 * 60 * 1000, 6 * 60 * 60 * 1000),
+    }
+    const score = launchScore({
+      pairs1h: pairStats[0].current,
+      pairsPrevious: pairStats[0].previous,
+      pairsBaseline: pairBaseline,
+      burns1h: burnStats[0].current,
+      burnsPrevious: burnStats[0].previous,
+      burnsBaseline: burnBaseline,
+      tx1h,
+      txPrevious,
+      txBaseline: null,
+      netWeth,
+      medianMultiple: distribution?.median ?? null,
+      above12Share: distribution?.above12 ?? null,
+      gasGwei: gas,
+      eth1h: market.eth.data?.change1h ?? null,
+      eth24h: market.eth.data?.change24h ?? null,
+    })
+    const age = snapshot ? now - Date.parse(snapshot.generatedAt) : null
+    return {
+      times,
+      pairStats,
+      burnStats,
+      range,
+      tx1h,
+      txPrevious,
+      netWeth,
+      cohort,
+      distribution,
+      gas,
+      score,
+      age,
+      ratio: activityRatio(pairStats[0].current, burnStats[0].current),
+      pairBaseline,
+      burnBaseline,
+      survival,
+      pairLevel: activityState(pairStats[0].current, pairStats[0].previous, pairBaseline),
+      burnLevel: activityState(burnStats[0].current, burnStats[0].previous, burnBaseline),
+    }
+  }, [snapshot, list, now, zone, chartRangeId, market.gas.data, market.eth.data])
 
   function onColumns(next: BoardColumnId[]) {
     setColumns(next)
@@ -110,6 +239,17 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
   useEffect(() => {
     closeButton.current?.focus()
   }, [])
+
+  useEffect(() => {
+    if (!pulse || now == null) return
+    recordConditionHistory(now, {
+      score: pulse.score.score,
+      pairs: pulse.pairStats[0].current,
+      burns: pulse.burnStats[0].current,
+      tx: pulse.tx1h,
+      gas: pulse.gas,
+    })
+  }, [pulse, now])
 
   useEffect(() => {
     const header = document.querySelector("header")
@@ -213,6 +353,36 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
           </button>
         </div>
       </div>
+      {pulse ? (
+        <MarketPulse
+          pairs={pulse.pairStats[0]}
+          burns={pulse.burnStats[0]}
+          tx={pulse.tx1h}
+          txPrevious={pulse.txPrevious}
+          netWeth={pulse.netWeth}
+          gas={pulse.gas}
+          gasLabel={pulse.score.gasLabel}
+          eth1h={market.eth.data?.change1h ?? null}
+          score={pulse.score}
+          fresh={pulse.age == null ? "—" : `${formatAge(Math.max(0, pulse.age))} ago`}
+          stale={pulse.age != null && pulse.age > 15 * 60 * 1000}
+          zone={zoneId}
+          onZone={(next) => {
+            setZoneId(next)
+            localStorage.setItem("weth-display-zone", next)
+          }}
+          zones={TIME_ZONES}
+          pairTimes={pulse.times.pairs}
+          now={now ?? openedAt}
+          recordedHour={Math.floor((now ?? openedAt) / 3_600_000)}
+          typicalPairs={pulse.pairBaseline}
+          typicalBurns={pulse.burnBaseline}
+          survival={pulse.survival}
+          ratio={pulse.ratio}
+          cohort={pulse.cohort}
+          distribution={pulse.distribution}
+        />
+      ) : null}
       <div className="flex min-h-0 flex-1 divide-x divide-foreground/10 overflow-x-auto">
         {columns.map((id) => (
           <BoardColumn
@@ -225,6 +395,26 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
             windowError={windowError}
             snapshot={snapshot}
             feedSpanMs={feedWindowById(feedWindow).ms}
+            pulse={pulse}
+            zone={zone}
+            chartRangeId={chartRangeId}
+            seriesMode={seriesMode}
+            chartOpen={chartOpen}
+            onChartRange={(id) => {
+              setChartRangeId(id)
+              localStorage.setItem("weth-activity-chart-range", id)
+            }}
+            onSeries={(mode) => {
+              setSeriesMode(mode)
+              localStorage.setItem("weth-activity-series", mode)
+            }}
+            onToggleChart={(id) => {
+              setChartOpen((current) => {
+                const next = { ...current, [id]: !current[id] }
+                localStorage.setItem(id === "pairs" ? "weth-chart-pairs" : "weth-chart-burns", next[id] ? "1" : "0")
+                return next
+              })
+            }}
             canRemove={columns.length > 1}
             onRemove={() => onColumns(removeColumn(columns, id))}
           />
@@ -245,6 +435,14 @@ function BoardColumn({
   feedSpanMs,
   canRemove,
   onRemove,
+  pulse,
+  zone,
+  chartRangeId,
+  seriesMode,
+  chartOpen,
+  onChartRange,
+  onSeries,
+  onToggleChart,
 }: {
   id: BoardColumnId
   list: ActivityItem[]
@@ -256,6 +454,14 @@ function BoardColumn({
   feedSpanMs: number | null
   canRemove: boolean
   onRemove: () => void
+  pulse: { pairStats: WindowStat[]; burnStats: WindowStat[]; times: { pairs: number[]; burns: number[] }; pairLevel: ReturnType<typeof activityState>; burnLevel: ReturnType<typeof activityState> } | null
+  zone: string
+  chartRangeId: string
+  seriesMode: SeriesMode
+  chartOpen: { pairs: boolean; burns: boolean }
+  onChartRange: (id: string) => void
+  onSeries: (mode: SeriesMode) => void
+  onToggleChart: (id: "pairs" | "burns") => void
 }) {
   const column = columnById(id)
   const Icon = COLUMN_ICON[id]
@@ -273,6 +479,23 @@ function BoardColumn({
           <X size={14} aria-hidden />
         </button>
       </header>
+      {now != null && pulse && (id === "pairs" || id === "burns") ? (
+        <ActivityMetricHeader
+          title={id === "pairs" ? "Pairs" : "LP burns"}
+          stats={id === "pairs" ? pulse.pairStats : pulse.burnStats}
+          level={id === "pairs" ? pulse.pairLevel : pulse.burnLevel}
+          open={chartOpen[id]}
+          onToggle={() => onToggleChart(id)}
+          range={chartRangeId}
+          ranges={CHART_RANGES}
+          onRange={onChartRange}
+          series={seriesMode}
+          onSeries={onSeries}
+          pairBuckets={activitySeries(pulse.times.pairs, now, chartRange(chartRangeId).ms, chartRange(chartRangeId).bucketMs)}
+          burnBuckets={activitySeries(pulse.times.burns, now, chartRange(chartRangeId).ms, chartRange(chartRangeId).bucketMs)}
+          zone={zone}
+        />
+      ) : null}
       {id === "pumpers" ? (
         <TopPumpers snapshot={snapshot} />
       ) : id === "pairs" || id === "burns" ? (

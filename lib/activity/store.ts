@@ -212,6 +212,24 @@ export class ActivityStore {
 
   getList = (): ActivityItem[] => this.list
 
+  /** Bumps when a card or a metric changes. Readers use it to refresh without touching the burn path. */
+  revision = (): number => this.seq
+
+  /**
+   * Swaps this tab has stored. A swap stamped at the baseline observation time arrived in a bulk
+   * backfill, so it has no trade time and is marked bulk. Live swaps keep the time they were seen.
+   */
+  timedSwaps(): { pair: string; id: string; seenAt: number; bulk: boolean }[] {
+    const out: { pair: string; id: string; seenAt: number; bulk: boolean }[] = []
+    for (const state of this.pairs.values()) {
+      const bulkAt = state.tx.baseline?.observedAt ?? null
+      for (const [id, swap] of state.tx.swaps) {
+        out.push({ pair: state.info.pair, id, seenAt: swap.seenAt, bulk: bulkAt != null && swap.seenAt === bulkAt })
+      }
+    }
+    return out
+  }
+
   get(activityId: string): ActivityItem | undefined {
     return this.items.get(activityId)
   }

@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { Popover } from "@/components/shell/popover"
 import { Tip } from "@/components/shell/tip"
-import { formatCount, formatPrice, formatUsd } from "@/lib/format"
+import { activityStore } from "@/lib/activity/client"
+import { formatCompact, rankActivity, swapsInWindow, type ActivityRank, type ActivitySort } from "@/lib/activity/pulse"
 import { formatAge, formatAgo, formatWeth } from "@/lib/market/format"
-import { pumpHub } from "@/lib/pump/client"
+import { formatCount, formatPrice, formatUsd } from "@/lib/format"
 import { formatMultiple, formatPumpPercent, PUMP_TOOLTIP } from "@/lib/pump/price"
+import { pumpHub } from "@/lib/pump/client"
 import { rankPumpers, type Movement, type PumpRow, type RankMode, type RankOptions, type SortKey, type TokenCandidate } from "@/lib/pump/rank"
 import { parseRange } from "@/lib/time-range"
 import type { SnapshotFile } from "@/lib/narrative/types"
@@ -16,6 +18,15 @@ import type { PairRecord } from "@/lib/types"
 const RANGES = ["15m", "30m", "1h", "3h", "6h", "12h", "24h"] as const
 const LIMITS = [10, 25, 50, 100] as const
 const BARS = "▁▂▃▄▅▆▇█"
+const VIEWS: { id: "pump" | ActivitySort; label: string }[] = [
+  { id: "pump", label: "Pump" },
+  { id: "tx", label: "Transactions" },
+  { id: "volume", label: "Volume" },
+  { id: "weth", label: "Pooled WETH" },
+  { id: "holders", label: "Holders" },
+]
+
+const TX_TOOLTIP = "Number of tracked swap transactions for this pair during the selected period. Buys and sells are included when the log is a swap. It is not every Ethereum transaction that touched the token contract."
 const SORTS: { id: SortKey; label: string }[] = [
   { id: "multiple", label: "Pump multiple" },
   { id: "percent", label: "Pump %" },
@@ -36,6 +47,7 @@ type Filters = {
   pumpsOnly: boolean
   hideLow: boolean
   movement: Movement
+  view: "pump" | ActivitySort
   minWeth: string
   minTx: string
   minHolders: string
@@ -52,6 +64,7 @@ const INITIAL: Filters = {
   pumpsOnly: true,
   hideLow: true,
   movement: "all",
+  view: "pump",
   minWeth: "",
   minTx: "",
   minHolders: "",
@@ -136,6 +149,31 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
   const start = filters.custom?.start ?? end - (parsedRange.ok ? parsedRange.ms : 24 * 60 * 60 * 1000)
   const label = filters.custom ? "Custom" : filters.range.toUpperCase()
   const tokens = useMemo(() => candidates(snapshot?.rows ?? [], version), [snapshot, version])
+  const storeRev = useSyncExternalStore(activityStore().subscribe, activityStore().revision, () => 0)
+  const activity = useMemo(() => {
+    if (filters.view === "pump" || !snapshot || storeRev < 0) return [] as ActivityRank[]
+    const counts = swapsInWindow(activityStore().timedSwaps(), start, end)
+    const rows = snapshot.rows.map((row) => {
+      const key = row.address.toLowerCase()
+      return {
+        pair: key,
+        token: row.tokenAddress,
+        name: row.tokenName || row.name,
+        symbol: row.symbol || row.name,
+        url: row.url,
+        tx: counts.get(key) ?? 0,
+        buys: filters.range === "24h" ? row.buys24h ?? null : null,
+        sells: null as number | null,
+        traders: null as number | null,
+        pooledWeth: row.remaining != null && /^w?eth$/i.test(row.remainingUnit) ? row.remaining : null,
+        holders: row.holders,
+        volumeUsd: row.volume24h ?? null,
+        percent: null as number | null,
+      }
+    })
+    const usable = filters.view === "tx" ? rows.filter((row) => row.tx > 0) : rows
+    return rankActivity(usable, filters.view, filters.limit)
+  }, [filters.view, filters.range, filters.limit, snapshot, start, end, storeRev])
   const options = useMemo<RankOptions>(() => ({
     start,
     end,
@@ -213,7 +251,7 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
         <div className="flex items-center gap-2">
           <Tip label={<span className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">Top Pumpers</span>} text={PUMP_TOOLTIP} />
           <span className="ml-auto rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold tracking-wide text-primary tabular-nums">{label}</span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">Updated {formatAgo(Math.max(0, now - track.at))}</span>
+          {track.at > 0 ? <span className="text-[10px] text-muted-foreground tabular-nums">Updated {formatAgo(Math.max(0, now - track.at))}</span> : null}
         </div>
         <div className="flex flex-wrap gap-1" role="group" aria-label="Time interval">
           {RANGES.map((range) => (
@@ -248,6 +286,14 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
             )}
           </Popover>
         </div>
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Sort by">
+          {VIEWS.map((view) => (
+            <button key={view.id} type="button" aria-pressed={filters.view === view.id} onClick={() => setFilters((current) => ({ ...current, view: view.id }))} className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${filters.view === view.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+              {view.label}
+            </button>
+          ))}
+        </div>
+        {filters.view === "pump" ? (
         <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Ranking mode">
           <button type="button" aria-pressed={filters.mode === "window"} onClick={() => setFilters((current) => ({ ...current, mode: "window" }))} className={`rounded px-1.5 py-0.5 text-[11px] ${filters.mode === "window" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>Window return</button>
           <button type="button" aria-pressed={filters.mode === "launch"} onClick={() => setFilters((current) => ({ ...current, mode: "launch" }))} className={`rounded px-1.5 py-0.5 text-[11px] ${filters.mode === "launch" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>New launch</button>
@@ -280,9 +326,12 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
             )}
           </Popover>
         </div>
-        <p className="text-[10px] leading-4 text-muted-foreground">{criteria.join(" · ")} · Top {filters.limit}</p>
+        ) : (
+          <p className="text-[10px] leading-4 text-muted-foreground">{filters.view === "tx" ? TX_TOOLTIP : "Volume is the published 24 hour figure. Pooled WETH and holders are the latest values, not recomputed for the interval."} Swap coverage is partial when this session has not observed the whole range. Lifetime totals are not used for the transaction rank.</p>
+        )}
+        <p className="text-[10px] leading-4 text-muted-foreground">{filters.view === "pump" ? criteria.join(" · ") : `Sorted by ${VIEWS.find((view) => view.id === filters.view)?.label}`} · Top {filters.limit}</p>
       </div>
-      {filters.mode === "window" && !ranked.coverage.complete ? (
+      {filters.view === "pump" && filters.mode === "window" && !ranked.coverage.complete ? (
         <div className="border-b border-foreground/10 px-3 py-2 text-[11px] text-muted-foreground">
           <p>Historical price coverage: {available == null ? "0" : coverageLabel(available)} / {coverageLabel(requested)}</p>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted" role="meter" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Indexed price history">
@@ -292,7 +341,15 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {snapshot == null ? <p className="px-3 py-3 text-sm text-muted-foreground">The pair list is still loading. The last ranking stays once it has loaded.</p> : ranked.analyzed === 0 ? (
+        {snapshot == null ? <p className="px-3 py-3 text-sm text-muted-foreground">The pair list is still loading. The last ranking stays once it has loaded.</p> : filters.view !== "pump" ? (
+          activity.length === 0 ? (
+            <p className="px-3 py-3 text-sm text-muted-foreground">{filters.view === "tx" ? "No timed swaps in this period yet. Older logs loaded in one batch are not assigned to the interval." : "No tokens have that figure yet."}</p>
+          ) : (
+            <ol className="flex flex-col gap-2 px-3 py-3">
+              {activity.map((row) => <ActivityCard key={row.pair} row={row} rangeLabel={label} />)}
+            </ol>
+          )
+        ) : ranked.analyzed === 0 ? (
           <p className="px-3 py-3 text-sm text-muted-foreground">Reading current pool reserves. Rankings appear as each price arrives.</p>
         ) : ranked.items.length === 0 ? (
           <div className="flex flex-col gap-2 px-3 py-3 text-sm text-muted-foreground">
@@ -363,6 +420,32 @@ function PumpDetail({ row, now }: { row: PumpRow; now: number }) {
         <a href={`https://etherscan.io/token/${row.token}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">Etherscan</a>
       </div>
     </div>
+  )
+}
+
+function ActivityCard({ row, rangeLabel }: { row: ActivityRank; rangeLabel: string }) {
+  const ratio = row.buys != null && row.sells != null && row.sells > 0 ? row.buys / row.sells : null
+  return (
+    <li className="rounded-lg bg-card/60 px-3 py-2.5 ring-1 ring-foreground/10">
+      <div className="flex items-baseline gap-2">
+        <span className={`text-xs font-semibold tabular-nums ${row.rank <= 3 ? "text-primary" : "text-muted-foreground"}`}>#{row.rank}</span>
+        <Link href={`/tokens/${row.token}`} className="truncate text-sm font-semibold hover:underline">{ticker(row.symbol)}</Link>
+        <span className="ml-auto text-sm font-semibold tabular-nums">TX {formatCompact(row.tx)}</span>
+      </div>
+      <p className="truncate text-[11px] text-muted-foreground">{row.name}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground tabular-nums" title={TX_TOOLTIP}>
+        {rangeLabel} swaps {formatCompact(row.tx)}
+        {row.buys != null ? ` · 24h buys ${formatCompact(row.buys)}` : ""}
+        {row.sells != null ? ` · sells ${formatCompact(row.sells)}` : " · buy and sell sides are not separated"}
+        {ratio != null ? ` · B/S ${ratio.toFixed(2)}` : ""}
+      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+        WETH {formatWeth(row.pooledWeth)} · Holders {formatCount(row.holders)}
+        {row.volumeUsd != null ? ` · Vol ${formatUsd(row.volumeUsd)}` : ""}
+        {row.percent != null ? ` · ${row.percent >= 0 ? "+" : ""}${row.percent.toFixed(0)}%` : ""}
+        {row.traders == null ? " · unique traders not in the swap log" : ` · traders ${formatCompact(row.traders)}${row.density != null ? ` · ${row.density.toFixed(2)} tx/trader` : ""}`}
+      </p>
+    </li>
   )
 }
 
