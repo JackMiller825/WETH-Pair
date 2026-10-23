@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { activitySeries, activityState, activeHours, canonicalActivityKey, cohortBurnRate, earliestTimes, formatCompact, formatInZone, heatmap, inRollingWindow, launchScore, performanceDistribution, periodChange, rankActivity, recordConditionHistory, rollingCount, stillTrading, swapsInWindow, typicalHour, windowStats } from "./pulse"
+import { activitySeries, activityState, activeHours, canonicalActivityKey, cohortBurnRate, earliestTimes, formatCompact, formatInZone, heatmap, hourTotals, inRollingWindow, launchScore, performanceDistribution, periodChange, rankActivity, recordConditionHistory, rollingCount, stillTrading, swapsInWindow, typicalHour, windowStats } from "./pulse"
 
 const HOUR = 60 * 60 * 1000
 
@@ -149,6 +149,11 @@ test("active hours rank observed history and a 7 day chart stays aggregated", ()
   const top = activeHours(times, now, "UTC", 7, 2)
   assert.equal(top[0].hour, 20)
   assert.equal(top[0].label, "8 PM – 9 PM")
+  const totals = hourTotals(times, now, "UTC")
+  assert.equal(totals.length, 24)
+  assert.equal(totals[20], 6)
+  assert.equal(totals[21], 3)
+  assert.equal(totals[19], 0)
   const week = activitySeries(times, now, 7 * 24 * HOUR, 6 * HOUR)
   assert.ok(week.length >= 24 && week.length <= 30)
   assert.deepEqual(earliestTimes([{ key: "a", at: 20 }, { key: "a", at: 5 }, { key: "b", at: Number.NaN }]), [5])

@@ -1,7 +1,7 @@
 "use client"
 
 import { Component, useMemo, useState, type ReactNode } from "react"
-import { activeHours, ACTIVITY_LABEL, CONDITION_LABEL, formatCompact, formatDelta, formatInZone, heatmap, hourSpanLabel, readConditionHistory, type ActivityBucket, type ActivityLevel, type ConditionPoint, type ScoreResult, type WindowStat } from "@/lib/activity/pulse"
+import { ACTIVITY_LABEL, CONDITION_LABEL, formatCompact, formatDelta, formatInZone, heatmap, hourSpanLabel, rankHourTotals, readConditionHistory, type ActivityBucket, type ActivityLevel, type ConditionPoint, type ScoreResult, type WindowStat } from "@/lib/activity/pulse"
 import { formatChange } from "@/lib/market/format"
 import { resolveZone } from "@/lib/types"
 
@@ -226,7 +226,9 @@ export function MarketPulse({
   const calendar = useMemo(() => {
     if (!open) return null
     try {
-      return { cells: heatmap(pairTimes, now, resolved), active: activeHours(pairTimes, now, resolved) }
+      const cells = heatmap(pairTimes, now, resolved)
+      const hours = Array.from({ length: 24 }, (_, hour) => cells.reduce((sum, row) => sum + (row.hours[hour] ?? 0), 0))
+      return { cells, hours, active: rankHourTotals(hours) }
     } catch {
       return null
     }
@@ -261,7 +263,7 @@ export function MarketPulse({
         </button>
       </div>
       {open ? (
-        <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(14rem,1fr)] lg:items-start">
           <div className="text-[11px] leading-5 text-muted-foreground">
             <p className="text-foreground">{score?.read ?? ""}</p>
             <p>This score describes observed launch activity. It is not a prediction and not a chance of a successful launch.</p>
@@ -300,9 +302,58 @@ export function MarketPulse({
               </table>
             </div>
           </div>
+          <LaunchHourChart totals={calendar?.hours ?? []} />
         </div>
       ) : null}
     </section>
+  )
+}
+
+function LaunchHourChart({ totals }: { totals: readonly number[] }) {
+  const [hover, setHover] = useState<number | null>(null)
+  const ready = totals.length === 24 && totals.some((value) => value > 0)
+  if (!ready) return <p className="text-[11px] text-muted-foreground">Not enough history for an hourly distribution.</p>
+  let peak = 0
+  let busiest = 0
+  for (let hour = 0; hour < totals.length; hour += 1) {
+    const value = totals[hour] ?? 0
+    if (value > peak) {
+      peak = value
+      busiest = hour
+    }
+  }
+  const width = 320
+  const height = 92
+  const padX = 2
+  const slot = (width - padX * 2) / 24
+  const base = height - 16
+  const plot = base - 4
+  const index = hover ?? busiest
+  const count = totals[index] ?? 0
+  const yAt = (value: number) => base - (value / peak) * plot
+  const ticks = [0, 6, 12, 18]
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] tracking-wide text-muted-foreground uppercase">Pairs per hour · last 7 days · peak {peak}</p>
+      <svg viewBox={`0 0 ${width} ${height}`} className="mt-1 h-24 w-full text-muted-foreground" role="img" aria-label={`Pair launches by hour over the last 7 days. Busiest hour ${hourSpanLabel(busiest)}, ${totals[busiest] ?? 0} pairs.`} onMouseLeave={() => setHover(null)} onMouseMove={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect()
+        const x = ((event.clientX - rect.left) / rect.width) * width
+        setHover(Math.max(0, Math.min(23, Math.floor((x - padX) / slot))))
+      }}>
+        {totals.map((value, hour) => {
+          const amount = Number.isFinite(value) ? value : 0
+          const bar = Math.max(1, slot * 0.72)
+          const y = yAt(amount)
+          return (
+            <rect key={hour} x={padX + hour * slot + (slot - bar) / 2} y={amount > 0 ? Math.min(y, base - 1.5) : base} width={bar} height={amount > 0 ? Math.max(1.5, base - y) : 0} fill={PAIR} opacity={hour === index ? 1 : 0.45 + (amount / peak) * 0.55} />
+          )
+        })}
+        {ticks.map((hour) => (
+          <text key={hour} x={padX + hour * slot} y={height - 2} fill="currentColor" fontSize="8">{hourSpanLabel(hour).split(" – ")[0]}</text>
+        ))}
+      </svg>
+      <p className="text-[10px] leading-4 text-muted-foreground tabular-nums">{hourSpanLabel(index)} · {count} pairs</p>
+    </div>
   )
 }
 

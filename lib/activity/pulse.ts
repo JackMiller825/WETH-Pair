@@ -289,20 +289,30 @@ export function hourSpanLabel(hour: number): string {
 
 export type ActiveHour = { hour: number; label: string; total: number }
 
-/** Hours with the most events over the recent days. This is history, not a forecast. */
-export function activeHours(times: readonly number[], now: number, zone: string, days = 7, limit = 3): ActiveHour[] {
+/** Pair events in each local clock hour over the recent days. Index 0 is 12 AM. */
+export function hourTotals(times: readonly number[], now: number, zone: string, days = 7): number[] {
   const parts = cachedParts(zone)
   const totals = Array.from({ length: 24 }, () => 0)
   const oldest = now - days * 24 * 60 * 60 * 1000
   for (const at of times) {
     if (at > now || at < oldest) continue
-    totals[parts(at).hour] += 1
+    const hour = parts(at).hour
+    if (hour >= 0 && hour < 24) totals[hour] += 1
   }
+  return totals
+}
+
+/** Hours with the most events over the recent days. This is history, not a forecast. */
+export function rankHourTotals(totals: readonly number[], limit = 3): ActiveHour[] {
   return totals
     .map((total, hour) => ({ hour, label: hourSpanLabel(hour), total }))
     .filter((item) => item.total > 0)
     .sort((a, b) => b.total - a.total || a.hour - b.hour)
     .slice(0, limit)
+}
+
+export function activeHours(times: readonly number[], now: number, zone: string, days = 7, limit = 3): ActiveHour[] {
+  return rankHourTotals(hourTotals(times, now, zone, days), limit)
 }
 
 /** LP burn events in a window divided by pair launches in that same window. An activity ratio, not a cohort rate. */
