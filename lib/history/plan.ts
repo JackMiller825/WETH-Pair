@@ -9,19 +9,24 @@ export const HISTORY_CHUNK = 40
 export const HISTORY_BUDGET_MS = 18 * 60 * 1000
 /** Blocks left unscanned at the chain head so a short reorg can still be replayed. */
 export const HEAD_REORG_BLOCKS = 12
+/** Pair jobs saved before this did not read Uniswap V4. They are scanned once more. */
+export const PAIR_COVERAGE = 2
 
 export const HISTORY_SCOPE =
-  "Pair counts use the pair creation time. DEXTools supplies every exchange its live listing returns. Uniswap V2, Uniswap V3, and SushiSwap are also read from Ethereum through the newest settled block, including the hours the listing did not reach. A count stays partial only while that backfill is still walking those blocks."
+  "Pair counts use the pair creation time. The DEXTools live listing currently returns about six hours. Uniswap V2, Uniswap V3, Uniswap V4, and SushiSwap are read from Ethereum through the newest settled block, so 6h, 12h, and 24h are not limited to that listing. A count stays partial only while that backfill is still walking those blocks."
 
 export const PAIR_CREATED_TOPIC = "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
 /** Uniswap V3 Factory PoolCreated. Confirmed against mainnet pool 0x3447ecee797ad95c9b87c6a84e9c39422622ee22. */
 export const POOL_CREATED_TOPIC = "0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118"
+/** Uniswap V4 PoolManager Initialize. Confirmed against pool id 0xb864cca26ea3881d4483316bd8ed459e837b67c8fb7e167d5f9e60d41dd3c9c3. */
+export const V4_INITIALIZE_TOPIC = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438"
 export const WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
 export const FACTORIES = [
   { address: "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f", dex: "Uniswap V2" },
   { address: "0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac", dex: "SushiSwap" },
   { address: "0x1f98431c8ad98523631ae4a59f267346ea31f984", dex: "Uniswap V3" },
+  { address: "0x000000000004444c5dc75cb358380d2e3de08a90", dex: "Uniswap V4" },
 ] as const
 
 export type HistoryPhase = "recent" | "older" | "done"
@@ -46,6 +51,8 @@ export type HistoryJob = {
   startedAt: string
   updatedAt: string
   error: string | null
+  /** Pair scans at PAIR_COVERAGE include Uniswap V4. Older saved jobs omit it. */
+  coverage?: number
 }
 
 export type BackfillState = {
@@ -109,11 +116,15 @@ function continueHistoryJob(previous: HistoryJob, head: number, nowIso: string):
   }
 }
 
+function pairScanStale(previous: HistoryJob): boolean {
+  return previous.id === "weth-pairs" && previous.coverage !== PAIR_COVERAGE
+}
+
 export function openHistoryJob(id: HistoryJob["id"], head: number, nowIso: string, previous: HistoryJob | null | undefined): HistoryJob {
-  if (previous && (previous.status === "running" || previous.status === "failed")) {
+  if (previous && (previous.status === "running" || previous.status === "failed") && !pairScanStale(previous)) {
     return { ...previous, status: "running", error: null }
   }
-  if (previous && (previous.status === "completed" || previous.phase === "done")) return continueHistoryJob(previous, head, nowIso)
+  if (previous && (previous.status === "completed" || previous.phase === "done") && !pairScanStale(previous)) return continueHistoryJob(previous, head, nowIso)
   const recentEnd = settledHead(head)
   const recentStart = Math.max(0, head - blocksForHours(72))
   const olderEnd = recentStart
@@ -137,6 +148,7 @@ export function openHistoryJob(id: HistoryJob["id"], head: number, nowIso: strin
     startedAt: nowIso,
     updatedAt: nowIso,
     error: null,
+    coverage: id === "weth-pairs" ? PAIR_COVERAGE : undefined,
   }
 }
 
@@ -204,10 +216,11 @@ export type CreatedPairLog = {
 export function parsePairCreated(log: { address?: string; topics?: string[]; data?: string; blockNumber?: string }): CreatedPairLog | null {
   const topics = log.topics ?? []
   const topic = (topics[0] ?? "").toLowerCase()
-  const pair = topic === PAIR_CREATED_TOPIC ? wordAddress(log.data, 0) : topic === POOL_CREATED_TOPIC ? wordAddress(log.data, 1) : null
+  const v4 = topic === V4_INITIALIZE_TOPIC
+  const pair = topic === PAIR_CREATED_TOPIC ? wordAddress(log.data, 0) : topic === POOL_CREATED_TOPIC ? wordAddress(log.data, 1) : v4 ? topicWord(topics[1]) : null
   if (!pair) return null
-  const token0 = topicAddress(topics[1])
-  const token1 = topicAddress(topics[2])
+  const token0 = topicAddress(v4 ? topics[2] : topics[1])
+  const token1 = topicAddress(v4 ? topics[3] : topics[2])
   const block = Number.parseInt(log.blockNumber ?? "", 16)
   const factory = (log.address ?? "").toLowerCase()
   if (!token0 || !token1 || !Number.isInteger(block) || !factory) return null
@@ -242,6 +255,11 @@ export function classifyRpcFailure(message: string): "rate-limit" | "shrink" | "
 
 export function dexForFactory(factory: string): string | null {
   return FACTORIES.find((item) => item.address === factory.toLowerCase())?.dex ?? null
+}
+
+function topicWord(topic: string | undefined): string | null {
+  if (!topic || !/^0x[0-9a-fA-F]{64}$/.test(topic)) return null
+  return topic.toLowerCase()
 }
 
 function topicAddress(topic: string | undefined): string | null {

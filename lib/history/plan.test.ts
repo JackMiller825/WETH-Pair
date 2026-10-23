@@ -10,8 +10,10 @@ import {
   inCustomRange,
   jobProgress,
   openHistoryJob,
+  PAIR_COVERAGE,
   parsePairCreated,
   POOL_CREATED_TOPIC,
+  V4_INITIALIZE_TOPIC,
   wethSide,
 } from "./plan"
 
@@ -72,7 +74,7 @@ test("pair-created logs keep only the WETH side", () => {
 test("a finished scan walks the blocks it had left to the listing, then stays finished at the head", () => {
   const opened = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T12:00:00.000Z", null)
   assert.ok(26_000_000 - opened.recentEnd < 100)
-  const done = { ...opened, status: "completed" as const, phase: "done" as const, recentEnd: opened.recentEnd - 8_000, cursor: opened.olderEnd }
+  const done = { ...opened, status: "completed" as const, phase: "done" as const, coverage: PAIR_COVERAGE, recentEnd: opened.recentEnd - 8_000, cursor: opened.olderEnd }
   const next = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T18:00:00.000Z", done)
   assert.equal(next.status, "running")
   assert.equal(next.cursor, done.recentEnd)
@@ -82,6 +84,34 @@ test("a finished scan walks the blocks it had left to the listing, then stays fi
   const idle = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T18:05:00.000Z", caught)
   assert.equal(idle.status, "completed")
   assert.equal(idle.phase, "done")
+})
+
+test("a saved pair scan without V4 coverage is read again from the seven day start", () => {
+  const opened = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T12:00:00.000Z", null)
+  const old = { ...opened, status: "completed" as const, phase: "done" as const, coverage: undefined, recentEnd: opened.recentEnd - 8_000 }
+  const restarted = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T18:00:00.000Z", old)
+  assert.equal(restarted.coverage, PAIR_COVERAGE)
+  assert.equal(restarted.cursor, restarted.recentStart)
+  assert.ok(restarted.olderStart < restarted.recentStart)
+  assert.ok(26_000_000 - restarted.recentEnd < 100)
+  const burns = openHistoryJob("lp-burns", 26_000_000, "2026-10-08T12:00:00.000Z", null)
+  const burnDone = { ...burns, status: "completed" as const, phase: "done" as const, recentEnd: burns.recentEnd - 1_000 }
+  const burnNext = openHistoryJob("lp-burns", 26_000_000, "2026-10-08T18:00:00.000Z", burnDone)
+  assert.equal(burnNext.cursor, burnDone.recentEnd)
+})
+
+test("a Uniswap V4 initialize log keeps the full pool id", () => {
+  const id = "0xb864cca26ea3881d4483316bd8ed459e837b67c8fb7e167d5f9e60d41dd3c9c3"
+  const weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+  const token = "0xdc3a47bc21b081b2ba3d0b0fee574bccd504e24c"
+  const log = parsePairCreated({
+    address: "0x000000000004444c5dc75cB358380D2e3dE08A90",
+    topics: [V4_INITIALIZE_TOPIC, id, `0x${weth.slice(2).padStart(64, "0")}`, `0x${token.slice(2).padStart(64, "0")}`],
+    data: "0x" + "00".repeat(32),
+    blockNumber: "0x1909b2d",
+  })
+  assert.equal(log?.pair, id)
+  assert.equal(wethSide(log!.token0, log!.token1)?.token, token)
 })
 
 test("a Uniswap V3 PoolCreated log keeps the pool address from the second word", () => {

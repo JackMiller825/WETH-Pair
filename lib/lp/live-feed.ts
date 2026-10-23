@@ -1,4 +1,4 @@
-import { FACTORIES, PAIR_CREATED_TOPIC, POOL_CREATED_TOPIC, parsePairCreated, wethSide, dexForFactory } from "@/lib/history/plan"
+import { FACTORIES, PAIR_CREATED_TOPIC, POOL_CREATED_TOPIC, V4_INITIALIZE_TOPIC, parsePairCreated, wethSide, dexForFactory } from "@/lib/history/plan"
 import { TRANSFER_TOPIC, classifyLpTransfer, parseTransferLog, type ParsedTransfer, type TransferLog } from "@/lib/lp/burn-logic"
 import { burnEventId, type LpBurnEvent } from "@/lib/lp/monitor"
 import { parseIdentity } from "@/lib/narrative/text"
@@ -23,7 +23,7 @@ export function livePairFilter() {
     jsonrpc: "2.0" as const,
     id: 3,
     method: "eth_subscribe" as const,
-    params: ["logs", { address: FACTORIES.map((item) => item.address), topics: [[PAIR_CREATED_TOPIC, POOL_CREATED_TOPIC]] }],
+    params: ["logs", { address: FACTORIES.map((item) => item.address), topics: [[PAIR_CREATED_TOPIC, POOL_CREATED_TOPIC, V4_INITIALIZE_TOPIC]] }],
   }
 }
 
