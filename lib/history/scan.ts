@@ -1,4 +1,4 @@
-import { HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, classifyRpcFailure, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
+import { HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, POOL_CREATED_TOPIC, advanceJob, classifyRpcFailure, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
 import { TRANSFER_TOPIC, burnPercent, classifyLpTransfer, isBurnAddress, parseTransferLog } from "@/lib/lp/burn-logic"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
 import { EMPTY_DETAIL, type PairRecord } from "@/lib/types"
@@ -112,7 +112,7 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
         fromBlock: hex(slice.from),
         toBlock: hex(slice.to),
         address: FACTORIES.map((item) => item.address),
-        topics: [PAIR_CREATED_TOPIC],
+        topics: [[PAIR_CREATED_TOPIC, POOL_CREATED_TOPIC]],
       }])) as typeof logs
     } catch (error) {
       const message = error instanceof Error ? error.message : "Log scan failed"
@@ -138,7 +138,7 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
     }
     pairs.push(...found)
     if (chunk < PAIR_CHUNK) chunk = Math.min(PAIR_CHUNK, chunk * 2)
-    current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning Ethereum for WETH pairs older than the live listing")
+    current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning Ethereum for WETH pairs")
     current = { ...current, pairsFound: current.pairsFound + found.length, error: null }
     if (current.phase === "done") break
   }

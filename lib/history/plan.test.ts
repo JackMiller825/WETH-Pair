@@ -11,6 +11,7 @@ import {
   jobProgress,
   openHistoryJob,
   parsePairCreated,
+  POOL_CREATED_TOPIC,
   wethSide,
 } from "./plan"
 
@@ -66,6 +67,36 @@ test("pair-created logs keep only the WETH side", () => {
   assert.equal(log?.pair, pair)
   assert.deepEqual(wethSide(log!.token0, log!.token1), { weth: "token0", token: other })
   assert.equal(wethSide(other, "0x3333333333333333333333333333333333333333"), null)
+})
+
+test("a finished scan walks the blocks it had left to the listing, then stays finished at the head", () => {
+  const opened = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T12:00:00.000Z", null)
+  assert.ok(26_000_000 - opened.recentEnd < 100)
+  const done = { ...opened, status: "completed" as const, phase: "done" as const, recentEnd: opened.recentEnd - 8_000, cursor: opened.olderEnd }
+  const next = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T18:00:00.000Z", done)
+  assert.equal(next.status, "running")
+  assert.equal(next.cursor, done.recentEnd)
+  assert.equal(next.recentStart, done.recentEnd)
+  assert.ok(next.recentEnd > done.recentEnd)
+  const caught = { ...next, status: "completed" as const, phase: "done" as const, recentEnd: next.recentEnd }
+  const idle = openHistoryJob("weth-pairs", 26_000_000, "2026-10-08T18:05:00.000Z", caught)
+  assert.equal(idle.status, "completed")
+  assert.equal(idle.phase, "done")
+})
+
+test("a Uniswap V3 PoolCreated log keeps the pool address from the second word", () => {
+  const weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+  const token = "0xace17f2f592e5e55daf70abcb68f8589780b78ae"
+  const pool = "0x3447ecee797ad95c9b87c6a84e9c39422622ee22"
+  const log = parsePairCreated({
+    address: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    topics: [POOL_CREATED_TOPIC, `0x${token.slice(2).padStart(64, "0")}`, `0x${weth.slice(2).padStart(64, "0")}`, `0x${"64".padStart(64, "0")}`],
+    data: `0x${"1".padStart(64, "0")}${pool.slice(2).padStart(64, "0")}`,
+    blockNumber: "0x1909695",
+  })
+  assert.equal(log?.pair, pool)
+  assert.equal(log?.token1, weth)
+  assert.equal(wethSide(log!.token0, log!.token1)?.token, token)
 })
 
 test("a history job resumes from its cursor and can finish", () => {

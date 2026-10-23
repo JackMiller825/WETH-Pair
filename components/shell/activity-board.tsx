@@ -16,7 +16,7 @@ import { DIRECTION_LABEL, type SnapshotFile, type Trend } from "@/lib/narrative/
 import { ActivityMetricHeader, MarketPulse, type SeriesMode } from "@/components/shell/activity-metric"
 import { useMarket } from "@/components/shell/market-widgets"
 import { activityStore } from "@/lib/activity/client"
-import { activityRatio, activitySeries, activityState, chartRange, CHART_RANGES, cohortBurnRate, earliestTimes, launchScore, performanceDistribution, recordConditionHistory, reserveChange, stillTrading, typicalHour, windowStats, type WindowStat } from "@/lib/activity/pulse"
+import { activityRatio, activitySeries, activityState, canonicalActivityKey, chartRange, CHART_RANGES, cohortBurnRate, earliestTimes, launchScore, performanceDistribution, recordConditionHistory, reserveChange, stillTrading, typicalHour, windowStats, type WindowStat } from "@/lib/activity/pulse"
 import { pumpHub } from "@/lib/pump/client"
 import { LOCAL_ZONE, resolveZone, TIME_ZONES, type PairRecord } from "@/lib/types"
 import { formatAge } from "@/lib/market/format"
@@ -97,17 +97,17 @@ function pairAndBurnTimes(snapshot: SnapshotFile | null, list: readonly Activity
   const burns: { key: string; at: number }[] = []
   for (const row of snapshot?.rows ?? []) {
     if (typeof row?.address !== "string" || typeof row.created_at !== "string") continue
-    pairs.push({ key: row.address.toLowerCase(), at: Date.parse(row.created_at) })
+    pairs.push({ key: canonicalActivityKey("pair", row.address), at: Date.parse(row.created_at) })
   }
   for (const event of snapshot?.lpBurns ?? []) {
     const at = event?.burnAt ?? event?.detectedAt
     if (typeof event?.id !== "string" || typeof at !== "string") continue
-    burns.push({ key: event.id, at: Date.parse(at) })
+    burns.push({ key: canonicalActivityKey("burn", event.id), at: Date.parse(at) })
   }
   for (const item of list) {
     const at = Date.parse(item.occurredAt)
-    if (item.type === "new-pair" && item.pairAddress) pairs.push({ key: item.pairAddress, at })
-    if (item.type === "lp-burn") burns.push({ key: item.activityId, at })
+    if (item.type === "new-pair" && item.pairAddress) pairs.push({ key: canonicalActivityKey("pair", item.pairAddress), at })
+    if (item.type === "lp-burn" && item.activityId) burns.push({ key: canonicalActivityKey("burn", item.activityId), at })
   }
   return { pairs: earliestTimes(pairs), burns: earliestTimes(burns) }
 }

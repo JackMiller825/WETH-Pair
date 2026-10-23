@@ -2,22 +2,26 @@ import { blocksForHours } from "@/lib/lp/burn-logic"
 import { previousBounds } from "@/lib/time-range"
 
 export const HISTORY_DAYS = 7
-export const LIVE_LISTING_HOURS = 24
 export const HISTORY_RETAIN_MS = 30 * 24 * 60 * 60 * 1000
 export const HISTORY_CHUNK = 40
 // One publish is allowed to keep scanning until the 7-day window is saved.
 // The workflow waits instead of cancelling this run.
 export const HISTORY_BUDGET_MS = 18 * 60 * 1000
+/** Blocks left unscanned at the chain head so a short reorg can still be replayed. */
+export const HEAD_REORG_BLOCKS = 12
 
 export const HISTORY_SCOPE =
-  "The newest 24 hours comes from the DEXTools live listing, which stops after about one day and includes every exchange that listing returns. Older WETH pairs are read from Uniswap V2 and SushiSwap PairCreated logs. A 3-day or 7-day count is partial until that backfill finishes."
+  "Pair counts use the pair creation time. DEXTools supplies every exchange its live listing returns. Uniswap V2, Uniswap V3, and SushiSwap are also read from Ethereum through the newest settled block, including the hours the listing did not reach. A count stays partial only while that backfill is still walking those blocks."
 
 export const PAIR_CREATED_TOPIC = "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
+/** Uniswap V3 Factory PoolCreated. Confirmed against mainnet pool 0x3447ecee797ad95c9b87c6a84e9c39422622ee22. */
+export const POOL_CREATED_TOPIC = "0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118"
 export const WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
 export const FACTORIES = [
   { address: "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f", dex: "Uniswap V2" },
   { address: "0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac", dex: "SushiSwap" },
+  { address: "0x1f98431c8ad98523631ae4a59f267346ea31f984", dex: "Uniswap V3" },
 ] as const
 
 export type HistoryPhase = "recent" | "older" | "done"
@@ -77,20 +81,48 @@ export function jobEtaMs(job: HistoryJob | null | undefined, now: number): numbe
   return Math.round((left / job.blocksDone) * elapsed)
 }
 
+function settledHead(head: number): number {
+  return Math.max(0, head - HEAD_REORG_BLOCKS)
+}
+
+/** A finished job still has to walk blocks mined after its last saved block. The old 24-hour skip is not reused. */
+function continueHistoryJob(previous: HistoryJob, head: number, nowIso: string): HistoryJob {
+  const end = settledHead(head)
+  if (previous.recentEnd >= end) return { ...previous, status: "completed", phase: "done" }
+  return {
+    ...previous,
+    status: "running",
+    phase: "recent",
+    stage: "Scanning Ethereum blocks the last save did not cover",
+    recentStart: previous.recentEnd,
+    recentEnd: end,
+    olderStart: end,
+    olderEnd: end,
+    cursor: previous.recentEnd,
+    recentHold: null,
+    olderCursor: end,
+    blocksDone: 0,
+    blocksTotal: end - previous.recentEnd,
+    error: null,
+    startedAt: nowIso,
+    updatedAt: nowIso,
+  }
+}
+
 export function openHistoryJob(id: HistoryJob["id"], head: number, nowIso: string, previous: HistoryJob | null | undefined): HistoryJob {
-  if (previous && (previous.status === "running" || previous.status === "failed" || previous.status === "completed")) {
-    if (previous.status === "completed" || previous.phase === "done") return { ...previous, status: "completed", phase: "done" }
+  if (previous && (previous.status === "running" || previous.status === "failed")) {
     return { ...previous, status: "running", error: null }
   }
-  const recentEnd = head - blocksForHours(LIVE_LISTING_HOURS)
-  const recentStart = head - blocksForHours(72)
+  if (previous && (previous.status === "completed" || previous.phase === "done")) return continueHistoryJob(previous, head, nowIso)
+  const recentEnd = settledHead(head)
+  const recentStart = Math.max(0, head - blocksForHours(72))
   const olderEnd = recentStart
-  const olderStart = head - blocksForHours(HISTORY_DAYS * 24)
+  const olderStart = Math.max(0, head - blocksForHours(HISTORY_DAYS * 24))
   const blocksTotal = Math.max(0, recentEnd - recentStart) + Math.max(0, olderEnd - olderStart)
   return {
     id,
     status: blocksTotal === 0 ? "completed" : "running",
-    stage: blocksTotal === 0 ? "No historical blocks to scan" : "Scanning Ethereum for WETH pairs older than the live listing",
+    stage: blocksTotal === 0 ? "No historical blocks to scan" : "Scanning Ethereum for WETH pairs",
     phase: blocksTotal === 0 ? "done" : "recent",
     requestedDays: HISTORY_DAYS,
     recentStart,
@@ -171,13 +203,14 @@ export type CreatedPairLog = {
 
 export function parsePairCreated(log: { address?: string; topics?: string[]; data?: string; blockNumber?: string }): CreatedPairLog | null {
   const topics = log.topics ?? []
-  if ((topics[0] ?? "").toLowerCase() !== PAIR_CREATED_TOPIC) return null
+  const topic = (topics[0] ?? "").toLowerCase()
+  const pair = topic === PAIR_CREATED_TOPIC ? wordAddress(log.data, 0) : topic === POOL_CREATED_TOPIC ? wordAddress(log.data, 1) : null
+  if (!pair) return null
   const token0 = topicAddress(topics[1])
   const token1 = topicAddress(topics[2])
-  const pair = wordAddress(log.data)
   const block = Number.parseInt(log.blockNumber ?? "", 16)
   const factory = (log.address ?? "").toLowerCase()
-  if (!token0 || !token1 || !pair || !Number.isInteger(block) || !factory) return null
+  if (!token0 || !token1 || !Number.isInteger(block) || !factory) return null
   return { factory, token0, token1, pair, block }
 }
 
@@ -216,9 +249,12 @@ function topicAddress(topic: string | undefined): string | null {
   return `0x${topic.slice(-40).toLowerCase()}`
 }
 
-function wordAddress(data: string | undefined): string | null {
-  if (!data || !data.startsWith("0x") || data.length < 66) return null
-  return `0x${data.slice(26, 66).toLowerCase()}`
+function wordAddress(data: string | undefined, word: number): string | null {
+  if (!data || !data.startsWith("0x") || word < 0) return null
+  const start = 2 + word * 64
+  const body = data.slice(start, start + 64)
+  if (body.length !== 64) return null
+  return `0x${body.slice(24).toLowerCase()}`
 }
 
 export function decodeCallResult(hex: string | null | undefined): string | null {
@@ -260,7 +296,7 @@ export function comparisonReady(oldestAt: number | null, range: string, now: num
 export function coverageText(oldestAt: number | null, requestedMs: number, job: HistoryJob | null | undefined, now: number): string | null {
   if (job?.status === "completed") {
     if (oldestAt != null && now - oldestAt + 60_000 < requestedMs) {
-      return `This range asks for ${formatSpan(requestedMs)}. The oldest stored record is ${formatSpan(now - oldestAt)} old. There is no older pair inside the Uniswap V2 and SushiSwap backfill.`
+      return `This range asks for ${formatSpan(requestedMs)}. The oldest stored record is ${formatSpan(now - oldestAt)} old. There is no older pair inside the Uniswap V2, Uniswap V3, and SushiSwap backfill.`
     }
     return null
   }

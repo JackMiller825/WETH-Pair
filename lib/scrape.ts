@@ -118,7 +118,8 @@ export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]
   }
 
   const cutoff = Date.now() - hours * 60 * 60 * 1000
-  const maxPages = Math.min(hours > 72 ? 80 : 50, Math.ceil(hours * 1.6) + 2)
+  // About 14 pages cover one hour of every Ethereum pool. 80 pages used to stop near 6 hours, so 12h and 24h counted the same pairs.
+  const maxPages = Math.min(420, Math.ceil(hours * 14) + 4)
   const matches: PairRow[] = []
   const seen = new Set<string>()
   let scanned = 0
@@ -130,7 +131,13 @@ export async function collectWethPairs(hours: number): Promise<{ rows: PairRow[]
   const exchangeNames = await fetchExchangeNames()
 
   for (let page = 0; page < maxPages; page++) {
-    const data = await fetchPage(cursor)
+    let data: ListingPage
+    try {
+      data = await fetchPage(cursor)
+    } catch (error) {
+      console.warn(`[HISTORY] DEXTools listing stopped on page ${page + 1}. ${error instanceof Error ? error.message : "unknown error"}`)
+      break
+    }
     if (data.pools.length === 0) break
 
     let oldestOnPage = Number.POSITIVE_INFINITY

@@ -86,6 +86,13 @@ export function windowStats(times: readonly number[], now: number): WindowStat[]
   })
 }
 
+/** Snapshot ids and live card ids name the same pair or burn. `pair:` and `burn:` are the same event, not a second one. */
+export function canonicalActivityKey(kind: "pair" | "burn", id: string): string {
+  const raw = id.trim().toLowerCase()
+  const prefix = kind === "burn" ? "burn:" : "pair:"
+  return raw.startsWith(prefix) ? raw.slice(prefix.length) : raw
+}
+
 /** One timestamp per key. The earliest finite time wins, so a later enrichment cannot move a creation time. */
 export function earliestTimes(entries: readonly { key: string; at: number }[]): number[] {
   const seen = new Map<string, number>()

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { activitySeries, activityState, activeHours, cohortBurnRate, earliestTimes, formatCompact, formatInZone, heatmap, inRollingWindow, launchScore, performanceDistribution, periodChange, rankActivity, recordConditionHistory, rollingCount, stillTrading, swapsInWindow, typicalHour, windowStats } from "./pulse"
+import { activitySeries, activityState, activeHours, canonicalActivityKey, cohortBurnRate, earliestTimes, formatCompact, formatInZone, heatmap, inRollingWindow, launchScore, performanceDistribution, periodChange, rankActivity, recordConditionHistory, rollingCount, stillTrading, swapsInWindow, typicalHour, windowStats } from "./pulse"
 
 const HOUR = 60 * 60 * 1000
 
@@ -15,6 +15,19 @@ test("a pair leaves the 1 hour count once it is older than one hour", () => {
   const created = Date.parse("2026-10-22T09:01:00Z")
   assert.equal(inRollingWindow(created, Date.parse("2026-10-22T10:00:00Z"), HOUR), true)
   assert.equal(inRollingWindow(created, Date.parse("2026-10-22T10:02:00Z"), HOUR), false)
+})
+
+test("a stored burn and its live card count once, at the earlier burn time", () => {
+  const id = "1:0x91e0e2b743075c1eec7c3d90380927307ee6b32f:0x5bbf8335bdb183ba905f4d9390e665a581ffb4e736a8242f189ba89fc1e0c395:1701"
+  const burnedAt = Date.parse("2026-10-23T06:38:59.000Z")
+  const times = earliestTimes([
+    { key: canonicalActivityKey("burn", id), at: burnedAt },
+    { key: canonicalActivityKey("burn", `burn:${id}`), at: burnedAt + 9 * 60 * 1000 },
+  ])
+  assert.equal(times.length, 1)
+  assert.equal(times[0], burnedAt)
+  const now = burnedAt + 2 * 60 * 60 * 1000
+  assert.equal(rollingCount(times, now, 6 * 60 * 60 * 1000), 1)
 })
 
 test("LP burn counts use the burn time, including a burn of an older pair", () => {
