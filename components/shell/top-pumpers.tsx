@@ -203,17 +203,20 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
   }, [tokens, options])
   const signature = ranked.items.map((row) => `${row.pair}:${row.rank}`).join("|")
   const [track, setTrack] = useState<{ signature: string; prior: Map<string, number> | null; moves: Map<string, number | "new">; at: number }>({ signature: "", prior: null, moves: new Map(), at: 0 })
-  if (track.signature !== signature) {
-    const moves = new Map<string, number | "new">()
-    if (track.prior) {
-      for (const row of ranked.items) {
-        const before = track.prior.get(row.pair)
-        if (before == null) moves.set(row.pair, "new")
-        else if (before !== row.rank) moves.set(row.pair, before - row.rank)
+  useEffect(() => {
+    setTrack((current) => {
+      if (current.signature === signature) return current
+      const moves = new Map<string, number | "new">()
+      if (current.prior) {
+        for (const row of ranked.items) {
+          const before = current.prior.get(row.pair)
+          if (before == null) moves.set(row.pair, "new")
+          else if (before !== row.rank) moves.set(row.pair, before - row.rank)
+        }
       }
-    }
-    setTrack({ signature, prior: new Map(ranked.items.map((row) => [row.pair, row.rank])), moves, at: now })
-  }
+      return { signature, prior: new Map(ranked.items.map((row) => [row.pair, row.rank])), moves, at: Date.now() }
+    })
+  }, [signature, ranked.items])
 
   function setRange(range: string) {
     setFilters((current) => ({ ...current, range, custom: null }))

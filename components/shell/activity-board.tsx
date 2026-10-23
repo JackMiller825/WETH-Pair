@@ -25,7 +25,7 @@ import type { MonitorMode } from "@/components/lp/monitor-context"
 
 const PAGE = 100
 
-class ColumnBoundary extends Component<{ children: ReactNode }, { failed: boolean; attempt: number }> {
+class ColumnBoundary extends Component<{ children: ReactNode; className?: string }, { failed: boolean; attempt: number }> {
   state = { failed: false, attempt: 0 }
   private timer: number | null = null
   static getDerivedStateFromError(): { failed: boolean } {
@@ -43,8 +43,10 @@ class ColumnBoundary extends Component<{ children: ReactNode }, { failed: boolea
     if (this.timer != null) window.clearTimeout(this.timer)
   }
   render() {
-    if (this.state.failed) return <p className="px-3 py-3 text-sm text-muted-foreground">Reading this column.</p>
-    return <div key={this.state.attempt} className="contents">{this.props.children}</div>
+    // A real box. display:contents let a column error replace the whole board.
+    const box = this.props.className ?? "min-w-0"
+    if (this.state.failed) return <div className={box}><p className="px-3 py-3 text-sm text-muted-foreground">Reading this column.</p></div>
+    return <div key={this.state.attempt} className={box}>{this.props.children}</div>
   }
 }
 
@@ -282,83 +284,33 @@ function ago(now: number | null, at: string): string {
   return ms < 1000 ? "now" : `${formatAge(Math.max(0, ms))} ago`
 }
 
-/** Shown when the full board throws. The published rows are already here, so the columns are not left blank. */
-function SnapshotColumns({ snapshot, onClose }: { snapshot: SnapshotFile | null; onClose: () => void }) {
-  const now = Date.now()
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-20 flex flex-col bg-background" style={{ top: "7.5rem" }} role="region" aria-label="Live activity, full screen">
-      <div className="flex items-center gap-2 border-b border-foreground/10 px-4 py-2">
-        <h2 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Live activity</h2>
-        <button type="button" onClick={onClose} className="ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
-          <Minimize2 size={14} aria-hidden /> Exit full screen
-        </button>
-      </div>
-      <div className="flex min-h-0 flex-1 divide-x divide-foreground/10 overflow-x-auto">
-        {BOARD_COLUMNS.map((column) => {
-          const items = (column.id === "pumpers" ? snapshotFeed("pairs", snapshot, now, null) : snapshotFeed(column.id, snapshot, now, null)).slice(0, 30)
-          return (
-            <section key={column.id} className="flex h-full min-w-72 flex-1 flex-col">
-              <h3 className="border-b border-foreground/10 px-3 py-2 text-sm font-medium">{column.label}</h3>
-              {items.length === 0 ? (
-                <p className="px-3 py-3 text-sm text-muted-foreground">{snapshot ? "Nothing published for this column yet." : "Waiting for the published list."}</p>
-              ) : (
-                <ul className="min-h-0 flex-1 overflow-y-auto px-3 py-3 text-sm">
-                  {items.map((item) => (
-                    <li key={item.activityId} className="border-b border-foreground/10 py-2">
-                      <Link href={item.href.startsWith("/") ? item.href : item.pairAddress ? `/chart/?pair=${encodeURIComponent(item.pairAddress)}` : item.href} className="font-medium hover:underline">{item.symbol || item.title || item.name || "Pair"}</Link>
-                      <p className="text-xs text-muted-foreground">{item.detail || item.occurredAt}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-/** Keeps the five-column board on screen. A section error never replaces it with another page. */
-class BoardGuard extends Component<{ onClose: () => void; snapshot: SnapshotFile | null; children: ReactNode }, { failed: boolean; attempt: number }> {
+/** Last resort if the board itself throws. It retries the same board instead of a second screen. */
+class BoardGuard extends Component<{ children: ReactNode }, { failed: boolean; attempt: number }> {
   state = { failed: false, attempt: 0 }
   private timer: number | null = null
-  private root: HTMLDivElement | null = null
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true }
   }
   componentDidCatch(error: Error) {
     console.error(error)
     if (this.timer != null) return
-    const wait = Math.min(5000, 250 * (this.state.attempt + 1))
     this.timer = window.setTimeout(() => {
       this.timer = null
       this.setState((state) => ({ failed: false, attempt: state.attempt + 1 }))
-    }, wait)
-  }
-  componentDidMount() {
-    this.place()
-  }
-  componentDidUpdate() {
-    this.place()
+    }, 50)
   }
   componentWillUnmount() {
     if (this.timer != null) window.clearTimeout(this.timer)
   }
-  private place() {
-    const header = document.querySelector("header")
-    const height = header?.getBoundingClientRect().height ?? 0
-    if (height > 0) this.root?.style.setProperty("top", `${height}px`)
-  }
   render() {
-    if (!this.state.failed) return <div key={this.state.attempt} className="contents">{this.props.children}</div>
-    return <SnapshotColumns snapshot={this.props.snapshot} onClose={this.props.onClose} />
+    if (this.state.failed) return <div className="fixed inset-x-0 bottom-0 z-20 bg-background" style={{ top: "7.5rem" }} />
+    return <div key={this.state.attempt}>{this.props.children}</div>
   }
 }
 
 export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
   return (
-    <BoardGuard onClose={onClose} snapshot={snapshot}>
+    <BoardGuard>
       <ActivityBoardBody snapshot={snapshot} mode={mode} onClose={onClose} />
     </BoardGuard>
   )
@@ -636,7 +588,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
         </div>
       </div>
       {pulse ? (
-        <ColumnBoundary>
+        <ColumnBoundary className="shrink-0">
         <MarketPulse
           pairs={pulse.pairStats[0]}
           burns={pulse.burnStats[0]}
@@ -669,7 +621,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
       ) : null}
       <div className="flex min-h-0 flex-1 divide-x divide-foreground/10 overflow-x-auto">
         {columns.map((id) => (
-          <ColumnBoundary key={id}>
+          <ColumnBoundary key={id} className={`flex h-full min-h-0 flex-col ${id === "pumpers" ? "min-w-[22rem] flex-[1.3]" : "min-w-72 flex-1"}`}>
           <BoardColumn
             id={id}
             list={list}
@@ -769,7 +721,7 @@ function BoardColumn({
   const shown = live.length > 0 ? live : published
   const count = id === "news" ? (windowData ? windowData.news.length + windowData.generic.length : published.length || null) : id === "trends" ? windowData?.trends.length ?? (published.length || null) : id === "pumpers" ? null : shown.length
   return (
-    <section aria-labelledby={`board-${id}`} className={`flex h-full flex-col ${id === "pumpers" ? "min-w-[22rem] flex-[1.3]" : "min-w-72 flex-1"}`}>
+    <section aria-labelledby={`board-${id}`} className="flex h-full min-h-0 w-full flex-col">
       <header className="flex items-center gap-2 border-b border-foreground/10 px-3 py-2">
         <Icon size={14} aria-hidden className="shrink-0 text-muted-foreground" />
         <h3 id={`board-${id}`} className="truncate text-sm font-medium">{column.label}</h3>
