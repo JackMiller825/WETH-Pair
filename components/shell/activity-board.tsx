@@ -192,8 +192,14 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
       const created = Date.parse(row.created_at)
       return created >= now - 6 * 60 * 60 * 1000 && created <= now
     })
-    const burned = new Set((snapshot?.lpBurns ?? []).map((event) => event.pair.toLowerCase()))
-    const cohort = cohortBurnRate(rows.map((row) => ({ createdAt: Date.parse(row.created_at), burned: row.lpStatus === "burnt" || burned.has(row.address.toLowerCase()) })), now, 60 * 60 * 1000)
+    const burned = new Set<string>()
+    for (const event of snapshot?.lpBurns ?? []) {
+      if (typeof event?.pair === "string") burned.add(event.pair.toLowerCase())
+    }
+    const cohort = cohortBurnRate(rows.flatMap((row) => {
+      if (!row || typeof row.address !== "string" || typeof row.created_at !== "string") return []
+      return [{ createdAt: Date.parse(row.created_at), burned: row.lpStatus === "burnt" || burned.has(row.address.toLowerCase()) }]
+    }), now, 60 * 60 * 1000)
     const samples = recent.map((row) => pumpHub().book.points(row.address).map((point) => ({ at: point.at, weth: point.reserveWeth })))
     const netWeth = reserveChange(samples, now - 60 * 60 * 1000, now)
     const distribution = performanceDistribution(multiplesOf(recent, now))
@@ -350,6 +356,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
     }
   }, [rest, needsWindow, snapshot])
 
+  try {
   return (
     <div ref={root} className="fixed inset-x-0 bottom-0 z-20 flex flex-col bg-background" role="region" aria-label="Live activity, full screen">
       <div className="flex flex-wrap items-center gap-2 border-b border-foreground/10 px-4 py-2">
@@ -470,6 +477,81 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
           />
           </ColumnBoundary>
         ))}
+      </div>
+    </div>
+  )
+  } catch (error) {
+    console.error(error)
+    return <SafeActivity snapshot={snapshot} onClose={onClose} />
+  }
+}
+
+export function SafeActivity({ snapshot, onClose }: { snapshot: SnapshotFile | null; onClose: () => void }) {
+  const now = Date.now()
+  const hour = 60 * 60 * 1000
+  const pairs: { label: string; at: number; href: string }[] = []
+  const burns: { label: string; at: number; href: string; percent: string }[] = []
+  try {
+    for (const row of snapshot?.rows ?? []) {
+      if (!row || typeof row.created_at !== "string") continue
+      const at = Date.parse(row.created_at)
+      if (!Number.isFinite(at)) continue
+      const name = row.symbol || row.tokenName || row.name || "Token"
+      const href = typeof row.tokenAddress === "string" && row.tokenAddress.startsWith("0x") && row.tokenAddress.length === 42 ? `/tokens/${row.tokenAddress}` : row.url || "#"
+      pairs.push({ label: `${name} / WETH`, at, href })
+    }
+    for (const event of snapshot?.lpBurns ?? []) {
+      const atText = event?.burnAt || event?.detectedAt
+      if (typeof atText !== "string") continue
+      const at = Date.parse(atText)
+      if (!Number.isFinite(at)) continue
+      const name = event.symbol || event.tokenName || "Token"
+      const href = typeof event.tokenAddress === "string" && event.tokenAddress.startsWith("0x") ? `/tokens/${event.tokenAddress}` : "#"
+      const percent = event.percentKnown === false || typeof event.lpBurntPercent !== "number" ? "N/A" : `${event.lpBurntPercent.toFixed(0)}%`
+      burns.push({ label: `${name} / WETH`, at, href, percent })
+    }
+  } catch {
+    // A bad stored row is skipped. The rows already collected still render.
+  }
+  const pairs1h = pairs.filter((item) => now - item.at >= 0 && now - item.at <= hour).length
+  const burns1h = burns.filter((item) => now - item.at >= 0 && now - item.at <= hour).length
+  const recentPairs = [...pairs].sort((a, b) => b.at - a.at).slice(0, 12)
+  const recentBurns = [...burns].sort((a, b) => b.at - a.at).slice(0, 12)
+  return (
+    <div className="fixed inset-0 z-20 flex flex-col bg-background" role="region" aria-label="Live activity, full screen">
+      <div className="flex items-center gap-3 border-b border-foreground/10 px-4 py-2">
+        <h2 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Live activity</h2>
+        <p className="text-sm tabular-nums">Pairs 1H <span className="font-semibold">{pairs1h}</span></p>
+        <p className="text-sm tabular-nums">LP burns 1H <span className="font-semibold">{burns1h}</span></p>
+        <button type="button" onClick={onClose} className="ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Minimize2 size={14} aria-hidden /> Exit full screen
+        </button>
+      </div>
+      <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-2">
+        <section className="min-h-0 overflow-y-auto border-foreground/10 md:border-r" aria-label="Recent pairs">
+          <h3 className="sticky top-0 bg-background px-4 py-2 text-sm font-medium">Pairs</h3>
+          <ul className="flex flex-col gap-2 px-4 pb-4">
+            {recentPairs.map((item) => (
+              <li key={`${item.href}:${item.at}`} className="rounded-lg bg-card/60 px-3 py-2 text-sm ring-1 ring-foreground/10">
+                <Link href={item.href} className="font-medium hover:underline">{item.label}</Link>
+                <p className="text-xs text-muted-foreground">{formatAge(Math.max(0, now - item.at))} ago</p>
+              </li>
+            ))}
+            {recentPairs.length === 0 ? <li className="text-sm text-muted-foreground">No pairs stored yet.</li> : null}
+          </ul>
+        </section>
+        <section className="min-h-0 overflow-y-auto" aria-label="Recent LP burns">
+          <h3 className="sticky top-0 bg-background px-4 py-2 text-sm font-medium">LP burns</h3>
+          <ul className="flex flex-col gap-2 px-4 pb-4">
+            {recentBurns.map((item) => (
+              <li key={`${item.href}:${item.at}`} className="rounded-lg bg-card/60 px-3 py-2 text-sm ring-1 ring-foreground/10">
+                <Link href={item.href} className="font-medium hover:underline">{item.label}</Link>
+                <p className="text-xs text-muted-foreground">{item.percent} · {formatAge(Math.max(0, now - item.at))} ago</p>
+              </li>
+            ))}
+            {recentBurns.length === 0 ? <li className="text-sm text-muted-foreground">No LP burns stored yet.</li> : null}
+          </ul>
+        </section>
       </div>
     </div>
   )
