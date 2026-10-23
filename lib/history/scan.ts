@@ -184,7 +184,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
   const deadline = Date.now() + HISTORY_BUDGET_MS
   const burns: ChainBurn[] = []
   const times = new Map<number, string>()
-  const addresses = [...pairAddresses]
+  const addresses = [...pairAddresses].filter((item) => /^0x[0-9a-f]{40}$/i.test(item))
   let current = focusOlderGap(job)
   if (addresses.length === 0) {
     return { job: { ...current, stage: "Waiting for WETH pairs before the LP burn scan.", updatedAt: now.toISOString() }, burns }
@@ -232,11 +232,10 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
       found.length = kept
     } catch (error) {
       const message = error instanceof Error ? error.message : "Log scan failed"
-      if (/address/i.test(message) && batchSize > 1) {
+      if (/address|expected 20|invalid params/i.test(message) && batchSize > 1) {
         batchSize = 1
         continue
       }
-      if (/archive|personal token/i.test(message)) return { job: paused(current, message, now), burns }
       if (classifyRpcFailure(message) === "rate-limit") {
         await sleep(2_000)
         continue
@@ -248,6 +247,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
       return { job: paused(current, message, now), burns }
     }
     if (chunk < BURN_CHUNK) chunk = Math.min(BURN_CHUNK, chunk * 2)
+    if (batchSize < ADDRESS_BATCH) batchSize = ADDRESS_BATCH
     current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning historical LP transfers to burn addresses")
     current = { ...current, burnsFound: current.burnsFound + found.length, error: null, stage: current.phase === "done" ? "Historical LP scan complete" : "Scanning historical LP transfers to burn addresses" }
     if (current.phase === "done") break
