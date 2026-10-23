@@ -180,7 +180,7 @@ export function EthereumGasWidget() {
   const health = now == null ? "refreshing" : feedHealth(state, now, GAS_STALE_MS)
   const age = ageOf(state, now)
   const dot = health === "live" ? "bg-emerald-500" : health === "unavailable" ? "bg-destructive" : health === "refreshing" ? "bg-muted-foreground" : "bg-amber-500"
-  const spoken = data
+  const spoken = data?.standard && data.fast && data.rapid
     ? `Ethereum gas, standard ${formatGwei(data.standard.gwei)} gwei, fast ${formatGwei(data.fast.gwei)}, rapid ${formatGwei(data.rapid.gwei)}.${health === "stale" ? ` Data is ${formatAge(age)} old.` : ""} Open details.`
     : `Ethereum gas ${health === "unavailable" ? "unavailable" : "loading"}. Open details.`
 
@@ -192,7 +192,7 @@ export function EthereumGasWidget() {
         <span className="flex h-8 items-center gap-1.5 rounded-md bg-card px-2 ring-1 ring-foreground/10 hover:ring-foreground/25 sm:px-2.5">
           <Fuel size={13} aria-hidden className="shrink-0 text-muted-foreground" />
           <span className="hidden text-[10px] font-medium tracking-wide text-muted-foreground sm:inline">STD</span>
-          <span key={data?.standard.gwei ?? "none"} className="value-bump text-sm font-semibold tabular-nums">{data ? formatGwei(data.standard.gwei) : health === "unavailable" ? "N/A" : "—"}</span>
+          <span key={data?.standard?.gwei ?? "none"} className="value-bump text-sm font-semibold tabular-nums">{data?.standard ? formatGwei(data.standard.gwei) : health === "unavailable" ? "N/A" : "—"}</span>
           <span className="hidden text-[10px] text-muted-foreground sm:inline">gwei</span>
           <MoveArrow move={view.gasMove} now={now} />
           <span aria-hidden className={`size-1.5 rounded-full ${dot}`} />

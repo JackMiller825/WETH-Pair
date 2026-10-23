@@ -65,7 +65,11 @@ export function LiveActivity({ snapshot, mode, expanded, onExpanded }: { snapsho
   useEffect(() => {
     if (!snapshot) return
     const run = () => {
-      activityStore().ingestSnapshot(snapshot)
+      try {
+        activityStore().ingestSnapshot(snapshot)
+      } catch (error) {
+        console.error(error)
+      }
       setReadyAt((value) => value ?? Date.now() + 500)
     }
     if (typeof window.requestIdleCallback === "function") {

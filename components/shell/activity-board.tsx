@@ -4,8 +4,7 @@ import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ArrowUpRight, Flame, Minimize2, Newspaper, Plus, TrendingUp, X, Zap, type LucideIcon } from "lucide-react"
-import { useClock } from "@/components/shell/clock"
-import { ActivityCard, activityStatus, useActivityList } from "@/components/shell/live-activity"
+import { ActivityCard, activityStatus } from "@/components/shell/live-activity"
 import { Popover } from "@/components/shell/popover"
 import { addColumn, BOARD_COLUMNS, BOARD_COLUMNS_KEY, columnById, columnsFrom, FEED_WINDOW_KEY, FEED_WINDOWS, feedWindowById, inFeedWindow, LEGACY_BOARD_COLUMNS_KEY, placePumpers, removeColumn, type BoardColumnId, type FeedWindowId } from "@/lib/activity/board"
 import { TopPumpers } from "@/components/shell/top-pumpers"
@@ -14,7 +13,8 @@ import { buildIntelligence } from "@/lib/narrative/engine"
 import { analyzeEvents, eventInWindow, type EventAnalysis } from "@/lib/narrative/events"
 import { DIRECTION_LABEL, type SnapshotFile, type Trend } from "@/lib/narrative/types"
 import { ActivityMetricHeader, MarketPulse, type SeriesMode } from "@/components/shell/activity-metric"
-import { useMarket } from "@/components/shell/market-widgets"
+import { marketClient, type MarketView } from "@/lib/market/client"
+import { EMPTY_FEED } from "@/lib/market/types"
 import { activityStore } from "@/lib/activity/client"
 import { activityRatio, activitySeries, activityState, canonicalActivityKey, chartRange, CHART_RANGES, cohortBurnRate, earliestTimes, launchScore, performanceDistribution, recordConditionHistory, reserveChange, stillTrading, typicalHour, windowStats, type WindowStat } from "@/lib/activity/pulse"
 import { pumpHub } from "@/lib/pump/client"
@@ -24,14 +24,26 @@ import type { MonitorMode } from "@/components/lp/monitor-context"
 
 const PAGE = 100
 
-class ColumnBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
+class ColumnBoundary extends Component<{ children: ReactNode }, { failed: boolean; attempt: number }> {
+  state = { failed: false, attempt: 0 }
+  private timer: number | null = null
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true }
   }
+  componentDidCatch(error: Error) {
+    console.error(error)
+    if (this.state.attempt >= 1 || this.timer != null) return
+    this.timer = window.setTimeout(() => {
+      this.timer = null
+      this.setState((state) => ({ failed: false, attempt: state.attempt + 1 }))
+    }, 40)
+  }
+  componentWillUnmount() {
+    if (this.timer != null) window.clearTimeout(this.timer)
+  }
   render() {
-    if (!this.state.failed) return this.props.children
-    return <p className="px-3 py-3 text-sm text-muted-foreground">Loading this column.</p>
+    if (this.state.failed) return <p className="px-3 py-3 text-sm text-muted-foreground">Loading this column.</p>
+    return <div key={this.state.attempt} className="contents">{this.props.children}</div>
   }
 }
 
@@ -44,11 +56,15 @@ const COLUMN_ICON: Record<BoardColumnId, LucideIcon> = {
 }
 
 function readColumns(): BoardColumnId[] {
-  if (typeof localStorage === "undefined") return columnsFrom(null)
-  const saved = localStorage.getItem(BOARD_COLUMNS_KEY)
-  if (saved != null) return columnsFrom(saved)
-  const legacy = localStorage.getItem(LEGACY_BOARD_COLUMNS_KEY)
-  return legacy == null ? columnsFrom(null) : placePumpers(columnsFrom(legacy))
+  try {
+    if (typeof localStorage === "undefined") return columnsFrom(null)
+    const saved = localStorage.getItem(BOARD_COLUMNS_KEY)
+    if (saved != null) return columnsFrom(saved)
+    const legacy = localStorage.getItem(LEGACY_BOARD_COLUMNS_KEY)
+    return legacy == null ? columnsFrom(null) : placePumpers(columnsFrom(legacy))
+  } catch {
+    return columnsFrom(null)
+  }
 }
 
 type BoardWindow = {
@@ -88,8 +104,70 @@ function loadWindow(snapshot: SnapshotFile): BoardWindow {
 }
 
 function stored(key: string, fallback: string): string {
-  if (typeof localStorage === "undefined") return fallback
-  return localStorage.getItem(key) || fallback
+  try {
+    if (typeof localStorage === "undefined") return fallback
+    return localStorage.getItem(key) || fallback
+  } catch {
+    return fallback
+  }
+}
+
+const EMPTY_ACTIVITY: ActivityItem[] = []
+const EMPTY_MARKET: MarketView = { eth: { ...EMPTY_FEED }, gas: { ...EMPTY_FEED }, via: "browser", ethMove: null, gasMove: null }
+
+/** Subscribes after paint. The board renders before any feed snapshot exists. */
+function useBoardList(): ActivityItem[] {
+  const [list, setList] = useState<ActivityItem[]>(EMPTY_ACTIVITY)
+  useEffect(() => {
+    const store = activityStore()
+    const pull = () => {
+      try {
+        setList(store.getList())
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    pull()
+    return store.subscribe(pull)
+  }, [])
+  return list
+}
+
+function useBoardNow(): number | null {
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => {
+    const tick = () => {
+      const next = Math.floor(Date.now() / 15_000) * 15_000
+      setNow((current) => (current === next ? current : next))
+    }
+    tick()
+    const id = window.setInterval(tick, 1000)
+    return () => window.clearInterval(id)
+  }, [])
+  return now
+}
+
+function useBoardMarket(): MarketView {
+  const [view, setView] = useState<MarketView>(EMPTY_MARKET)
+  useEffect(() => {
+    let client: ReturnType<typeof marketClient>
+    try {
+      client = marketClient()
+    } catch (error) {
+      console.error(error)
+      return
+    }
+    const pull = () => {
+      try {
+        setView(client.getView())
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    pull()
+    return client.subscribe(pull)
+  }, [])
+  return view
 }
 
 function pairAndBurnTimes(snapshot: SnapshotFile | null, list: readonly ActivityItem[]): { pairs: number[]; burns: number[] } {
@@ -144,22 +222,85 @@ function ago(now: number | null, at: string): string {
   return ms < 1000 ? "now" : `${formatAge(Math.max(0, ms))} ago`
 }
 
+const BOARD_TITLES = ["News → Tokens", "Trends", "Top Pumpers", "Pairs", "LP Burns"] as const
+
+/** Keeps the five-column board on screen. A section error never replaces it with another page. */
+class BoardGuard extends Component<{ onClose: () => void; children: ReactNode }, { failed: boolean; attempt: number }> {
+  state = { failed: false, attempt: 0 }
+  private timer: number | null = null
+  private root: HTMLDivElement | null = null
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+  componentDidCatch(error: Error) {
+    console.error(error)
+    if (this.state.attempt >= 2 || this.timer != null) return
+    this.timer = window.setTimeout(() => {
+      this.timer = null
+      this.setState((state) => ({ failed: false, attempt: state.attempt + 1 }))
+    }, 40)
+  }
+  componentDidMount() {
+    this.place()
+  }
+  componentDidUpdate() {
+    this.place()
+  }
+  componentWillUnmount() {
+    if (this.timer != null) window.clearTimeout(this.timer)
+  }
+  private place() {
+    const header = document.querySelector("header")
+    const height = header?.getBoundingClientRect().height ?? 0
+    if (height > 0) this.root?.style.setProperty("top", `${height}px`)
+  }
+  render() {
+    if (!this.state.failed) return <div key={this.state.attempt} className="contents">{this.props.children}</div>
+    return (
+      <div ref={(node) => { this.root = node }} className="fixed inset-x-0 bottom-0 z-20 flex flex-col bg-background" role="region" aria-label="Live activity, full screen">
+        <div className="flex items-center gap-2 border-b border-foreground/10 px-4 py-2">
+          <h2 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Live activity</h2>
+          <button type="button" onClick={this.props.onClose} className="ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Minimize2 size={14} aria-hidden /> Exit full screen
+          </button>
+        </div>
+        <div className="flex min-h-0 flex-1 divide-x divide-foreground/10 overflow-x-auto">
+          {BOARD_TITLES.map((title) => (
+            <section key={title} className="flex h-full min-w-72 flex-1 flex-col">
+              <h3 className="border-b border-foreground/10 px-3 py-2 text-sm font-medium">{title}</h3>
+              <p className="px-3 py-3 text-sm text-muted-foreground">Loading this column.</p>
+            </section>
+          ))}
+        </div>
+      </div>
+    )
+  }
+}
+
 export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
-  const list = useActivityList()
-  const now = useClock(15_000)
+  return (
+    <BoardGuard onClose={onClose}>
+      <ActivityBoardBody snapshot={snapshot} mode={mode} onClose={onClose} />
+    </BoardGuard>
+  )
+}
+
+function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
+  const list = useBoardList()
+  const now = useBoardNow()
   const pathname = usePathname()
   const openedOn = useRef<string | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const [columns, setColumns] = useState<BoardColumnId[]>(readColumns)
-  const [feedWindow, setFeedWindow] = useState<FeedWindowId>(() => (typeof localStorage === "undefined" ? "all" : feedWindowById(localStorage.getItem(FEED_WINDOW_KEY) ?? "all").id))
+  const [feedWindow, setFeedWindow] = useState<FeedWindowId>(() => feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
   const [chartRangeId, setChartRangeId] = useState(() => stored("weth-activity-chart-range", "24h"))
   const [seriesMode, setSeriesMode] = useState<SeriesMode>(() => (stored("weth-activity-series", "pairs") as SeriesMode))
   const [chartOpen, setChartOpen] = useState(() => ({ pairs: stored("weth-chart-pairs", "") === "1", burns: stored("weth-chart-burns", "") === "1" }))
   const [zoneId, setZoneId] = useState(() => stored("weth-display-zone", LOCAL_ZONE))
   const [rest, setRest] = useState(false)
   const [baselines, setBaselines] = useState<{ pairs: number | null; burns: number | null } | null>(null)
-  const market = useMarket()
+  const market = useBoardMarket()
   const [openedAt] = useState(() => Date.now())
   const [windowData, setWindowData] = useState<BoardWindow | null>(null)
   const [windowError, setWindowError] = useState<string | null>(null)
@@ -203,7 +344,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
     const samples = recent.map((row) => pumpHub().book.points(row.address).map((point) => ({ at: point.at, weth: point.reserveWeth })))
     const netWeth = reserveChange(samples, now - 60 * 60 * 1000, now)
     const distribution = performanceDistribution(multiplesOf(recent, now))
-    const gas = market.gas.data?.standard.gwei ?? null
+    const gas = market.gas.data?.standard?.gwei ?? null
     const pairBaseline = baselines?.pairs ?? null
     const burnBaseline = baselines?.burns ?? null
     const marks = tradeMarks(recent)
@@ -262,7 +403,20 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
   }
 
   useEffect(() => {
-    if (localStorage.getItem(BOARD_COLUMNS_KEY) == null) localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(columns))
+    setColumns(readColumns())
+    setFeedWindow(feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
+    setChartRangeId(stored("weth-activity-chart-range", "24h"))
+    setSeriesMode(stored("weth-activity-series", "pairs") as SeriesMode)
+    setChartOpen({ pairs: stored("weth-chart-pairs", "") === "1", burns: stored("weth-chart-burns", "") === "1" })
+    setZoneId(stored("weth-display-zone", LOCAL_ZONE))
+  }, [])
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(BOARD_COLUMNS_KEY) == null) localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(columns))
+    } catch {
+      // Storage can be blocked. The open board still uses the columns in memory.
+    }
   }, [columns])
 
   useEffect(() => {
@@ -614,90 +768,6 @@ function LiveColumn({ items, readyAt, waiting, empty }: { items: ActivityItem[];
         </div>
       ) : null}
     </div>
-  )
-}
-
-/** Shown only if the full board throws. Same screen: counts, recent pairs, and recent burns. No error page. */
-export function SafeBoard({ snapshot, onClose }: { snapshot: SnapshotFile | null; onClose: () => void }) {
-  const now = Date.now()
-  let pairStats: WindowStat[] = []
-  let burnStats: WindowStat[] = []
-  const pairRows: { key: string; label: string; at: number; href: string }[] = []
-  const burnRows: { key: string; label: string; at: number; href: string; percent: string }[] = []
-  try {
-    const times = pairAndBurnTimes(snapshot, [])
-    pairStats = windowStats(times.pairs, now)
-    burnStats = windowStats(times.burns, now)
-    for (const row of snapshot?.rows ?? []) {
-      if (!row || typeof row.created_at !== "string" || typeof row.address !== "string") continue
-      const at = Date.parse(row.created_at)
-      if (!Number.isFinite(at)) continue
-      const name = row.symbol || row.tokenName || row.name || "Token"
-      const href = typeof row.tokenAddress === "string" && row.tokenAddress.startsWith("0x") ? `/tokens/${row.tokenAddress}` : "#"
-      pairRows.push({ key: row.address, label: `${name} / WETH`, at, href })
-    }
-    for (const event of snapshot?.lpBurns ?? []) {
-      const atText = event?.burnAt || event?.detectedAt
-      if (!event || typeof atText !== "string") continue
-      const at = Date.parse(atText)
-      if (!Number.isFinite(at)) continue
-      const name = event.symbol || event.tokenName || "Token"
-      const href = typeof event.tokenAddress === "string" && event.tokenAddress.startsWith("0x") ? `/tokens/${event.tokenAddress}` : "#"
-      const percent = event.percentKnown === false || typeof event.lpBurntPercent !== "number" ? "" : `${Math.round(event.lpBurntPercent)}%`
-      burnRows.push({ key: typeof event.id === "string" ? event.id : `${event.pair}:${at}`, label: `${name} / WETH`, at, href, percent })
-    }
-  } catch {
-    // Counts collected before the failure stay on screen.
-  }
-  pairRows.sort((a, b) => b.at - a.at)
-  burnRows.sort((a, b) => b.at - a.at)
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-20 flex flex-col bg-background" role="region" aria-label="Live activity, full screen">
-      <div className="flex items-center gap-3 border-b border-foreground/10 px-4 py-2">
-        <h2 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Live activity</h2>
-        <button type="button" onClick={onClose} className="ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
-          <Minimize2 size={14} aria-hidden /> Exit full screen
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-4 border-b border-foreground/10 px-4 py-2">
-        <CountLine title="Pairs" stats={pairStats} />
-        <CountLine title="LP burns" stats={burnStats} />
-      </div>
-      <div className="grid min-h-0 flex-1 md:grid-cols-2">
-        <CountList title="Pairs" rows={pairRows.slice(0, 24)} now={now} />
-        <CountList title="LP burns" rows={burnRows.slice(0, 24)} now={now} />
-      </div>
-    </div>
-  )
-}
-
-function CountLine({ title, stats }: { title: string; stats: WindowStat[] }) {
-  return (
-    <div>
-      <p className="text-[10px] tracking-wide text-muted-foreground uppercase">{title}</p>
-      <p className="text-xs tabular-nums">
-        {stats.map((item) => (
-          <span key={item.id} className="mr-3"><span className="text-muted-foreground">{item.label}</span> {item.current}</span>
-        ))}
-      </p>
-    </div>
-  )
-}
-
-function CountList({ title, rows, now }: { title: string; rows: { key: string; label: string; at: number; href: string; percent?: string }[]; now: number }) {
-  return (
-    <section className="min-h-0 overflow-y-auto border-foreground/10 md:border-r" aria-label={title}>
-      <h3 className="sticky top-0 bg-background px-4 py-2 text-sm font-medium">{title}</h3>
-      <ul className="flex flex-col gap-2 px-4 pb-4">
-        {rows.map((item) => (
-          <li key={`${item.key}:${item.at}`} className="rounded-lg bg-card/60 px-3 py-2 text-sm ring-1 ring-foreground/10">
-            <a href={item.href} className="font-medium hover:underline">{item.label}</a>
-            <p className="text-xs text-muted-foreground">{item.percent ? `${item.percent} · ` : ""}{formatAge(Math.max(0, now - item.at))} ago</p>
-          </li>
-        ))}
-        {rows.length === 0 ? <li className="text-sm text-muted-foreground">Loading this column.</li> : null}
-      </ul>
-    </section>
   )
 }
 

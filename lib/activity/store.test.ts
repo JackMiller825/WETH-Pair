@@ -191,6 +191,42 @@ test("the metrics view is the same object until that pair changes, so other card
   assert.notEqual(store.metricsFor(b.address.toLowerCase(), b.tokenAddress.toLowerCase()), viewB)
 })
 
+test("a card with a missing time still leaves the live list readable", () => {
+  const store = syncStore()
+  const row = record(1)
+  const broken = burn(row)
+  broken.burnAt = ""
+  broken.detectedAt = ""
+  store.ingestSnapshot(snapshot([row], [broken]))
+  store.upsert({
+    activityId: "pair:bad",
+    type: "new-pair",
+    occurredAt: undefined,
+    tokenAddress: row.tokenAddress,
+    pairAddress: row.address,
+    exchange: row.exchange,
+    name: "",
+    symbol: "BAD",
+    pairCreatedAt: null,
+    lpBurnPercent: null,
+    title: null,
+    detail: null,
+    href: "/tokens/x",
+    live: true,
+  } as never)
+  assert.ok(store.getList().some((item) => item.activityId === `pair:${row.address.toLowerCase()}`))
+  assert.ok(store.getList().some((item) => item.activityId === "pair:bad"))
+  const view = store.metricsFor(row.address.toLowerCase(), row.tokenAddress.toLowerCase())
+  assert.equal(store.metricsFor(row.address.toLowerCase(), row.tokenAddress.toLowerCase()), view)
+})
+
+test("a full metrics cache still returns one stable view", () => {
+  const store = syncStore()
+  for (let index = 0; index < MAX_ACTIVITY * 4 + 2; index += 1) store.metricsFor(`0x${index}`, `0xt${index}`)
+  const first = store.metricsFor("0x0", "0xt0")
+  assert.equal(store.metricsFor("0x0", "0xt0"), first)
+})
+
 test("history is pruned to the newest events", () => {
   const store = syncStore()
   for (let index = 0; index < MAX_ACTIVITY + 50; index++) applySighting(store, { type: "pair", record: record(index), token0: null })

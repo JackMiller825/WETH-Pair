@@ -111,41 +111,49 @@ export function identityOf(record: PairRecord): { name: string; symbol: string }
   return { name: identity.tokenName, symbol: identity.symbol }
 }
 
+function text(value: unknown): string {
+  return typeof value === "string" ? value : ""
+}
+
 export function pairActivity(record: PairRecord, live: boolean): ActivityInput {
   const identity = identityOf(record)
+  const address = text(record.address).toLowerCase()
+  const token = text(record.tokenAddress).toLowerCase()
+  const occurredAt = text(record.created_at)
   return {
-    activityId: `pair:${record.address.toLowerCase()}`,
+    activityId: `pair:${address}`,
     type: "new-pair",
-    occurredAt: record.created_at,
-    tokenAddress: record.tokenAddress.toLowerCase(),
-    pairAddress: record.address.toLowerCase(),
+    occurredAt,
+    tokenAddress: token,
+    pairAddress: address,
     exchange: record.exchange,
     name: identity.name,
     symbol: identity.symbol,
-    pairCreatedAt: record.created_at,
+    pairCreatedAt: occurredAt,
     lpBurnPercent: null,
     title: null,
     detail: null,
-    href: live ? record.url : `/tokens/${record.tokenAddress.toLowerCase()}`,
+    href: live ? record.url : `/tokens/${token}`,
     live,
   }
 }
 
 export function burnActivity(event: LpBurnEvent, live: boolean): ActivityInput {
+  const token = text(event.tokenAddress).toLowerCase()
   return {
-    activityId: `burn:${event.id}`,
+    activityId: `burn:${text(event.id)}`,
     type: "lp-burn",
-    occurredAt: event.burnAt ?? event.detectedAt,
-    tokenAddress: event.tokenAddress,
-    pairAddress: event.pair,
+    occurredAt: text(event.burnAt) || text(event.detectedAt),
+    tokenAddress: token,
+    pairAddress: text(event.pair).toLowerCase(),
     exchange: event.exchange,
-    name: event.symbol === "WETH pair" ? "" : event.tokenName,
-    symbol: event.symbol === "WETH pair" ? "" : event.symbol,
-    pairCreatedAt: event.createdAt,
+    name: event.symbol === "WETH pair" ? "" : text(event.tokenName),
+    symbol: event.symbol === "WETH pair" ? "" : text(event.symbol),
+    pairCreatedAt: text(event.createdAt),
     lpBurnPercent: event.percentKnown === false ? null : event.lpBurntPercent,
     title: null,
     detail: null,
-    href: live ? event.url : `/tokens/${event.tokenAddress}`,
+    href: live ? event.url : `/tokens/${token}`,
     live,
   }
 }
@@ -242,23 +250,47 @@ export class ActivityStore {
       this.pending = false
       if (this.listDirty) {
         this.listDirty = false
-        this.rebuild()
+        try {
+          this.rebuild()
+        } catch (error) {
+          console.error(error)
+        }
       }
-      for (const listener of this.listeners) listener()
+      for (const listener of this.listeners) {
+        try {
+          listener()
+        } catch (error) {
+          console.error(error)
+        }
+      }
     })
   }
 
   private rebuild() {
-    const sorted = [...this.items.values()].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || a.activityId.localeCompare(b.activityId))
+    const sorted = [...this.items.values()].sort((a, b) => text(b.occurredAt).localeCompare(text(a.occurredAt)) || text(a.activityId).localeCompare(text(b.activityId)))
     const kept = sorted.slice(0, MAX_ACTIVITY)
     for (const item of sorted.slice(MAX_ACTIVITY)) this.items.delete(item.activityId)
     this.list = kept
+    this.evictViews()
     const referenced = new Set(kept.map((item) => item.pairAddress).filter(Boolean))
     for (const pair of this.pairs.keys()) {
       if (!referenced.has(pair)) {
         this.pairs.delete(pair)
         this.pairVersion.delete(pair)
       }
+    }
+  }
+
+  /** Drops metric views for cards that are no longer listed. A read never deletes the view it just returned. */
+  private evictViews() {
+    const limit = MAX_ACTIVITY * 4
+    if (this.views.size <= limit) return
+    const live = new Set<string>()
+    for (const item of this.list) live.add(`${item.pairAddress ?? ""}|${item.tokenAddress ?? ""}`)
+    for (const key of this.views.keys()) {
+      if (live.has(key)) continue
+      this.views.delete(key)
+      if (this.views.size <= limit) return
     }
   }
 
@@ -451,7 +483,6 @@ export class ActivityStore {
       enrichment: { coreReady: true, marketReady: settled(totalTx) && settled(pooledWeth), holdersReady: settled(holders) },
     }
     this.views.set(key, { pv, hv, view })
-    if (this.views.size > MAX_ACTIVITY * 4) this.views.delete(this.views.keys().next().value as string)
     return view
   }
 
@@ -459,30 +490,47 @@ export class ActivityStore {
   ingestSnapshot(snapshot: SnapshotFile) {
     const observedAt = Date.parse(snapshot.generatedAt)
     const byPair = new Map<string, PairRecord>()
-    for (const row of snapshot.rows) byPair.set(row.address.toLowerCase(), row)
-    const newest = [...snapshot.rows].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, SNAPSHOT_PAIRS)
+    for (const row of snapshot.rows ?? []) {
+      if (!row || typeof row.address !== "string" || typeof row.created_at !== "string") continue
+      byPair.set(row.address.toLowerCase(), row)
+    }
+    const newest = [...byPair.values()].sort((a, b) => text(b.created_at).localeCompare(text(a.created_at))).slice(0, SNAPSHOT_PAIRS)
     const burns = eventsOf(snapshot)
-      .slice()
-      .sort((a, b) => (b.burnAt ?? b.detectedAt).localeCompare(a.burnAt ?? a.detectedAt))
+      .filter((event) => event && (typeof event.burnAt === "string" || typeof event.detectedAt === "string"))
+      .sort((a, b) => text(b.burnAt || b.detectedAt).localeCompare(text(a.burnAt || a.detectedAt)))
       .slice(0, SNAPSHOT_BURNS)
     const touched = new Set<string>()
     for (const row of newest) {
-      this.upsert(pairActivity(row, false))
-      touched.add(row.address.toLowerCase())
+      try {
+        this.upsert(pairActivity(row, false))
+        touched.add(row.address.toLowerCase())
+      } catch (error) {
+        console.error(error)
+      }
     }
     for (const event of burns) {
-      const row = byPair.get(event.pair)
-      const input = burnActivity(event, false)
-      if (row && (!input.symbol || !input.name)) {
-        const identity = identityOf(row)
-        input.symbol ||= identity.symbol
-        input.name ||= identity.name
+      try {
+        const row = byPair.get(event.pair)
+        const input = burnActivity(event, false)
+        if (row && (!input.symbol || !input.name)) {
+          const identity = identityOf(row)
+          input.symbol ||= identity.symbol
+          input.name ||= identity.name
+        }
+        this.upsert(input)
+        touched.add(event.pair)
+        if (!row) this.ensurePair({ pair: event.pair, token: event.tokenAddress, exchange: event.exchange, createdAt: event.createdAt, creationBlock: null })
+      } catch (error) {
+        console.error(error)
       }
-      this.upsert(input)
-      touched.add(event.pair)
-      if (!row) this.ensurePair({ pair: event.pair, token: event.tokenAddress, exchange: event.exchange, createdAt: event.createdAt, creationBlock: null })
     }
-    for (const signal of snapshot.signals ?? []) this.upsert(signalActivity(signal))
+    for (const signal of snapshot.signals ?? []) {
+      try {
+        this.upsert(signalActivity(signal))
+      } catch (error) {
+        console.error(error)
+      }
+    }
     // Live cards whose identity was unknown pick it up from the snapshot.
     for (const item of this.items.values()) {
       if (item.pairAddress && (!item.symbol || !item.name)) {

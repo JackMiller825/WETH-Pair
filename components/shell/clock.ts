@@ -3,26 +3,17 @@
 import { useSyncExternalStore } from "react"
 
 const listeners = new Set<() => void>()
-const steps = new Map<number, number>()
 let timer: number | null = null
 let now = 0
 
-function readNow(): number {
-  if (now === 0) now = Date.now()
-  return now
-}
-
 function publish(at: number) {
   now = at
-  for (const step of steps.keys()) steps.set(step, Math.floor(at / step))
 }
 
+/** A number derived only from `now`. Two reads in one turn return the same bucket. */
 function readSnapshot(stepMs: number): number {
-  const saved = steps.get(stepMs)
-  if (saved != null) return saved
-  const value = Math.floor(readNow() / stepMs)
-  steps.set(stepMs, value)
-  return value
+  if (now === 0) now = Date.now()
+  return Math.floor(now / stepMs)
 }
 
 function subscribe(listener: () => void) {

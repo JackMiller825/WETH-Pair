@@ -65,7 +65,7 @@ class MarketClient {
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
-    this.start()
+    this.arm()
     return () => this.listeners.delete(listener)
   }
 
@@ -77,24 +77,34 @@ class MarketClient {
       gas,
       via: this.view.via,
       ethMove: moveOf(this.view.eth.data?.priceUsd, eth.data?.priceUsd, this.view.ethMove),
-      gasMove: moveOf(this.view.gas.data?.standard.gwei, gas.data?.standard.gwei, this.view.gasMove),
+      gasMove: moveOf(this.view.gas.data?.standard?.gwei, gas.data?.standard?.gwei, this.view.gasMove),
     }
-    for (const listener of this.listeners) listener()
+    for (const listener of this.listeners) {
+      try {
+        listener()
+      } catch (error) {
+        console.error(error)
+      }
+    }
   }
 
-  private start() {
+  /** Starts after subscribe returns, so the snapshot cannot change while React is checking it. */
+  private arm() {
     if (this.started || typeof window === "undefined") return
     this.started = true
-    this.seedFromCache()
-    void this.seedFromPublished()
-    window.addEventListener("storage", (event) => {
-      if (event.key === CACHE_KEY) this.seedFromCache()
+    queueMicrotask(() => {
+      if (typeof window === "undefined") return
+      this.seedFromCache()
+      void this.seedFromPublished()
+      window.addEventListener("storage", (event) => {
+        if (event.key === CACHE_KEY) this.seedFromCache()
+      })
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) this.tick(true)
+      })
+      this.tick(true)
+      this.timers.push(window.setInterval(() => this.tick(false), 1000))
     })
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) this.tick(true)
-    })
-    this.tick(true)
-    this.timers.push(window.setInterval(() => this.tick(false), 1000))
   }
 
   private seedFromCache() {

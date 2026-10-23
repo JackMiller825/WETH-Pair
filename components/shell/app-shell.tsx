@@ -1,18 +1,17 @@
 "use client"
 
-import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Activity as ActivityIcon, Bell, CircleHelp, Flame, LayoutDashboard, Maximize2, Menu, Monitor, Moon, Newspaper, Search, Settings, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
 import { BackfillLink, HistoryBanner } from "@/components/progress/history-panel"
 import { applyTheme, isThemeId, type ThemeId } from "@/lib/theme"
 import { ago, eventsOf } from "@/lib/lp/monitor"
-import { useLpMonitor, type MonitorMode } from "@/components/lp/monitor-context"
+import { useLpMonitor } from "@/components/lp/monitor-context"
 import { parseIdentity } from "@/lib/narrative/text"
 import { CONCEPTS } from "@/lib/narrative/lexicon"
 import { EthMarketWidget, EthereumGasWidget, notifyMarketBlock } from "@/components/shell/market-widgets"
-import { ActivityBoard, SafeBoard } from "@/components/shell/activity-board"
-import type { SnapshotFile } from "@/lib/narrative/types"
+import { ActivityBoard } from "@/components/shell/activity-board"
 import { LiveActivity } from "@/components/shell/live-activity"
 import { Popover } from "@/components/shell/popover"
 import { activityEngine } from "@/lib/activity/client"
@@ -45,30 +44,6 @@ const TOUR = [
   ["Narratives", "Discover clusters of related token launches."],
   ["News → Tokens", "Connect real-world events to token activity."],
 ] as const
-
-class BoardBoundary extends Component<{ snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }, { safe: boolean }> {
-  state = { safe: false }
-  private retried = false
-  private alive = true
-  static getDerivedStateFromError(): { safe: boolean } {
-    return { safe: true }
-  }
-  componentDidCatch(error: Error) {
-    console.error(error)
-    if (this.retried) return
-    this.retried = true
-    window.setTimeout(() => {
-      if (this.alive) this.setState({ safe: false })
-    }, 400)
-  }
-  componentWillUnmount() {
-    this.alive = false
-  }
-  render() {
-    if (this.state.safe) return <SafeBoard snapshot={this.props.snapshot} onClose={this.props.onClose} />
-    return <ActivityBoard snapshot={this.props.snapshot} mode={this.props.mode} onClose={this.props.onClose} />
-  }
-}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -240,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {feed ? <LiveActivity snapshot={snapshot} mode={mode} expanded={expanded} onExpanded={setExpanded} /> : null}
       </div>
       {feed && expanded ? (
-        <BoardBoundary snapshot={snapshot} mode={mode} onClose={closeBoard} />
+        <ActivityBoard snapshot={snapshot} mode={mode} onClose={closeBoard} />
       ) : null}
       {queryOpen ? <CommandSearch onClose={() => setQueryOpen(false)} /> : null}
       {tour ? <Welcome onClose={(forever) => { if (forever) localStorage.setItem("weth-onboarded", "1"); setTour(false) }} /> : null}
