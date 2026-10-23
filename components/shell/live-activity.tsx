@@ -64,20 +64,12 @@ export function LiveActivity({ snapshot, mode, expanded, onExpanded }: { snapsho
 
   useEffect(() => {
     if (!snapshot) return
-    const run = () => {
-      try {
-        activityStore().ingestSnapshot(snapshot)
-      } catch (error) {
-        console.error(error)
-      }
-      setReadyAt((value) => value ?? Date.now() + 500)
+    try {
+      activityStore().ingestSnapshot(snapshot)
+    } catch (error) {
+      console.error(error)
     }
-    if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(run, { timeout: 1500 })
-      return () => window.cancelIdleCallback(id)
-    }
-    const id = window.setTimeout(run, 50)
-    return () => window.clearTimeout(id)
+    setReadyAt((value) => value ?? Date.now() + 500)
   }, [snapshot])
 
   const filtered = useMemo(() => filterActivity(list, filter), [list, filter])
