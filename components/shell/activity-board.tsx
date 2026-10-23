@@ -120,6 +120,11 @@ function seriesModeFor(column: "pairs" | "burns"): SeriesMode {
   return saved === "pairs" || saved === "burns" || saved === "both" ? saved : fallback
 }
 
+function chartRangeFor(column: "pairs" | "burns"): string {
+  const key = column === "pairs" ? "weth-activity-chart-range-pairs" : "weth-activity-chart-range-burns"
+  return chartRange(stored(key, stored("weth-activity-chart-range", "24h"))).id
+}
+
 const EMPTY_ACTIVITY: ActivityItem[] = []
 const EMPTY_MARKET: MarketView = { eth: { ...EMPTY_FEED }, gas: { ...EMPTY_FEED }, via: "browser", ethMove: null, gasMove: null }
 
@@ -302,7 +307,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
   const closeButton = useRef<HTMLButtonElement>(null)
   const [columns, setColumns] = useState<BoardColumnId[]>(readColumns)
   const [feedWindow, setFeedWindow] = useState<FeedWindowId>(() => feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
-  const [chartRangeId, setChartRangeId] = useState(() => stored("weth-activity-chart-range", "24h"))
+  const [chartRangeId, setChartRangeId] = useState(() => ({ pairs: chartRangeFor("pairs"), burns: chartRangeFor("burns") }))
   const [seriesMode, setSeriesMode] = useState<{ pairs: SeriesMode; burns: SeriesMode }>(() => ({ pairs: seriesModeFor("pairs"), burns: seriesModeFor("burns") }))
   const [chartOpen, setChartOpen] = useState(() => ({ pairs: stored("weth-chart-pairs-v2", "1") !== "0", burns: stored("weth-chart-burns-v2", "1") !== "0" }))
   const [zoneId, setZoneId] = useState(() => stored("weth-display-zone", LOCAL_ZONE))
@@ -322,7 +327,6 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
     const times = pairAndBurnTimes(snapshot, list)
     const pairStats = windowStats(times.pairs, now)
     const burnStats = windowStats(times.burns, now)
-    const range = chartRange(chartRangeId)
     let tx1h = 0
     let txPrevious = 0
     const seen = new Set<string>()
@@ -383,7 +387,6 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
       times,
       pairStats,
       burnStats,
-      range,
       tx1h,
       txPrevious,
       netWeth,
@@ -402,7 +405,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
     } catch {
       return null
     }
-  }, [snapshot, list, now, zone, chartRangeId, market.gas.data, market.eth.data, baselines])
+  }, [snapshot, list, now, zone, market.gas.data, market.eth.data, baselines])
 
   function onColumns(next: BoardColumnId[]) {
     setColumns(next)
@@ -412,7 +415,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
   useEffect(() => {
     setColumns(readColumns())
     setFeedWindow(feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
-    setChartRangeId(stored("weth-activity-chart-range", "24h"))
+    setChartRangeId({ pairs: chartRangeFor("pairs"), burns: chartRangeFor("burns") })
     setSeriesMode({ pairs: seriesModeFor("pairs"), burns: seriesModeFor("burns") })
     setChartOpen({ pairs: stored("weth-chart-pairs-v2", "1") !== "0", burns: stored("weth-chart-burns-v2", "1") !== "0" })
     setZoneId(stored("weth-display-zone", LOCAL_ZONE))
@@ -612,13 +615,16 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
             feedSpanMs={feedWindowById(feedWindow).ms}
             pulse={pulse}
             zone={zone}
-            chartRangeId={chartRangeId}
+            chartRangeId={id === "burns" ? chartRangeId.burns : chartRangeId.pairs}
             seriesMode={id === "burns" ? seriesMode.burns : seriesMode.pairs}
             chartOpen={chartOpen}
             onChartRange={(rangeId) => {
-              setChartRangeId(rangeId)
+              if (id !== "pairs" && id !== "burns") return
+              const column = id
+              const next = chartRange(rangeId).id
+              setChartRangeId((current) => ({ ...current, [column]: next }))
               try {
-                localStorage.setItem("weth-activity-chart-range", rangeId)
+                localStorage.setItem(column === "pairs" ? "weth-activity-chart-range-pairs" : "weth-activity-chart-range-burns", next)
               } catch {
                 // The range still changes in this session when storage is blocked.
               }
