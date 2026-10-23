@@ -95,7 +95,7 @@ class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
   render() {
     if (!this.state.failed) return this.props.children
-    return <p className="py-3 text-[11px] text-muted-foreground">Chart could not be drawn.</p>
+    return <p className="py-3 text-[11px] text-muted-foreground">Loading chart.</p>
   }
 }
 
@@ -212,23 +212,31 @@ export function MarketPulse({
 }) {
   const [open, setOpen] = useState(false)
   const resolved = resolveZone(zone)
-  const calendar = useMemo(() => (open ? { cells: heatmap(pairTimes, now, resolved), active: activeHours(pairTimes, now, resolved) } : null), [open, pairTimes, now, resolved])
+  const calendar = useMemo(() => {
+    if (!open) return null
+    try {
+      return { cells: heatmap(pairTimes, now, resolved), active: activeHours(pairTimes, now, resolved) }
+    } catch {
+      return null
+    }
+  }, [open, pairTimes, now, resolved])
   const pairCount = pairs?.current ?? 0
   const burnCount = burns?.current ?? 0
   const recorded = useMemo(() => {
     if (!open) return []
     const stored = readConditionHistory().filter((row) => row.hour !== recordedHour && row.hour >= recordedHour - 168)
-    stored.push({ hour: recordedHour, score: score.score, pairs: pairCount, burns: burnCount, tx, gas })
+    stored.push({ hour: recordedHour, score: score?.score ?? 0, pairs: pairCount, burns: burnCount, tx, gas })
     stored.sort((a, b) => a.hour - b.hour)
     return stored
   }, [open, recordedHour, score, pairCount, burnCount, tx, gas])
-  const maxCell = Math.max(1, ...(calendar?.cells ?? []).flatMap((row) => row.hours))
+  let maxCell = 1
+  for (const row of calendar?.cells ?? []) for (const value of row.hours) if (value > maxCell) maxCell = value
   return (
     <section className="border-b border-foreground/10 px-4 py-2" aria-label="Market conditions">
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
         <div>
           <p className="text-[10px] tracking-[0.14em] text-muted-foreground uppercase">Market conditions</p>
-          <p className="text-sm font-semibold tabular-nums">{score.score} / 100 <span className="text-xs font-medium text-muted-foreground">{CONDITION_LABEL[score.band]}</span></p>
+          <p className="text-sm font-semibold tabular-nums">{score?.score ?? "—"} / 100 <span className="text-xs font-medium text-muted-foreground">{score ? CONDITION_LABEL[score.band] ?? "" : ""}</span></p>
         </div>
         <PulseStat label="Pairs 1H" value={formatCompact(pairs?.current ?? 0)} delta={pairs ? formatDelta(pairs.current, pairs.previous) : "—"} change={pairs?.change ?? null} hint={typicalPairs == null ? null : `typical ${typicalPairs < 10 ? typicalPairs.toFixed(1) : Math.round(typicalPairs)}`} />
         <PulseStat label="LP burns 1H" value={formatCompact(burns?.current ?? 0)} delta={burns ? formatDelta(burns.current, burns.previous) : "—"} change={burns?.change ?? null} hint={typicalBurns == null ? null : `typical ${typicalBurns < 10 ? typicalBurns.toFixed(1) : Math.round(typicalBurns)}`} />
@@ -244,10 +252,10 @@ export function MarketPulse({
       {open ? (
         <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
           <div className="text-[11px] leading-5 text-muted-foreground">
-            <p className="text-foreground">{score.read}</p>
+            <p className="text-foreground">{score?.read ?? ""}</p>
             <p>This score describes observed launch activity. It is not a prediction and not a chance of a successful launch.</p>
             <ul className="mt-1 grid grid-cols-2 gap-x-3">
-              {score.parts.map((part) => (
+              {(score?.parts ?? []).map((part) => (
                 <li key={part.id} className="flex justify-between gap-2 tabular-nums"><span>{part.label}</span><span className="text-foreground">{part.score}</span></li>
               ))}
             </ul>
@@ -291,8 +299,12 @@ function ConditionChart({ points }: { points: readonly ConditionPoint[] }) {
   if (points.length < 2) return <p className="mt-1">The score chart fills in as this browser records each hour. Hours before that stay blank.</p>
   const width = 280
   const height = 64
-  const min = Math.min(...points.map((point) => point.score))
-  const max = Math.max(...points.map((point) => point.score))
+  let min = points[0]?.score ?? 0
+  let max = min
+  for (const point of points) {
+    if (point.score < min) min = point.score
+    if (point.score > max) max = point.score
+  }
   const span = Math.max(1, max - min)
   const path = points.map((point, index) => {
     const x = (index / (points.length - 1)) * (width - 8) + 4

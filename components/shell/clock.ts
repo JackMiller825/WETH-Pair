@@ -28,7 +28,6 @@ function readSnapshot(stepMs: number): number {
 function subscribe(listener: () => void) {
   listeners.add(listener)
   if (timer == null) {
-    publish(Date.now())
     timer = window.setInterval(() => {
       publish(Date.now())
       for (const item of listeners) item()

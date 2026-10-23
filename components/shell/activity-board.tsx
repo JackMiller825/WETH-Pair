@@ -31,7 +31,7 @@ class ColumnBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
   render() {
     if (!this.state.failed) return this.props.children
-    return <p className="px-3 py-3 text-sm text-muted-foreground">This column could not be shown.</p>
+    return <p className="px-3 py-3 text-sm text-muted-foreground">Loading this column.</p>
   }
 }
 
@@ -614,6 +614,90 @@ function LiveColumn({ items, readyAt, waiting, empty }: { items: ActivityItem[];
         </div>
       ) : null}
     </div>
+  )
+}
+
+/** Shown only if the full board throws. Same screen: counts, recent pairs, and recent burns. No error page. */
+export function SafeBoard({ snapshot, onClose }: { snapshot: SnapshotFile | null; onClose: () => void }) {
+  const now = Date.now()
+  let pairStats: WindowStat[] = []
+  let burnStats: WindowStat[] = []
+  const pairRows: { key: string; label: string; at: number; href: string }[] = []
+  const burnRows: { key: string; label: string; at: number; href: string; percent: string }[] = []
+  try {
+    const times = pairAndBurnTimes(snapshot, [])
+    pairStats = windowStats(times.pairs, now)
+    burnStats = windowStats(times.burns, now)
+    for (const row of snapshot?.rows ?? []) {
+      if (!row || typeof row.created_at !== "string" || typeof row.address !== "string") continue
+      const at = Date.parse(row.created_at)
+      if (!Number.isFinite(at)) continue
+      const name = row.symbol || row.tokenName || row.name || "Token"
+      const href = typeof row.tokenAddress === "string" && row.tokenAddress.startsWith("0x") ? `/tokens/${row.tokenAddress}` : "#"
+      pairRows.push({ key: row.address, label: `${name} / WETH`, at, href })
+    }
+    for (const event of snapshot?.lpBurns ?? []) {
+      const atText = event?.burnAt || event?.detectedAt
+      if (!event || typeof atText !== "string") continue
+      const at = Date.parse(atText)
+      if (!Number.isFinite(at)) continue
+      const name = event.symbol || event.tokenName || "Token"
+      const href = typeof event.tokenAddress === "string" && event.tokenAddress.startsWith("0x") ? `/tokens/${event.tokenAddress}` : "#"
+      const percent = event.percentKnown === false || typeof event.lpBurntPercent !== "number" ? "" : `${Math.round(event.lpBurntPercent)}%`
+      burnRows.push({ key: typeof event.id === "string" ? event.id : `${event.pair}:${at}`, label: `${name} / WETH`, at, href, percent })
+    }
+  } catch {
+    // Counts collected before the failure stay on screen.
+  }
+  pairRows.sort((a, b) => b.at - a.at)
+  burnRows.sort((a, b) => b.at - a.at)
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-20 flex flex-col bg-background" role="region" aria-label="Live activity, full screen">
+      <div className="flex items-center gap-3 border-b border-foreground/10 px-4 py-2">
+        <h2 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">Live activity</h2>
+        <button type="button" onClick={onClose} className="ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Minimize2 size={14} aria-hidden /> Exit full screen
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-4 border-b border-foreground/10 px-4 py-2">
+        <CountLine title="Pairs" stats={pairStats} />
+        <CountLine title="LP burns" stats={burnStats} />
+      </div>
+      <div className="grid min-h-0 flex-1 md:grid-cols-2">
+        <CountList title="Pairs" rows={pairRows.slice(0, 24)} now={now} />
+        <CountList title="LP burns" rows={burnRows.slice(0, 24)} now={now} />
+      </div>
+    </div>
+  )
+}
+
+function CountLine({ title, stats }: { title: string; stats: WindowStat[] }) {
+  return (
+    <div>
+      <p className="text-[10px] tracking-wide text-muted-foreground uppercase">{title}</p>
+      <p className="text-xs tabular-nums">
+        {stats.map((item) => (
+          <span key={item.id} className="mr-3"><span className="text-muted-foreground">{item.label}</span> {item.current}</span>
+        ))}
+      </p>
+    </div>
+  )
+}
+
+function CountList({ title, rows, now }: { title: string; rows: { key: string; label: string; at: number; href: string; percent?: string }[]; now: number }) {
+  return (
+    <section className="min-h-0 overflow-y-auto border-foreground/10 md:border-r" aria-label={title}>
+      <h3 className="sticky top-0 bg-background px-4 py-2 text-sm font-medium">{title}</h3>
+      <ul className="flex flex-col gap-2 px-4 pb-4">
+        {rows.map((item) => (
+          <li key={`${item.key}:${item.at}`} className="rounded-lg bg-card/60 px-3 py-2 text-sm ring-1 ring-foreground/10">
+            <a href={item.href} className="font-medium hover:underline">{item.label}</a>
+            <p className="text-xs text-muted-foreground">{item.percent ? `${item.percent} · ` : ""}{formatAge(Math.max(0, now - item.at))} ago</p>
+          </li>
+        ))}
+        {rows.length === 0 ? <li className="text-sm text-muted-foreground">Loading this column.</li> : null}
+      </ul>
+    </section>
   )
 }
 

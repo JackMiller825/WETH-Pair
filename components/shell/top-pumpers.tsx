@@ -84,8 +84,12 @@ function ticker(symbol: string): string {
 
 function bars(prices: readonly number[]): string {
   if (prices.length === 0) return ""
-  const min = Math.min(...prices)
-  const max = Math.max(...prices)
+  let min = prices[0]
+  let max = prices[0]
+  for (const price of prices) {
+    if (price < min) min = price
+    if (price > max) max = price
+  }
   if (max === min) return BARS[3].repeat(Math.min(prices.length, 16))
   return prices.map((price) => BARS[Math.min(BARS.length - 1, Math.round(((price - min) / (max - min)) * (BARS.length - 1)))]).join("")
 }
