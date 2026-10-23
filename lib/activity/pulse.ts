@@ -103,9 +103,11 @@ export function chartRange(id: string): (typeof CHART_RANGES)[number] {
 
 /** Real buckets only. Empty hours stay zero. Nothing is interpolated. */
 export function activitySeries(times: readonly number[], now: number, spanMs: number, bucketMs: number): ActivityBucket[] {
-  if (!(bucketMs > 0) || !(spanMs > 0)) return []
+  if (!(bucketMs > 0) || !(spanMs > 0) || !Number.isFinite(now)) return []
   const endBucket = Math.floor(now / bucketMs) * bucketMs
   const first = Math.floor((now - spanMs) / bucketMs) * bucketMs
+  const steps = Math.floor((endBucket - first) / bucketMs) + 1
+  if (!Number.isFinite(steps) || steps < 1 || steps > 400) return []
   const buckets: ActivityBucket[] = []
   for (let start = first; start <= endBucket; start += bucketMs) buckets.push({ start, end: start + bucketMs, count: 0, change: null })
   for (const at of times) {

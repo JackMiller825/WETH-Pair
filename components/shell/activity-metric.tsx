@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { Component, useMemo, useState, type ReactNode } from "react"
 import { activeHours, ACTIVITY_LABEL, CONDITION_LABEL, formatCompact, formatDelta, formatInZone, heatmap, hourSpanLabel, readConditionHistory, type ActivityBucket, type ActivityLevel, type ConditionPoint, type ScoreResult, type WindowStat } from "@/lib/activity/pulse"
 import { formatChange } from "@/lib/market/format"
 import { resolveZone } from "@/lib/types"
@@ -79,23 +79,41 @@ export function ActivityMetricHeader({
               </button>
             ))}
           </div>
-          <HourlyActivityChart pairBuckets={series === "burns" ? [] : pairBuckets} burnBuckets={series === "pairs" ? [] : burnBuckets} zone={zone} />
+          <ChartBoundary>
+            <HourlyActivityChart pairBuckets={series === "burns" ? [] : pairBuckets} burnBuckets={series === "pairs" ? [] : burnBuckets} zone={zone} />
+          </ChartBoundary>
         </div>
       ) : null}
     </div>
   )
 }
 
+class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return <p className="py-3 text-[11px] text-muted-foreground">Chart could not be drawn.</p>
+  }
+}
+
 export function HourlyActivityChart({ pairBuckets, burnBuckets, zone }: { pairBuckets: ActivityBucket[]; burnBuckets: ActivityBucket[]; zone: string }) {
   const [hover, setHover] = useState<number | null>(null)
   const count = Math.max(pairBuckets.length, burnBuckets.length)
-  if (count === 0) return <p className="py-3 text-[11px] text-muted-foreground">No buckets in this range.</p>
-  const peak = Math.max(1, ...pairBuckets.map((bucket) => bucket.count), ...burnBuckets.map((bucket) => bucket.count))
+  if (count === 0 || count > 400) return <p className="py-3 text-[11px] text-muted-foreground">No buckets in this range.</p>
+  let peak = 1
+  for (const bucket of pairBuckets) if (bucket.count > peak) peak = bucket.count
+  for (const bucket of burnBuckets) if (bucket.count > peak) peak = bucket.count
   const width = 320
   const height = 96
   const pad = 4
   const slot = (width - pad * 2) / count
-  const yAt = (value: number) => pad + (1 - value / peak) * (height - pad * 2 - 14)
+  const yAt = (value: number) => {
+    if (!Number.isFinite(value)) return height - 16
+    return pad + (1 - value / peak) * (height - pad * 2 - 14)
+  }
   const index = hover ?? count - 1
   const pair = pairBuckets[index]
   const burn = burnBuckets[index]
@@ -123,7 +141,7 @@ export function HourlyActivityChart({ pairBuckets, burnBuckets, zone }: { pairBu
           )
         })}
         {ticks.map((item) => (
-          <text key={item} x={pad + item * slot} y={height - 2} className="fill-current text-[8px] text-muted-foreground">
+          <text key={item} x={pad + item * slot} y={height - 2} fill="currentColor" fontSize="8">
             {pairBuckets[item] || burnBuckets[item] ? formatInZone((pairBuckets[item] ?? burnBuckets[item]).start, zone, { hour: "numeric" }) : ""}
           </text>
         ))}

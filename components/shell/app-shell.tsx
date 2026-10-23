@@ -11,11 +11,14 @@ import { useLpMonitor } from "@/components/lp/monitor-context"
 import { parseIdentity } from "@/lib/narrative/text"
 import { CONCEPTS } from "@/lib/narrative/lexicon"
 import { EthMarketWidget, EthereumGasWidget, notifyMarketBlock } from "@/components/shell/market-widgets"
-import { ActivityBoard, SafeActivity } from "@/components/shell/activity-board"
-import type { SnapshotFile } from "@/lib/narrative/types"
+import { ActivityBoard } from "@/components/shell/activity-board"
 import { LiveActivity } from "@/components/shell/live-activity"
 import { Popover } from "@/components/shell/popover"
 import { activityEngine } from "@/lib/activity/client"
+
+function isActivityRoute(path: string | null): boolean {
+  return path === "/all" || path === "/all/" || (path?.startsWith("/all/") ?? false)
+}
 
 const LINKS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -42,7 +45,7 @@ const TOUR = [
   ["News → Tokens", "Connect real-world events to token activity."],
 ] as const
 
-class BoardBoundary extends Component<{ children: ReactNode; snapshot: SnapshotFile | null; onClose: () => void }, { failed: boolean }> {
+class BoardBoundary extends Component<{ children: ReactNode; onClose: () => void }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true }
@@ -52,18 +55,27 @@ class BoardBoundary extends Component<{ children: ReactNode; snapshot: SnapshotF
   }
   render() {
     if (!this.state.failed) return this.props.children
-    return <SafeActivity snapshot={this.props.snapshot} onClose={this.props.onClose} />
+    return (
+      <div className="fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center" role="alert">
+        <p className="text-sm font-medium">Live activity hit an error. The pair and burn columns are still available from the side panel.</p>
+        <button type="button" onClick={this.props.onClose} className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">Back</button>
+      </div>
+    )
   }
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { snapshot, mode, lastCheck, block, alerts, dismiss } = useLpMonitor()
   const [open, setOpen] = useState(false)
   const [queryOpen, setQueryOpen] = useState(false)
-  const [feed, setFeed] = useState(false)
-  const [expanded, setExpanded] = useState(false)
-  const closeBoard = useCallback(() => setExpanded(false), [])
+  const [feed, setFeed] = useState(() => isActivityRoute(pathname))
+  const [expanded, setExpanded] = useState(() => isActivityRoute(pathname))
+  const closeBoard = useCallback(() => {
+    setExpanded(false)
+    if (isActivityRoute(pathname)) router.push("/")
+  }, [pathname, router])
   function setFeedOn(next: boolean) {
     setFeed(next)
     if (!next) setExpanded(false)
@@ -78,7 +90,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     const next = isThemeId(saved) ? saved : "dark"
     setTheme(next)
     applyTheme(next)
-    setFeed(localStorage.getItem("weth-activity-feed") !== "off")
+    const activityRoute = isActivityRoute(window.location.pathname)
+    setFeed(activityRoute || localStorage.getItem("weth-activity-feed") !== "off")
+    if (activityRoute) setExpanded(true)
     setTour(localStorage.getItem("weth-onboarded") !== "1")
     setNow(Date.now())
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
@@ -106,6 +120,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setOpen(false)
+    if (!isActivityRoute(pathname)) return
+    setFeed(true)
+    setExpanded(true)
   }, [pathname])
 
   useEffect(() => {
@@ -217,7 +234,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {feed ? <LiveActivity snapshot={snapshot} mode={mode} expanded={expanded} onExpanded={setExpanded} /> : null}
       </div>
       {feed && expanded ? (
-        <BoardBoundary snapshot={snapshot} onClose={closeBoard}>
+        <BoardBoundary onClose={closeBoard}>
           <ActivityBoard snapshot={snapshot} mode={mode} onClose={closeBoard} />
         </BoardBoundary>
       ) : null}
