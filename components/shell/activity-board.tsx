@@ -150,6 +150,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
   const zone = resolveZone(zoneId)
   const pulse = useMemo(() => {
     if (now == null) return null
+    try {
     const times = pairAndBurnTimes(snapshot, list)
     const pairStats = windowStats(times.pairs, now)
     const burnStats = windowStats(times.burns, now)
@@ -167,15 +168,19 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
       else if (age > 60 * 60 * 1000 && age <= 2 * 60 * 60 * 1000) txPrevious += 1
     }
     const rows = snapshot?.rows ?? []
+    const recent = rows.filter((row) => {
+      const created = Date.parse(row.created_at)
+      return created >= now - 6 * 60 * 60 * 1000 && created <= now
+    })
     const burned = new Set((snapshot?.lpBurns ?? []).map((event) => event.pair.toLowerCase()))
     const cohort = cohortBurnRate(rows.map((row) => ({ createdAt: Date.parse(row.created_at), burned: row.lpStatus === "burnt" || burned.has(row.address.toLowerCase()) })), now, 60 * 60 * 1000)
-    const samples = rows.map((row) => pumpHub().book.points(row.address).map((point) => ({ at: point.at, weth: point.reserveWeth })))
+    const samples = recent.map((row) => pumpHub().book.points(row.address).map((point) => ({ at: point.at, weth: point.reserveWeth })))
     const netWeth = reserveChange(samples, now - 60 * 60 * 1000, now)
-    const distribution = performanceDistribution(multiplesOf(rows, now))
+    const distribution = performanceDistribution(multiplesOf(recent, now))
     const gas = market.gas.data?.standard.gwei ?? null
     const pairBaseline = typicalHour(times.pairs, now, zone)
     const burnBaseline = typicalHour(times.burns, now, zone)
-    const marks = tradeMarks(rows)
+    const marks = tradeMarks(recent)
     const survival = {
       m15: stillTrading(marks, now, 15 * 60 * 1000, 6 * 60 * 60 * 1000),
       m30: stillTrading(marks, now, 30 * 60 * 1000, 6 * 60 * 60 * 1000),
@@ -219,6 +224,9 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
       survival,
       pairLevel: activityState(pairStats[0].current, pairStats[0].previous, pairBaseline),
       burnLevel: activityState(burnStats[0].current, burnStats[0].previous, burnBaseline),
+    }
+    } catch {
+      return null
     }
   }, [snapshot, list, now, zone, chartRangeId, market.gas.data, market.eth.data])
 

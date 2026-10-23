@@ -138,16 +138,32 @@ export function activityState(current: number, previous: number, baseline: numbe
   return "steady"
 }
 
-export function hourParts(at: number, zone: string): { key: string; hour: number; weekday: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: zone,
+const hourFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function hourFormatter(zone: string): Intl.DateTimeFormat {
+  const existing = hourFormatters.get(zone)
+  if (existing) return existing
+  const options: Intl.DateTimeFormatOptions = {
     weekday: "short",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(new Date(at))
+  }
+  let created: Intl.DateTimeFormat
+  try {
+    created = new Intl.DateTimeFormat("en-US", { ...options, timeZone: zone })
+  } catch {
+    created = hourFormatters.get("UTC") ?? new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" })
+    hourFormatters.set("UTC", created)
+  }
+  hourFormatters.set(zone, created)
+  return created
+}
+
+export function hourParts(at: number, zone: string): { key: string; hour: number; weekday: string } {
+  const parts = hourFormatter(zone).formatToParts(new Date(at))
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ""
   let hour = Number(get("hour"))
   if (!Number.isFinite(hour)) hour = 0
@@ -155,14 +171,17 @@ export function hourParts(at: number, zone: string): { key: string; hour: number
   return { key: `${get("year")}-${get("month")}-${get("day")}`, hour, weekday: get("weekday") }
 }
 
+const partCache = new Map<string, { key: string; hour: number; weekday: string }>()
+
 function cachedParts(zone: string): (at: number) => { key: string; hour: number; weekday: string } {
-  const cache = new Map<number, { key: string; hour: number; weekday: string }>()
   return (at: number) => {
     const minute = Math.floor(at / 60_000)
-    const hit = cache.get(minute)
+    const id = `${zone}:${minute}`
+    const hit = partCache.get(id)
     if (hit) return hit
     const value = hourParts(minute * 60_000, zone)
-    cache.set(minute, value)
+    if (partCache.size > 20_000) partCache.clear()
+    partCache.set(id, value)
     return value
   }
 }
@@ -186,9 +205,10 @@ export function typicalHour(times: readonly number[], now: number, zone: string,
   const hour = parts(now).hour
   const keys = dayKeysBefore(now, zone, days)
   if (keys.length === 0) return null
+  const oldest = now - (days + 1) * 24 * 60 * 60 * 1000
   const counts = new Map<string, number>()
   for (const at of times) {
-    if (at > now) continue
+    if (at > now || at < oldest) continue
     const part = parts(at)
     if (part.hour !== hour) continue
     counts.set(part.key, (counts.get(part.key) ?? 0) + 1)

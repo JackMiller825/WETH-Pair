@@ -166,6 +166,7 @@ function stepFor(at: string): number {
 export const ActivityCard = memo(function ActivityCard({ item, highlight }: { item: ActivityItem; highlight: boolean }) {
   const now = useClock(stepFor(item.occurredAt))
   const meta = TYPE_META[item.type]
+  if (!meta || typeof item.href !== "string" || item.href.length === 0) return null
   const Icon = meta.icon
   const token = item.type === "new-pair" || item.type === "lp-burn" || item.type === "lp-lock"
   const external = !item.href.startsWith("/")

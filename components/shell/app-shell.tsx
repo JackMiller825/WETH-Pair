@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Activity as ActivityIcon, Bell, CircleHelp, Flame, LayoutDashboard, Maximize2, Menu, Monitor, Moon, Newspaper, Search, Settings, Sun, TrendingUp, Waypoints, X, Zap } from "lucide-react"
@@ -40,6 +40,22 @@ const TOUR = [
   ["Narratives", "Discover clusters of related token launches."],
   ["News → Tokens", "Connect real-world events to token activity."],
 ] as const
+
+class BoardBoundary extends Component<{ children: ReactNode; onClose: () => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-20 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center" role="alert">
+        <p className="text-sm font-medium">Live activity could not open.</p>
+        <button type="button" onClick={this.props.onClose} className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">Back</button>
+      </div>
+    )
+  }
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -201,7 +217,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="min-w-0 flex-1">{children}</div>
         {feed ? <LiveActivity snapshot={snapshot} mode={mode} expanded={expanded} onExpanded={setExpanded} /> : null}
       </div>
-      {feed && expanded ? <ActivityBoard snapshot={snapshot} mode={mode} onClose={closeBoard} /> : null}
+      {feed && expanded ? (
+        <BoardBoundary onClose={closeBoard}>
+          <ActivityBoard snapshot={snapshot} mode={mode} onClose={closeBoard} />
+        </BoardBoundary>
+      ) : null}
       {queryOpen ? <CommandSearch onClose={() => setQueryOpen(false)} /> : null}
       {tour ? <Welcome onClose={(forever) => { if (forever) localStorage.setItem("weth-onboarded", "1"); setTour(false) }} /> : null}
       <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex w-[min(100%-2rem,22rem)] flex-col gap-2">
