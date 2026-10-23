@@ -284,35 +284,7 @@ function ago(now: number | null, at: string): string {
 }
 
 export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
-  return <BoardFrame snapshot={snapshot} mode={mode} onClose={onClose} />
-}
-
-class BoardFrame extends Component<{ snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }, { failed: boolean; attempt: number }> {
-  state = { failed: false, attempt: 0 }
-  private timer: number | null = null
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true }
-  }
-  componentDidCatch() {
-    if (this.timer != null) return
-    this.timer = window.setTimeout(() => {
-      this.timer = null
-      this.setState((state) => ({ failed: false, attempt: state.attempt + 1 }))
-    }, 800)
-  }
-  componentWillUnmount() {
-    if (this.timer != null) window.clearTimeout(this.timer)
-  }
-  render() {
-    if (this.state.failed) {
-      return (
-        <div className="fixed inset-x-0 bottom-0 z-20 bg-background px-4 py-3 text-sm text-muted-foreground" style={{ top: "7.5rem" }} role="region" aria-label="Live activity, full screen">
-          Opening the live board again.
-        </div>
-      )
-    }
-    return <ActivityBoardBody key={this.state.attempt} snapshot={this.props.snapshot} mode={this.props.mode} onClose={this.props.onClose} />
-  }
+  return <ActivityBoardBody snapshot={snapshot} mode={mode} onClose={onClose} />
 }
 
 function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
@@ -458,14 +430,18 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
   }, [])
 
   useEffect(() => {
-    if (!pulse || now == null) return
-    recordConditionHistory(now, {
-      score: pulse.score.score,
-      pairs: pulse.pairStats[0].current,
-      burns: pulse.burnStats[0].current,
-      tx: pulse.tx1h,
-      gas: pulse.gas,
-    })
+    if (!pulse || now == null || pulse.pairStats[0] == null || pulse.burnStats[0] == null) return
+    try {
+      recordConditionHistory(now, {
+        score: pulse.score?.score ?? 0,
+        pairs: pulse.pairStats[0].current,
+        burns: pulse.burnStats[0].current,
+        tx: pulse.tx1h,
+        gas: pulse.gas,
+      })
+    } catch {
+      // Recording the hour is optional. The columns stay on screen.
+    }
   }, [pulse, now])
 
   useEffect(() => {

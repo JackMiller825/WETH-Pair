@@ -582,6 +582,10 @@ export function recordConditionHistory(now: number, point: Omit<ConditionPoint, 
   next.push({ hour, score: point.score, pairs: point.pairs, burns: point.burns, tx: point.tx, gas: point.gas })
   next.sort((a, b) => a.hour - b.hour)
   const kept = next.slice(-169)
-  localStorage.setItem(CONDITION_HISTORY_KEY, JSON.stringify(kept))
+  try {
+    localStorage.setItem(CONDITION_HISTORY_KEY, JSON.stringify(kept))
+  } catch {
+    // A full or blocked store must not take down the open board.
+  }
   return kept
 }
