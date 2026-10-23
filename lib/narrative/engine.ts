@@ -42,11 +42,25 @@ import type { PairRecord } from "@/lib/types"
 const EMERGING_RECENT_MS = 20 * 60 * 1000
 const EMERGING_BASELINE_MS = 24 * 60 * 60 * 1000
 
+/** One pass over the pair list per published snapshot. A second window must not scan every pair again. */
+let tokenMemory: { key: string; tokens: TokenAnalysis[] } | null = null
+
+function tokensFor(snapshot: SnapshotFile): TokenAnalysis[] {
+  const rows = snapshot.rows ?? []
+  const first = rows[0]
+  const last = rows[rows.length - 1]
+  const key = `${snapshot.generatedAt}:${rows.length}:${first?.address ?? ""}:${first?.created_at ?? ""}:${last?.address ?? ""}:${last?.created_at ?? ""}`
+  if (tokenMemory?.key === key) return tokenMemory.tokens
+  const tokens = analyzeRows(rows)
+  tokenMemory = { key, tokens }
+  return tokens
+}
+
 export function buildIntelligence(snapshot: SnapshotFile, windowId: WindowId | string, now = Date.parse(snapshot.generatedAt)): Intelligence {
   const selected = windowById(windowId)
   const news = snapshot.news ?? []
   const discussionAvailable = news.some((item) => item.kind === "reddit")
-  const tokens = analyzeRows(snapshot.rows)
+  const tokens = tokensFor(snapshot)
   const current = tokens.filter((token) => isInsideRange(token.createdAt, windowId, now))
   const previous = tokens.filter((token) => isInsidePrevious(token.createdAt, windowId, now))
   const recent = tokens.filter((token) => inRange(token.createdAt, now - EMERGING_RECENT_MS, now))

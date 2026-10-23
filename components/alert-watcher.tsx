@@ -69,11 +69,12 @@ export function AlertWatcher() {
         // Alerts wait for the next pass when the snapshot or webhook is unavailable.
       }
     }
-    void check()
-    const timer = window.setInterval(() => void check(), 60_000)
+    const timer = window.setTimeout(() => void check(), 1500)
+    const interval = window.setInterval(() => void check(), 60_000)
     return () => {
       cancelled = true
-      window.clearInterval(timer)
+      window.clearTimeout(timer)
+      window.clearInterval(interval)
     }
   }, [])
   return null

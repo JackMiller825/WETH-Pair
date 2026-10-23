@@ -94,9 +94,8 @@ function rank(level: string): number {
 /** Same 24 hour lists as the News → Tokens and Trends pages. Runs only while the board is open. */
 function loadWindow(snapshot: SnapshotFile): BoardWindow {
   const trends = buildIntelligence(snapshot, "24h")
-  const wide = buildIntelligence(snapshot, "7d")
   const now = Date.parse(snapshot.generatedAt)
-  const events = analyzeEvents(snapshot.news ?? [], wide.tokens).filter((item) => eventInWindow(item, "24h", now))
+  const events = analyzeEvents(snapshot.news ?? [], trends.tokens).filter((item) => eventInWindow(item, "24h", now))
   return {
     at: snapshot.generatedAt,
     trends: trends.concepts.filter((trend) => trend.count >= 2).sort((a, b) => b.score - a.score),
@@ -285,7 +284,35 @@ function ago(now: number | null, at: string): string {
 }
 
 export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
-  return <ActivityBoardBody snapshot={snapshot} mode={mode} onClose={onClose} />
+  return <BoardFrame snapshot={snapshot} mode={mode} onClose={onClose} />
+}
+
+class BoardFrame extends Component<{ snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }, { failed: boolean; attempt: number }> {
+  state = { failed: false, attempt: 0 }
+  private timer: number | null = null
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+  componentDidCatch() {
+    if (this.timer != null) return
+    this.timer = window.setTimeout(() => {
+      this.timer = null
+      this.setState((state) => ({ failed: false, attempt: state.attempt + 1 }))
+    }, 800)
+  }
+  componentWillUnmount() {
+    if (this.timer != null) window.clearTimeout(this.timer)
+  }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="fixed inset-x-0 bottom-0 z-20 bg-background px-4 py-3 text-sm text-muted-foreground" style={{ top: "7.5rem" }} role="region" aria-label="Live activity, full screen">
+          Opening the live board again.
+        </div>
+      )
+    }
+    return <ActivityBoardBody key={this.state.attempt} snapshot={this.props.snapshot} mode={this.props.mode} onClose={this.props.onClose} />
+  }
 }
 
 function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
@@ -488,15 +515,19 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
     if (!needsWindow || !snapshot || builtAt.current === snapshot.generatedAt) return
     let cancel = false
     const timer = window.setTimeout(() => {
-      if (cancel) return
-      try {
-        builtAt.current = snapshot.generatedAt
-        setWindowData(loadWindow(snapshot))
-        setWindowError(null)
-      } catch (error) {
-        setWindowError(error instanceof Error ? error.message : "The 24 hour window could not be built")
+      const run = () => {
+        if (cancel) return
+        try {
+          builtAt.current = snapshot.generatedAt
+          setWindowData(loadWindow(snapshot))
+          setWindowError(null)
+        } catch (error) {
+          setWindowError(error instanceof Error ? error.message : "The 24 hour window could not be built")
+        }
       }
-    }, 50)
+      if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 1200 })
+      else run()
+    }, 400)
     return () => {
       cancel = true
       window.clearTimeout(timer)

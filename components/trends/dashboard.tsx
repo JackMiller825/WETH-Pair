@@ -1,11 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { buildIntelligence } from "@/lib/narrative/engine"
 import { burnTimeMs } from "@/lib/lp/burn-logic"
 import { eventsOf } from "@/lib/lp/monitor"
-import { DIRECTION_LABEL, type WindowId } from "@/lib/narrative/types"
+import { DIRECTION_LABEL, type Intelligence, type WindowId } from "@/lib/narrative/types"
 import { isInsidePrevious, isInsideRange } from "@/lib/time-range"
 import { formatUsd } from "@/lib/format"
 import { formatCreated } from "@/lib/types"
@@ -19,7 +19,32 @@ import { DataGate, EmptyState, PageFrame, Section, TrendCard, WindowPicker, grow
 export function Dashboard() {
   const { snapshot, error, loading } = useSnapshot()
   const [windowId, setWindowId] = useState<WindowId | string>("1h")
-  const intel = useMemo(() => (snapshot ? buildIntelligence(snapshot, windowId) : null), [snapshot, windowId])
+  const [intel, setIntel] = useState<Intelligence | null>(null)
+  const [intelFailed, setIntelFailed] = useState(false)
+  useEffect(() => {
+    if (!snapshot) {
+      setIntel(null)
+      setIntelFailed(false)
+      return
+    }
+    let cancel = false
+    setIntel(null)
+    setIntelFailed(false)
+    const run = () => {
+      if (cancel) return
+      try {
+        setIntel(buildIntelligence(snapshot, windowId))
+      } catch {
+        if (!cancel) setIntelFailed(true)
+      }
+    }
+    const idle = typeof requestIdleCallback === "function" ? requestIdleCallback(run, { timeout: 700 }) : window.setTimeout(run, 1)
+    return () => {
+      cancel = true
+      if (typeof requestIdleCallback === "function") cancelIdleCallback(idle as number)
+      else window.clearTimeout(idle as number)
+    }
+  }, [snapshot, windowId])
   const pulse = useMemo(() => (snapshot ? pulseFor(snapshot.rows, eventsOf(snapshot), windowId, snapshot.generatedAt) : null), [snapshot, windowId])
   const topName = intel?.concepts.find((trend) => trend.count >= 2)
   const topTicker = intel?.tickers[0]
@@ -30,7 +55,7 @@ export function Dashboard() {
     <PageFrame eyebrow="Name and ticker intelligence" title="What is being named right now?" lede="Discover which names, tickers, memes, people, and narratives are appearing across newly launched WETH pairs." updated={snapshot ? `Dataset updated ${formatCreated(snapshot.generatedAt, "local")}` : undefined}>
       <WindowPicker value={windowId} onChange={setWindowId} />
       <p className="text-sm text-muted-foreground"><Link href="/chart/" className="text-primary">Chart Intelligence</Link> keeps a 60-second evidence review and a daily drill beside this board. It does not sit on LP burn detection.</p>
-      <DataGate loading={loading} error={error} ready={Boolean(intel && pulse)}>
+      <DataGate loading={loading || (snapshot != null && intel == null && !intelFailed)} error={error ?? (intelFailed ? "The name and ticker window could not be built." : null)} ready={Boolean(intel && pulse)}>
         {intel && pulse && snapshot ? (
           <>
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

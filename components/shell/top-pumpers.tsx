@@ -144,7 +144,7 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
 
   useEffect(() => {
     if (!snapshot) return
-    pumpHub().startBackfill(snapshot.rows, Date.parse(snapshot.generatedAt))
+    pumpHub().startBackfill(snapshot.rows ?? [], Date.parse(snapshot.generatedAt))
     return () => pumpHub().stopBackfill()
   }, [snapshot])
 
@@ -157,7 +157,7 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
   const activity = useMemo(() => {
     if (filters.view === "pump" || !snapshot || storeRev < 0) return [] as ActivityRank[]
     const counts = swapsInWindow(activityStore().timedSwaps(), start, end)
-    const rows = snapshot.rows.map((row) => {
+    const rows = (snapshot.rows ?? []).map((row) => {
       const key = row.address.toLowerCase()
       return {
         pair: key,

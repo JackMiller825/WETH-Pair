@@ -212,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
       <HistoryBanner backfill={snapshot?.backfill} />
       <div className="flex min-w-0 flex-1">
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0 flex-1">{expanded ? null : children}</div>
         {feed ? <LiveActivity snapshot={snapshot} mode={mode} expanded={expanded} onExpanded={setExpanded} /> : null}
       </div>
       {feed && expanded ? (
