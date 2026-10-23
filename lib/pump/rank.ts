@@ -95,12 +95,13 @@ export function sparklineOf(prices: readonly number[], max = 16): number[] {
 }
 
 function confidenceFor(reference: PricePoint, observations: number, totalTx: number | null, gapMs: number): { confidence: Confidence; reason: string | null } {
-  if (!(reference.reserveWeth >= MIN_RELIABLE_WETH)) {
-    return { confidence: "low", reason: `Initial liquidity was only ${reference.reserveWeth.toFixed(4)} WETH.` }
+  const reserve = Number(reference.reserveWeth)
+  if (!(reserve >= MIN_RELIABLE_WETH)) {
+    return { confidence: "low", reason: Number.isFinite(reserve) ? `Initial liquidity was only ${reserve.toFixed(4)} WETH.` : "Initial liquidity was not recorded." }
   }
   if (totalTx != null && totalTx < 3) return { confidence: "low", reason: `Only ${totalTx} transactions are recorded.` }
   if (observations < 2) return { confidence: "low", reason: "Only one price observation is indexed." }
-  if (reference.reserveWeth >= 1 && observations >= 3 && gapMs <= MIN_RELIABLE_GAP && (totalTx == null || totalTx >= 10)) {
+  if (reserve >= 1 && observations >= 3 && gapMs <= MIN_RELIABLE_GAP && (totalTx == null || totalTx >= 10)) {
     return { confidence: "high", reason: null }
   }
   return { confidence: "medium", reason: null }
@@ -183,7 +184,7 @@ function valueOf(row: Scored, sort: SortKey): number {
 }
 
 function ordered(rows: Scored[], sort: SortKey): Scored[] {
-  return [...rows].sort((a, b) => valueOf(b, sort) - valueOf(a, sort) || (b.pooledWeth ?? 0) - (a.pooledWeth ?? 0) || (b.volumeUsd ?? 0) - (a.volumeUsd ?? 0) || a.pair.localeCompare(b.pair))
+  return [...rows].sort((a, b) => valueOf(b, sort) - valueOf(a, sort) || (b.pooledWeth ?? 0) - (a.pooledWeth ?? 0) || (b.volumeUsd ?? 0) - (a.volumeUsd ?? 0) || String(a.pair).localeCompare(String(b.pair)))
 }
 
 export function rankPumpers(tokens: readonly TokenCandidate[], options: RankOptions): RankResult {

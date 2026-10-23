@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ArrowUpRight, Flame, Minimize2, Newspaper, Plus, TrendingUp, X, Zap, type LucideIcon } from "lucide-react"
@@ -23,6 +23,17 @@ import { formatAge } from "@/lib/market/format"
 import type { MonitorMode } from "@/components/lp/monitor-context"
 
 const PAGE = 100
+
+class ColumnBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return <p className="px-3 py-3 text-sm text-muted-foreground">This column could not be shown.</p>
+  }
+}
 
 const COLUMN_ICON: Record<BoardColumnId, LucideIcon> = {
   news: Newspaper,
@@ -362,6 +373,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
         </div>
       </div>
       {pulse ? (
+        <ColumnBoundary>
         <MarketPulse
           pairs={pulse.pairStats[0]}
           burns={pulse.burnStats[0]}
@@ -390,11 +402,12 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
           cohort={pulse.cohort}
           distribution={pulse.distribution}
         />
+        </ColumnBoundary>
       ) : null}
       <div className="flex min-h-0 flex-1 divide-x divide-foreground/10 overflow-x-auto">
         {columns.map((id) => (
+          <ColumnBoundary key={id}>
           <BoardColumn
-            key={id}
             id={id}
             list={list}
             readyAt={openedAt}
@@ -426,6 +439,7 @@ export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotF
             canRemove={columns.length > 1}
             onRemove={() => onColumns(removeColumn(columns, id))}
           />
+          </ColumnBoundary>
         ))}
       </div>
     </div>
@@ -499,8 +513,8 @@ function BoardColumn({
           onRange={onChartRange}
           series={seriesMode}
           onSeries={onSeries}
-          pairBuckets={activitySeries(pulse.times.pairs, now, chartRange(chartRangeId).ms, chartRange(chartRangeId).bucketMs)}
-          burnBuckets={activitySeries(pulse.times.burns, now, chartRange(chartRangeId).ms, chartRange(chartRangeId).bucketMs)}
+          pairBuckets={chartOpen[id] ? activitySeries(pulse.times.pairs, now, chartRange(chartRangeId).ms, chartRange(chartRangeId).bucketMs) : []}
+          burnBuckets={chartOpen[id] ? activitySeries(pulse.times.burns, now, chartRange(chartRangeId).ms, chartRange(chartRangeId).bucketMs) : []}
           zone={zone}
         />
       ) : null}

@@ -78,7 +78,7 @@ function amount(value: string): number | null {
 }
 
 function ticker(symbol: string): string {
-  const text = symbol.trim()
+  const text = String(symbol ?? "").trim()
   return text.startsWith("$") ? text : `$${text}`
 }
 
@@ -190,7 +190,13 @@ export function TopPumpers({ snapshot }: { snapshot: SnapshotFile | null }) {
     sort: filters.sort,
     coverageOldest: version < 0 ? null : pumpHub().book.oldest(),
   }), [start, end, filters, version])
-  const ranked = useMemo(() => rankPumpers(tokens, options), [tokens, options])
+  const ranked = useMemo(() => {
+    try {
+      return rankPumpers(tokens, options)
+    } catch {
+      return { items: [], hiddenLowConfidence: [], analyzed: tokens.length, excludedYoung: 0, excludedInsufficient: 0, excludedFlat: 0, excludedFiltered: 0, coverage: { requestedMs: Math.max(0, options.end - options.start), availableMs: null, complete: false } }
+    }
+  }, [tokens, options])
   const signature = ranked.items.map((row) => `${row.pair}:${row.rank}`).join("|")
   const [track, setTrack] = useState<{ signature: string; prior: Map<string, number> | null; moves: Map<string, number | "new">; at: number }>({ signature: "", prior: null, moves: new Map(), at: 0 })
   if (track.signature !== signature) {
@@ -399,7 +405,7 @@ function PumpDetail({ row, now }: { row: PumpRow; now: number }) {
     { label: "Transactions", value: formatCount(row.totalTx) },
     { label: "Pooled WETH", value: formatWeth(row.pooledWeth) },
     { label: "Holders", value: formatCount(row.holders) },
-    { label: "LP burn", value: row.lpBurnPercent == null ? "—" : `${row.lpBurnPercent.toFixed(1)}%` },
+    { label: "LP burn", value: typeof row.lpBurnPercent === "number" && Number.isFinite(row.lpBurnPercent) ? `${row.lpBurnPercent.toFixed(1)}%` : "—" },
     { label: "Age", value: formatAge(Math.max(0, now - row.createdAt)) },
   ]
   return (
@@ -484,7 +490,7 @@ function PumpCard({ row, now, label, move }: { row: PumpRow; now: number; label:
         WETH {formatWeth(row.pooledWeth)} · TX {formatCount(row.totalTx)} · Holders {formatCount(row.holders)}
         {row.liquidityUsd != null ? ` · Liq ${formatUsd(row.liquidityUsd)}` : ""}
         {row.volumeUsd != null ? ` · Vol ${formatUsd(row.volumeUsd)}` : ""}
-        {row.lpBurnPercent != null && row.lpBurnPercent > 0 ? ` · LP ${row.lpBurnPercent.toFixed(1)}%` : ""}
+        {typeof row.lpBurnPercent === "number" && row.lpBurnPercent > 0 ? ` · LP ${row.lpBurnPercent.toFixed(1)}%` : ""}
       </p>
       <div className="mt-1.5 flex items-center gap-2">
         <span className={`rounded px-1 py-0.5 text-[10px] font-medium tracking-wide uppercase ${row.confidence === "high" ? "bg-primary/15 text-primary" : row.confidence === "low" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>{row.confidence}</span>

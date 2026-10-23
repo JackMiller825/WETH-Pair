@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { activitySeries, activityState, activeHours, cohortBurnRate, earliestTimes, formatCompact, heatmap, inRollingWindow, launchScore, performanceDistribution, periodChange, rankActivity, recordConditionHistory, rollingCount, stillTrading, swapsInWindow, typicalHour, windowStats } from "./pulse"
+import { activitySeries, activityState, activeHours, cohortBurnRate, earliestTimes, formatCompact, formatInZone, heatmap, inRollingWindow, launchScore, performanceDistribution, periodChange, rankActivity, recordConditionHistory, rollingCount, stillTrading, swapsInWindow, typicalHour, windowStats } from "./pulse"
 
 const HOUR = 60 * 60 * 1000
 
@@ -139,6 +139,13 @@ test("active hours rank observed history and a 7 day chart stays aggregated", ()
   const week = activitySeries(times, now, 7 * 24 * HOUR, 6 * HOUR)
   assert.ok(week.length >= 24 && week.length <= 30)
   assert.deepEqual(earliestTimes([{ key: "a", at: 20 }, { key: "a", at: 5 }, { key: "b", at: Number.NaN }]), [5])
+})
+
+test("a chart label survives an unknown timezone and an invalid instant", () => {
+  const at = Date.parse("2026-10-22T12:00:00Z")
+  assert.equal(formatInZone(at, "Not/AZone", { hour: "numeric" }).length > 0, true)
+  assert.equal(formatInZone(Number.NaN, "UTC", { hour: "numeric" }), "")
+  assert.equal(formatInZone(at, "UTC", { hour: "numeric", hourCycle: "h23" }).includes("12"), true)
 })
 
 test("condition history keeps one reading per hour in this browser", () => {

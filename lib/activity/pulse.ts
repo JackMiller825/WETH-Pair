@@ -162,6 +162,30 @@ function hourFormatter(zone: string): Intl.DateTimeFormat {
   return created
 }
 
+const labelFormatters = new Map<string, Intl.DateTimeFormat>()
+
+/** Clock label for a chart tick. An unknown zone or an invalid instant returns an empty string. */
+export function formatInZone(at: number, zone: string, options: Intl.DateTimeFormatOptions): string {
+  if (!Number.isFinite(at)) return ""
+  const key = `${zone}|${JSON.stringify(options)}`
+  let formatter = labelFormatters.get(key)
+  if (!formatter) {
+    try {
+      formatter = new Intl.DateTimeFormat("en-US", { ...options, timeZone: zone })
+    } catch {
+      const fallback = `UTC|${JSON.stringify(options)}`
+      formatter = labelFormatters.get(fallback) ?? new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" })
+      labelFormatters.set(fallback, formatter)
+    }
+    labelFormatters.set(key, formatter)
+  }
+  try {
+    return formatter.format(new Date(at))
+  } catch {
+    return ""
+  }
+}
+
 export function hourParts(at: number, zone: string): { key: string; hour: number; weekday: string } {
   const parts = hourFormatter(zone).formatToParts(new Date(at))
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ""
@@ -504,7 +528,7 @@ function activityValue(row: ActivityCandidate, sort: ActivitySort): number {
 
 /** Descending by the selected field. Ties break on pooled WETH, then volume, then pair address. */
 export function rankActivity(rows: readonly ActivityCandidate[], sort: ActivitySort, limit: number): ActivityRank[] {
-  const ordered = [...rows].sort((a, b) => activityValue(b, sort) - activityValue(a, sort) || (b.pooledWeth ?? 0) - (a.pooledWeth ?? 0) || (b.volumeUsd ?? 0) - (a.volumeUsd ?? 0) || a.pair.localeCompare(b.pair))
+  const ordered = [...rows].sort((a, b) => activityValue(b, sort) - activityValue(a, sort) || (b.pooledWeth ?? 0) - (a.pooledWeth ?? 0) || (b.volumeUsd ?? 0) - (a.volumeUsd ?? 0) || String(a.pair).localeCompare(String(b.pair)))
   return ordered.slice(0, Math.max(0, limit)).map((row, index) => ({
     ...row,
     rank: index + 1,

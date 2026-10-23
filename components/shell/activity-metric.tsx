@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { activeHours, ACTIVITY_LABEL, CONDITION_LABEL, formatCompact, formatDelta, heatmap, hourSpanLabel, readConditionHistory, type ActivityBucket, type ActivityLevel, type ConditionPoint, type ScoreResult, type WindowStat } from "@/lib/activity/pulse"
+import { activeHours, ACTIVITY_LABEL, CONDITION_LABEL, formatCompact, formatDelta, formatInZone, heatmap, hourSpanLabel, readConditionHistory, type ActivityBucket, type ActivityLevel, type ConditionPoint, type ScoreResult, type WindowStat } from "@/lib/activity/pulse"
 import { formatChange } from "@/lib/market/format"
 import { resolveZone } from "@/lib/types"
 
@@ -100,10 +100,7 @@ export function HourlyActivityChart({ pairBuckets, burnBuckets, zone }: { pairBu
   const pair = pairBuckets[index]
   const burn = burnBuckets[index]
   const start = pair?.start ?? burn?.start
-  const labelAt = (bucket: ActivityBucket | undefined) => {
-    if (!bucket) return ""
-    return new Intl.DateTimeFormat("en-US", { timeZone: zone, month: "short", day: "numeric", hour: "numeric" }).format(new Date(bucket.start))
-  }
+  const labelAt = (bucket: ActivityBucket | undefined) => bucket ? formatInZone(bucket.start, zone, { month: "short", day: "numeric", hour: "numeric" }) : ""
   const ticks = [0, Math.floor(count / 2), count - 1].filter((item, pos, list) => list.indexOf(item) === pos)
   return (
     <div>
@@ -127,7 +124,7 @@ export function HourlyActivityChart({ pairBuckets, burnBuckets, zone }: { pairBu
         })}
         {ticks.map((item) => (
           <text key={item} x={pad + item * slot} y={height - 2} className="fill-current text-[8px] text-muted-foreground">
-            {pairBuckets[item] || burnBuckets[item] ? new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric" }).format(new Date((pairBuckets[item] ?? burnBuckets[item]).start)) : ""}
+            {pairBuckets[item] || burnBuckets[item] ? formatInZone((pairBuckets[item] ?? burnBuckets[item]).start, zone, { hour: "numeric" }) : ""}
           </text>
         ))}
       </svg>

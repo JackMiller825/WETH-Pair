@@ -6,10 +6,15 @@ const listeners = new Set<() => void>()
 let timer: number | null = null
 let now = 0
 
+function readNow(): number {
+  if (now === 0) now = Date.now()
+  return now
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener)
   if (timer == null) {
-    now = Date.now()
+    readNow()
     timer = window.setInterval(() => {
       now = Date.now()
       for (const item of listeners) item()
@@ -31,7 +36,7 @@ function subscribe(listener: () => void) {
 export function useClock(stepMs = 1000): number | null {
   const bucket = useSyncExternalStore(
     subscribe,
-    () => Math.floor((now || Date.now()) / stepMs),
+    () => Math.floor(readNow() / stepMs),
     () => -1,
   )
   return bucket < 0 ? null : bucket * stepMs

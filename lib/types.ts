@@ -122,9 +122,19 @@ export const TIME_ZONES: { id: string; label: string }[] = [
   { id: "Australia/Sydney", label: "Sydney" },
 ]
 
+const validZones = new Set<string>(["UTC"])
+
+/** A stored zone this browser cannot format falls back to UTC, so a chart label cannot throw. */
 export function resolveZone(zone: string): string {
-  if (zone !== LOCAL_ZONE) return zone
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+  const candidate = zone === LOCAL_ZONE ? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC") : zone
+  if (validZones.has(candidate)) return candidate
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone: candidate })
+    validZones.add(candidate)
+    return candidate
+  } catch {
+    return "UTC"
+  }
 }
 
 /** Formats a UTC instant as `YYYY-MM-DD HH:MM:SS` in the given zone. */

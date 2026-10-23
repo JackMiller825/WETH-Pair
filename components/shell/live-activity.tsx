@@ -170,7 +170,8 @@ export const ActivityCard = memo(function ActivityCard({ item, highlight }: { it
   const Icon = meta.icon
   const token = item.type === "new-pair" || item.type === "lp-burn" || item.type === "lp-lock"
   const external = !item.href.startsWith("/")
-  const time = new Date(item.occurredAt)
+  const occurred = typeof item.occurredAt === "string" ? item.occurredAt : ""
+  const time = new Date(occurred)
   return (
     <li className={`rounded-lg bg-card/60 px-3 py-2.5 ring-1 ring-foreground/10 ${highlight ? "activity-arrive" : ""}`}>
       <div className="flex items-center justify-between gap-2 text-[11px]">
@@ -178,7 +179,7 @@ export const ActivityCard = memo(function ActivityCard({ item, highlight }: { it
           <Icon size={12} aria-hidden />
           {meta.label}
         </span>
-        <time dateTime={item.occurredAt} title={time.toLocaleString()} className="text-muted-foreground tabular-nums">{ago(now, item.occurredAt)}</time>
+        <time dateTime={occurred} title={time.toLocaleString()} className="text-muted-foreground tabular-nums">{ago(now, occurred)}</time>
       </div>
       {token ? <TokenBody item={item} now={now} /> : (
         <>
@@ -204,17 +205,20 @@ function TokenBody({ item, now }: { item: ActivityItem; now: number | null }) {
     () => store.metricsFor(item.pairAddress, item.tokenAddress),
     () => store.metricsFor(null, null),
   )
-  const short = item.tokenAddress ? `${item.tokenAddress.slice(0, 6)}…${item.tokenAddress.slice(-4)}` : "Unknown token"
-  const symbol = item.symbol || short
-  const pairAge = item.pairCreatedAt && now != null ? now - Date.parse(item.pairCreatedAt) : NaN
+  const tokenAddress = typeof item.tokenAddress === "string" ? item.tokenAddress : ""
+  const short = tokenAddress ? `${tokenAddress.slice(0, 6)}…${tokenAddress.slice(-4)}` : "Unknown token"
+  const symbol = typeof item.symbol === "string" && item.symbol ? item.symbol : short
+  const name = typeof item.name === "string" ? item.name : ""
+  const burnPercent = typeof item.lpBurnPercent === "number" && Number.isFinite(item.lpBurnPercent) ? item.lpBurnPercent : null
+  const pairAge = typeof item.pairCreatedAt === "string" && now != null ? now - Date.parse(item.pairCreatedAt) : NaN
   return (
     <>
       <p className="mt-1.5 truncate text-sm font-semibold" title={`${symbol} / WETH`}>{symbol} <span className="font-normal text-muted-foreground">/ WETH</span></p>
-      <p className="truncate text-xs text-muted-foreground">{item.symbol ? `$${item.symbol.replace(/^\$/, "")}` : "Identity loading…"}{item.name && item.name !== item.symbol ? ` · ${item.name}` : ""}</p>
+      <p className="truncate text-xs text-muted-foreground">{typeof item.symbol === "string" && item.symbol ? `$${item.symbol.replace(/^\$/, "")}` : "Identity loading…"}{name && name !== symbol ? ` · ${name}` : ""}</p>
       {item.type === "lp-burn" ? (
         <p className="mt-1.5 flex items-baseline justify-between text-xs">
           <span className="text-muted-foreground">LP burned</span>
-          <span className="font-semibold tabular-nums">{item.lpBurnPercent == null ? "N/A" : `${Number(item.lpBurnPercent.toFixed(2))}%`}</span>
+          <span className="font-semibold tabular-nums">{burnPercent == null ? "N/A" : `${Number(burnPercent.toFixed(2))}%`}</span>
         </p>
       ) : null}
       <dl className="mt-2 grid grid-cols-3 gap-1 rounded-md bg-muted/50 px-2 py-1.5">
@@ -234,7 +238,7 @@ function Metric({ label, tip, slot, format, align }: { label: string; tip: strin
     <div className="min-w-0">
       <dt className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"><Tip label={label} text={tip} align={align} /></dt>
       <dd className="h-5 text-sm font-semibold tabular-nums">
-        {metric ? (
+        {metric && typeof metric.value === "number" && Number.isFinite(metric.value) ? (
           <span key={metric.value} className="value-bump inline-block" title={source ?? undefined}>{format(metric.value)}</span>
         ) : slot.status === "loading" ? (
           <span className="inline-flex animate-pulse gap-0.5 pt-2" aria-label="Loading"><span className="size-1 rounded-full bg-muted-foreground/60" /><span className="size-1 rounded-full bg-muted-foreground/60" /><span className="size-1 rounded-full bg-muted-foreground/60" /></span>
