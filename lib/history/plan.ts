@@ -199,10 +199,11 @@ export function mergeRecords<T extends { address: string }>(current: T[], extra:
   return [...map.values()]
 }
 
-/** Rate-limit waits and retries. Oversized log replies shrink the chunk. Anything else stops the scan. */
+/** Rate-limit waits and retries. A timeout or an oversized reply shrinks the range and continues. */
 export function classifyRpcFailure(message: string): "rate-limit" | "shrink" | "fatal" {
   if (/429|rate limit|too many requests/i.test(message)) return "rate-limit"
-  if (/too many|10000|exceed|response size|log limit|more than/i.test(message)) return "shrink"
+  if (/timeout|timed out|free plan|upgrade to paid|abort|gateway|temporar|unavailable|deadline exceeded|ECONNRESET|socket/i.test(message)) return "shrink"
+  if (/too many|10000|exceed|response size|log limit|more than|query returned more/i.test(message)) return "shrink"
   return "fatal"
 }
 

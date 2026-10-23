@@ -1,9 +1,13 @@
-import { HISTORY_CHUNK, HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, classifyRpcFailure, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
+import { HISTORY_BUDGET_MS, FACTORIES, PAIR_CREATED_TOPIC, advanceJob, classifyRpcFailure, currentSlice, decodeCallResult, dexForFactory, focusOlderGap, parsePairCreated, wethSide, type HistoryJob } from "@/lib/history/plan"
 import { TRANSFER_TOPIC, burnPercent, classifyLpTransfer, isBurnAddress, parseTransferLog } from "@/lib/lp/burn-logic"
 import type { ChainBurn } from "@/lib/lp/chain-scan"
 import { EMPTY_DETAIL, type PairRecord } from "@/lib/types"
 
-const RPCS = ["https://rpc.mevblocker.io", "https://eth.drpc.org"]
+const RPCS = ["https://ethereum-rpc.publicnode.com", "https://rpc.mevblocker.io", "https://ethereum.publicnode.com"]
+const PAIR_CHUNK = 500
+const BURN_CHUNK = 2_000
+const MIN_CHUNK = 20
+const ADDRESS_BATCH = 100
 const ZERO_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000"
 const DEAD_TOPIC = "0x000000000000000000000000000000000000000000000000000000000000dead"
 
@@ -27,36 +31,54 @@ async function callRpc(url: string, method: string, params: unknown[]): Promise<
 
 async function rpc(method: string, params: unknown[]): Promise<unknown> {
   let last = "RPC failed"
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (const url of RPCS) {
     try {
-      return await callRpc(RPCS[0], method, params)
+      return await callRpc(url, method, params)
     } catch (error) {
       last = error instanceof Error ? error.message : "RPC error"
-      if (/429|rate limit|too many requests/i.test(last)) break
-      await sleep(300)
+      if (classifyRpcFailure(last) === "rate-limit") await sleep(1_000)
     }
   }
-  try {
-    return await callRpc(RPCS[1], method, params)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "RPC error"
-    if (/unknown state/i.test(message)) throw new Error(last)
-    throw new Error(message)
-  }
+  throw new Error(last)
 }
 
 function hex(value: number): string {
   return `0x${value.toString(16)}`
 }
 
-async function blockTime(block: number, cache: Map<number, string>): Promise<string> {
+async function blockStamp(block: number, cache: Map<number, string>): Promise<number | null> {
   const saved = cache.get(block)
-  if (saved) return saved
-  const result = (await rpc("eth_getBlockByNumber", [hex(block), false])) as { timestamp?: string } | null
-  const seconds = Number.parseInt(result?.timestamp ?? "", 16)
-  const iso = Number.isFinite(seconds) ? new Date(seconds * 1000).toISOString() : new Date(0).toISOString()
-  cache.set(block, iso)
-  return iso
+  if (saved) return Date.parse(saved)
+  try {
+    const result = (await rpc("eth_getBlockByNumber", [hex(block), false])) as { timestamp?: string } | null
+    const seconds = Number.parseInt(result?.timestamp ?? "", 16)
+    if (!Number.isFinite(seconds)) return null
+    const ms = seconds * 1000
+    cache.set(block, new Date(ms).toISOString())
+    return ms
+  } catch {
+    return null
+  }
+}
+
+/** Two block reads cover the slice. Events between them are placed by block number, not one request each. */
+async function sliceClock(from: number, to: number, cache: Map<number, string>): Promise<(block: number) => string> {
+  const start = await blockStamp(from, cache)
+  const end = to === from ? start : await blockStamp(to, cache)
+  return (block: number) => {
+    const saved = cache.get(block)
+    if (saved) return saved
+    if (start == null) return new Date(0).toISOString()
+    if (end == null || to === from) return new Date(start).toISOString()
+    const ratio = (block - from) / Math.max(1, to - from)
+    const iso = new Date(start + ratio * (end - start)).toISOString()
+    cache.set(block, iso)
+    return iso
+  }
+}
+
+function paused(job: HistoryJob, message: string, now: Date): HistoryJob {
+  return { ...job, status: "running", error: message, stage: "Paused on an RPC error. The next publish continues from this block.", updatedAt: now.toISOString() }
 }
 
 export async function readHead(): Promise<number> {
@@ -71,7 +93,7 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
   const pairs: PairRecord[] = []
   const times = new Map<number, string>()
   let current = focusOlderGap(job)
-  let chunk = HISTORY_CHUNK
+  let chunk = PAIR_CHUNK
   while (Date.now() < deadline) {
     const slice = currentSlice(current, chunk)
     if (!slice) {
@@ -79,52 +101,40 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
       if (current.phase === "done") break
       continue
     }
+    let logs: { address?: string; topics?: string[]; data?: string; blockNumber?: string }[] = []
+    try {
+      logs = (await rpc("eth_getLogs", [{
+        fromBlock: hex(slice.from),
+        toBlock: hex(slice.to),
+        address: FACTORIES.map((item) => item.address),
+        topics: [PAIR_CREATED_TOPIC],
+      }])) as typeof logs
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Log scan failed"
+      if (classifyRpcFailure(message) === "rate-limit") {
+        await sleep(2_000)
+        continue
+      }
+      if (chunk > MIN_CHUNK) {
+        chunk = Math.max(MIN_CHUNK, Math.floor(chunk / 2))
+        continue
+      }
+      return { job: paused(current, message, now), pairs }
+    }
+    const clock = await sliceClock(slice.from, slice.to, times)
     const found: PairRecord[] = []
-    let shrink = false
-    let retry = false
-    for (const factory of FACTORIES) {
-      let logs: { address?: string; topics?: string[]; data?: string; blockNumber?: string }[] = []
-      try {
-        logs = (await rpc("eth_getLogs", [{
-          fromBlock: hex(slice.from),
-          toBlock: hex(slice.to),
-          address: factory.address,
-          topics: [PAIR_CREATED_TOPIC],
-        }])) as typeof logs
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Log scan failed"
-        const kind = classifyRpcFailure(message)
-        if (kind === "rate-limit") {
-          retry = true
-          break
-        }
-        if (chunk > 8 && kind === "shrink") {
-          chunk = Math.max(8, Math.floor(chunk / 2))
-          shrink = true
-          break
-        }
-        return { job: { ...current, status: "failed", error: message, stage: "Pair scan stopped. The cursor stays here.", updatedAt: now.toISOString() }, pairs }
-      }
-      for (const log of logs) {
-        const created = parsePairCreated(log)
-        if (!created) continue
-        const side = wethSide(created.token0, created.token1)
-        const dex = dexForFactory(created.factory)
-        if (!side || !dex) continue
-        const createdAt = await blockTime(created.block, times)
-        found.push(chainPair(created.pair, side.token, dex, createdAt, created.block))
-      }
+    for (const log of logs) {
+      const created = parsePairCreated(log)
+      if (!created) continue
+      const side = wethSide(created.token0, created.token1)
+      const dex = dexForFactory(created.factory)
+      if (!side || !dex) continue
+      found.push(chainPair(created.pair, side.token, dex, clock(created.block), created.block))
     }
-    if (retry) {
-      await sleep(2000)
-      continue
-    }
-    if (shrink) continue
     pairs.push(...found)
-    await sleep(200)
-    if (chunk < HISTORY_CHUNK) chunk = Math.min(HISTORY_CHUNK, chunk + 8)
+    if (chunk < PAIR_CHUNK) chunk = Math.min(PAIR_CHUNK, chunk * 2)
     current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning Ethereum for WETH pairs older than the live listing")
-    current = { ...current, pairsFound: current.pairsFound + found.length }
+    current = { ...current, pairsFound: current.pairsFound + found.length, error: null }
     if (current.phase === "done") break
   }
   if (current.phase !== "done" && Date.now() >= deadline) {
@@ -133,12 +143,45 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
   return { job: current, pairs }
 }
 
+async function transferLogs(addresses: string[], from: number, to: number, topic: string): Promise<Parameters<typeof parseTransferLog>[0][]> {
+  const logs: Parameters<typeof parseTransferLog>[0][] = []
+  for (let index = 0; index < addresses.length; index += ADDRESS_BATCH) {
+    const batch = addresses.slice(index, index + ADDRESS_BATCH)
+    const page = (await rpc("eth_getLogs", [{
+      fromBlock: hex(from),
+      toBlock: hex(to),
+      address: batch,
+      topics: [TRANSFER_TOPIC, null, topic],
+    }])) as Parameters<typeof parseTransferLog>[0][]
+    logs.push(...page)
+  }
+  return logs
+}
+
+async function burnPercents(pairs: string[]): Promise<Map<string, number | null>> {
+  const pending = [...new Set(pairs)]
+  const percents = new Map<string, number | null>()
+  async function worker() {
+    while (pending.length > 0) {
+      const pair = pending.shift()
+      if (!pair || percents.has(pair)) continue
+      percents.set(pair, await currentBurnPercent(pair))
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(6, pending.length) }, () => worker()))
+  return percents
+}
+
 export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<string>, now = new Date()): Promise<{ job: HistoryJob; burns: ChainBurn[] }> {
   const deadline = Date.now() + HISTORY_BUDGET_MS
   const burns: ChainBurn[] = []
   const times = new Map<number, string>()
+  const addresses = [...pairAddresses]
   let current = focusOlderGap(job)
-  let chunk = HISTORY_CHUNK
+  if (addresses.length === 0) {
+    return { job: { ...current, stage: "Waiting for WETH pairs before the LP burn scan.", updatedAt: now.toISOString() }, burns }
+  }
+  let chunk = BURN_CHUNK
   while (Date.now() < deadline) {
     const slice = currentSlice(current, chunk)
     if (!slice) {
@@ -146,64 +189,56 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
       if (current.phase === "done") break
       continue
     }
-    let found = 0
-    let shrink = false
-    let retry = false
-    const sliceBurns: ChainBurn[] = []
-    for (const topic of [DEAD_TOPIC, ZERO_TOPIC]) {
-      let logs: Parameters<typeof parseTransferLog>[0][] = []
-      try {
-        logs = (await rpc("eth_getLogs", [{
-          fromBlock: hex(slice.from),
-          toBlock: hex(slice.to),
-          topics: [TRANSFER_TOPIC, null, topic],
-        }])) as typeof logs
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Log scan failed"
-        const kind = classifyRpcFailure(message)
-        if (kind === "rate-limit") {
-          retry = true
-          break
+    const found: ChainBurn[] = []
+    try {
+      const clock = addresses.length === 0 ? null : await sliceClock(slice.from, slice.to, times)
+      for (const topic of [DEAD_TOPIC, ZERO_TOPIC]) {
+        if (addresses.length === 0) break
+        const logs = await transferLogs(addresses, slice.from, slice.to, topic)
+        for (const log of logs) {
+          const transfer = parseTransferLog(log)
+          if (!transfer || !pairAddresses.has(transfer.pair) || !isBurnAddress(transfer.to) || transfer.amount <= BigInt(0)) continue
+          if (classifyLpTransfer(transfer) !== "irreversible-burn") continue
+          found.push({
+            pair: transfer.pair,
+            tx: transfer.tx,
+            logIndex: transfer.logIndex,
+            block: transfer.block,
+            burnedAt: clock ? clock(transfer.block) : new Date(0).toISOString(),
+            from: transfer.from,
+            to: transfer.to,
+            percent: null,
+            supply: null,
+            burnedTokens: null,
+            detectionSource: "backfill",
+          })
         }
-        if (chunk > 8 && kind === "shrink") {
-          chunk = Math.max(8, Math.floor(chunk / 2))
-          shrink = true
-          break
-        }
-        return { job: { ...current, status: "failed", error: message, stage: "LP scan stopped. The cursor stays here.", updatedAt: now.toISOString() }, burns }
       }
-      for (const log of logs) {
-        const transfer = parseTransferLog(log)
-        if (!transfer || !pairAddresses.has(transfer.pair) || !isBurnAddress(transfer.to) || transfer.amount <= BigInt(0)) continue
-        if (classifyLpTransfer(transfer) !== "irreversible-burn") continue
-        const percent = await currentBurnPercent(transfer.pair)
-        if (percent == null || percent <= 0) continue
-        found += 1
-        sliceBurns.push({
-          pair: transfer.pair,
-          tx: transfer.tx,
-          logIndex: transfer.logIndex,
-          block: transfer.block,
-          burnedAt: await blockTime(transfer.block, times),
-          from: transfer.from,
-          to: transfer.to,
-          percent,
-          supply: null,
-          burnedTokens: null,
-          detectionSource: "backfill",
-        })
+      const percents = await burnPercents(found.map((item) => item.pair))
+      let kept = 0
+      for (const burn of found) {
+        const percent = percents.get(burn.pair) ?? null
+        if (percent != null && percent <= 0) continue
+        burn.percent = percent
+        burns.push(burn)
+        kept += 1
       }
+      found.length = kept
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Log scan failed"
+      if (classifyRpcFailure(message) === "rate-limit") {
+        await sleep(2_000)
+        continue
+      }
+      if (chunk > MIN_CHUNK) {
+        chunk = Math.max(MIN_CHUNK, Math.floor(chunk / 2))
+        continue
+      }
+      return { job: paused(current, message, now), burns }
     }
-    if (retry) {
-      await sleep(2000)
-      continue
-    }
-    if (shrink) continue
-    burns.push(...sliceBurns)
-    await sleep(200)
-    if (chunk < HISTORY_CHUNK) chunk = Math.min(HISTORY_CHUNK, chunk + 8)
+    if (chunk < BURN_CHUNK) chunk = Math.min(BURN_CHUNK, chunk * 2)
     current = advanceJob(current, slice.to + 1, now.toISOString(), "Scanning historical LP transfers to burn addresses")
-    current = { ...current, burnsFound: current.burnsFound + found, stage: current.phase === "done" ? "Historical LP scan complete" : "Scanning historical LP transfers to burn addresses" }
+    current = { ...current, burnsFound: current.burnsFound + found.length, error: null, stage: current.phase === "done" ? "Historical LP scan complete" : "Scanning historical LP transfers to burn addresses" }
     if (current.phase === "done") break
   }
   if (current.phase !== "done" && Date.now() >= deadline) {

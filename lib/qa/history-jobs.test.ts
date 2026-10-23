@@ -49,6 +49,8 @@ test("eta stays hidden until the scan has moved, and a rate limit does not count
   assert.equal(classifyRpcFailure("HTTP 429"), "rate-limit")
   assert.equal(classifyRpcFailure("Too many requests"), "rate-limit")
   assert.equal(classifyRpcFailure("ranges over 10000 blocks are not supported"), "shrink")
+  assert.equal(classifyRpcFailure("Request timeout on the free plan, please upgrade to paid plan"), "shrink")
+  assert.equal(classifyRpcFailure("The operation was aborted due to timeout"), "shrink")
   assert.equal(classifyRpcFailure("connection refused"), "fatal")
 })
 
