@@ -1,7 +1,7 @@
 "use client"
 
 import { Component, useMemo, useState, type ReactNode } from "react"
-import { ACTIVITY_LABEL, CONDITION_LABEL, formatCompact, formatDelta, formatInZone, heatmap, hourSpanLabel, rankHourTotals, readConditionHistory, type ActivityBucket, type ActivityLevel, type ConditionPoint, type ScoreResult, type WindowStat } from "@/lib/activity/pulse"
+import { ACTIVITY_LABEL, CONDITION_LABEL, formatCompact, formatDelta, formatInZone, heatmap, hourSpanLabel, hourTotals, rankHourTotals, readConditionHistory, type ActivityBucket, type ActivityLevel, type ConditionPoint, type ScoreResult, type WindowStat } from "@/lib/activity/pulse"
 import { formatChange } from "@/lib/market/format"
 import { resolveZone } from "@/lib/types"
 
@@ -226,9 +226,8 @@ export function MarketPulse({
   const calendar = useMemo(() => {
     if (!open) return null
     try {
-      const cells = heatmap(pairTimes, now, resolved)
-      const hours = Array.from({ length: 24 }, (_, hour) => cells.reduce((sum, row) => sum + (row.hours[hour] ?? 0), 0))
-      return { cells, hours, active: rankHourTotals(hours) }
+      const hours = hourTotals(pairTimes, now, resolved)
+      return { cells: heatmap(pairTimes, now, resolved), hours, active: rankHourTotals(hours) }
     } catch {
       return null
     }
