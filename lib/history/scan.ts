@@ -7,7 +7,7 @@ const RPCS = ["https://ethereum-rpc.publicnode.com", "https://rpc.mevblocker.io"
 const PAIR_CHUNK = 500
 const BURN_CHUNK = 2_000
 const MIN_CHUNK = 20
-const ADDRESS_BATCH = 100
+const ADDRESS_BATCH = 10
 const ZERO_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000"
 const DEAD_TOPIC = "0x000000000000000000000000000000000000000000000000000000000000dead"
 
@@ -143,17 +143,18 @@ export async function scanHistoricalPairs(job: HistoryJob, now = new Date()): Pr
   return { job: current, pairs }
 }
 
-async function transferLogs(addresses: string[], from: number, to: number, topic: string): Promise<Parameters<typeof parseTransferLog>[0][]> {
+async function transferLogs(addresses: string[], from: number, to: number, batchSize: number): Promise<Parameters<typeof parseTransferLog>[0][]> {
   const logs: Parameters<typeof parseTransferLog>[0][] = []
-  for (let index = 0; index < addresses.length; index += ADDRESS_BATCH) {
-    const batch = addresses.slice(index, index + ADDRESS_BATCH)
-    const page = (await rpc("eth_getLogs", [{
+  const batches: string[][] = []
+  for (let index = 0; index < addresses.length; index += batchSize) batches.push(addresses.slice(index, index + batchSize))
+  for (let index = 0; index < batches.length; index += 4) {
+    const pages = await Promise.all(batches.slice(index, index + 4).map((batch) => rpc("eth_getLogs", [{
       fromBlock: hex(from),
       toBlock: hex(to),
       address: batch,
-      topics: [TRANSFER_TOPIC, null, topic],
-    }])) as Parameters<typeof parseTransferLog>[0][]
-    logs.push(...page)
+      topics: [TRANSFER_TOPIC, null, [DEAD_TOPIC, ZERO_TOPIC]],
+    }])))
+    for (const page of pages) logs.push(...(page as Parameters<typeof parseTransferLog>[0][]))
   }
   return logs
 }
@@ -182,6 +183,7 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
     return { job: { ...current, stage: "Waiting for WETH pairs before the LP burn scan.", updatedAt: now.toISOString() }, burns }
   }
   let chunk = BURN_CHUNK
+  let batchSize = ADDRESS_BATCH
   while (Date.now() < deadline) {
     const slice = currentSlice(current, chunk)
     if (!slice) {
@@ -191,11 +193,9 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
     }
     const found: ChainBurn[] = []
     try {
-      const clock = addresses.length === 0 ? null : await sliceClock(slice.from, slice.to, times)
-      for (const topic of [DEAD_TOPIC, ZERO_TOPIC]) {
-        if (addresses.length === 0) break
-        const logs = await transferLogs(addresses, slice.from, slice.to, topic)
-        for (const log of logs) {
+      const clock = await sliceClock(slice.from, slice.to, times)
+      const logs = await transferLogs(addresses, slice.from, slice.to, batchSize)
+      for (const log of logs) {
           const transfer = parseTransferLog(log)
           if (!transfer || !pairAddresses.has(transfer.pair) || !isBurnAddress(transfer.to) || transfer.amount <= BigInt(0)) continue
           if (classifyLpTransfer(transfer) !== "irreversible-burn") continue
@@ -212,7 +212,6 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
             burnedTokens: null,
             detectionSource: "backfill",
           })
-        }
       }
       const percents = await burnPercents(found.map((item) => item.pair))
       let kept = 0
@@ -226,6 +225,10 @@ export async function scanHistoricalBurns(job: HistoryJob, pairAddresses: Set<st
       found.length = kept
     } catch (error) {
       const message = error instanceof Error ? error.message : "Log scan failed"
+      if (/address/i.test(message) && batchSize > 1) {
+        batchSize = 1
+        continue
+      }
       if (classifyRpcFailure(message) === "rate-limit") {
         await sleep(2_000)
         continue
