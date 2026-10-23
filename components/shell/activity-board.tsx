@@ -284,36 +284,8 @@ function ago(now: number | null, at: string): string {
   return ms < 1000 ? "now" : `${formatAge(Math.max(0, ms))} ago`
 }
 
-/** Last resort if the board itself throws. It retries the same board instead of a second screen. */
-class BoardGuard extends Component<{ children: ReactNode }, { failed: boolean; attempt: number }> {
-  state = { failed: false, attempt: 0 }
-  private timer: number | null = null
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true }
-  }
-  componentDidCatch(error: Error) {
-    console.error(error)
-    if (this.timer != null) return
-    this.timer = window.setTimeout(() => {
-      this.timer = null
-      this.setState((state) => ({ failed: false, attempt: state.attempt + 1 }))
-    }, 50)
-  }
-  componentWillUnmount() {
-    if (this.timer != null) window.clearTimeout(this.timer)
-  }
-  render() {
-    if (this.state.failed) return <div className="fixed inset-x-0 bottom-0 z-20 bg-background" style={{ top: "7.5rem" }} />
-    return <div key={this.state.attempt}>{this.props.children}</div>
-  }
-}
-
 export function ActivityBoard({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
-  return (
-    <BoardGuard>
-      <ActivityBoardBody snapshot={snapshot} mode={mode} onClose={onClose} />
-    </BoardGuard>
-  )
+  return <ActivityBoardBody snapshot={snapshot} mode={mode} onClose={onClose} />
 }
 
 function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile | null; mode: MonitorMode; onClose: () => void }) {
@@ -327,9 +299,8 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
   const [feedWindow, setFeedWindow] = useState<FeedWindowId>(() => feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
   const [chartRangeId, setChartRangeId] = useState(() => stored("weth-activity-chart-range", "24h"))
   const [seriesMode, setSeriesMode] = useState<SeriesMode>(() => (stored("weth-activity-series", "pairs") as SeriesMode))
-  const [chartOpen, setChartOpen] = useState(() => ({ pairs: stored("weth-chart-pairs", "") === "1", burns: stored("weth-chart-burns", "") === "1" }))
+  const [chartOpen, setChartOpen] = useState(() => ({ pairs: stored("weth-chart-pairs-v2", "1") !== "0", burns: stored("weth-chart-burns-v2", "1") !== "0" }))
   const [zoneId, setZoneId] = useState(() => stored("weth-display-zone", LOCAL_ZONE))
-  const [rest, setRest] = useState(false)
   const [baselines, setBaselines] = useState<{ pairs: number | null; burns: number | null } | null>(null)
   const market = useBoardMarket()
   const [openedAt] = useState(() => Date.now())
@@ -438,7 +409,7 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
     setFeedWindow(feedWindowById(stored(FEED_WINDOW_KEY, "all")).id)
     setChartRangeId(stored("weth-activity-chart-range", "24h"))
     setSeriesMode(stored("weth-activity-series", "pairs") as SeriesMode)
-    setChartOpen({ pairs: stored("weth-chart-pairs", "") === "1", burns: stored("weth-chart-burns", "") === "1" })
+    setChartOpen({ pairs: stored("weth-chart-pairs-v2", "1") !== "0", burns: stored("weth-chart-burns-v2", "1") !== "0" })
     setZoneId(stored("weth-display-zone", LOCAL_ZONE))
   }, [])
 
@@ -502,11 +473,6 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
   }, [onClose])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setRest(true), 32)
-    return () => window.clearTimeout(timer)
-  }, [])
 
   useEffect(() => {
     if (now == null) return
@@ -636,7 +602,6 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
             chartRangeId={chartRangeId}
             seriesMode={seriesMode}
             chartOpen={chartOpen}
-            rest={rest}
             onChartRange={(id) => {
               setChartRangeId(id)
               localStorage.setItem("weth-activity-chart-range", id)
@@ -648,7 +613,11 @@ function ActivityBoardBody({ snapshot, mode, onClose }: { snapshot: SnapshotFile
             onToggleChart={(id) => {
               setChartOpen((current) => {
                 const next = { ...current, [id]: !current[id] }
-                localStorage.setItem(id === "pairs" ? "weth-chart-pairs" : "weth-chart-burns", next[id] ? "1" : "0")
+                try {
+                  localStorage.setItem(id === "pairs" ? "weth-chart-pairs-v2" : "weth-chart-burns-v2", next[id] ? "1" : "0")
+                } catch {
+                  // The chart still toggles in this session when storage is blocked.
+                }
                 return next
               })
             }}
@@ -688,7 +657,6 @@ function BoardColumn({
   chartRangeId,
   seriesMode,
   chartOpen,
-  rest,
   onChartRange,
   onSeries,
   onToggleChart,
@@ -708,7 +676,6 @@ function BoardColumn({
   chartRangeId: string
   seriesMode: SeriesMode
   chartOpen: { pairs: boolean; burns: boolean }
-  rest: boolean
   onChartRange: (id: string) => void
   onSeries: (mode: SeriesMode) => void
   onToggleChart: (id: "pairs" | "burns") => void
@@ -736,15 +703,15 @@ function BoardColumn({
           title={id === "pairs" ? "Pairs" : "LP burns"}
           stats={id === "pairs" ? pulse.pairStats : pulse.burnStats}
           level={id === "pairs" ? pulse.pairLevel : pulse.burnLevel}
-          open={rest && chartOpen[id]}
+          open={chartOpen[id]}
           onToggle={() => onToggleChart(id)}
           range={chartRangeId}
           ranges={CHART_RANGES}
           onRange={onChartRange}
           series={seriesMode}
           onSeries={onSeries}
-          pairBuckets={rest && chartOpen[id] ? chartBuckets(pulse.times.pairs, now, chartRangeId) : []}
-          burnBuckets={rest && chartOpen[id] ? chartBuckets(pulse.times.burns, now, chartRangeId) : []}
+          pairBuckets={chartOpen[id] ? chartBuckets(pulse.times.pairs, now, chartRangeId) : []}
+          burnBuckets={chartOpen[id] ? chartBuckets(pulse.times.burns, now, chartRangeId) : []}
           zone={zone}
         />
       ) : null}

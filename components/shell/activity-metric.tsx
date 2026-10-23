@@ -88,14 +88,25 @@ export function ActivityMetricHeader({
   )
 }
 
-class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
+class ChartBoundary extends Component<{ children: ReactNode }, { failed: boolean; attempt: number }> {
+  state = { failed: false, attempt: 0 }
+  private timer: number | null = null
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true }
   }
+  componentDidCatch() {
+    if (this.timer != null) return
+    this.timer = window.setTimeout(() => {
+      this.timer = null
+      this.setState((state) => ({ failed: false, attempt: state.attempt + 1 }))
+    }, 400)
+  }
+  componentWillUnmount() {
+    if (this.timer != null) window.clearTimeout(this.timer)
+  }
   render() {
-    if (!this.state.failed) return this.props.children
-    return <p className="py-3 text-[11px] text-muted-foreground">Loading chart.</p>
+    if (this.state.failed) return <p className="py-3 text-[11px] text-muted-foreground">Reading the chart.</p>
+    return <div key={this.state.attempt}>{this.props.children}</div>
   }
 }
 
