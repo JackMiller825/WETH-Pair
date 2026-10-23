@@ -19,7 +19,7 @@ function sleep(ms: number): Promise<void> {
 async function callRpc(url: string, method: string, params: unknown[]): Promise<unknown> {
   const response = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json", "user-agent": "weth-live-pairs" },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
     signal: AbortSignal.timeout(12_000),
   })
@@ -31,7 +31,7 @@ async function callRpc(url: string, method: string, params: unknown[]): Promise<
 }
 
 async function rpc(method: string, params: unknown[]): Promise<unknown> {
-  let last = "RPC failed"
+  const failures: string[] = []
   for (let index = 0; index < RPCS.length; index += 1) {
     const choice = (preferredRpc + index) % RPCS.length
     try {
@@ -39,11 +39,12 @@ async function rpc(method: string, params: unknown[]): Promise<unknown> {
       preferredRpc = choice
       return result
     } catch (error) {
-      last = error instanceof Error ? error.message : "RPC error"
-      if (classifyRpcFailure(last) === "rate-limit") await sleep(1_000)
+      const message = error instanceof Error ? error.message : "RPC error"
+      failures.push(`${new URL(RPCS[choice]).host}: ${message}`)
+      if (classifyRpcFailure(message) === "rate-limit") await sleep(1_000)
     }
   }
-  throw new Error(last)
+  throw new Error(failures.join(" · "))
 }
 
 function hex(value: number): string {
@@ -151,14 +152,16 @@ async function transferLogs(addresses: string[], from: number, to: number, batch
   const logs: Parameters<typeof parseTransferLog>[0][] = []
   const batches: string[][] = []
   for (let index = 0; index < addresses.length; index += batchSize) batches.push(addresses.slice(index, index + batchSize))
-  for (let index = 0; index < batches.length; index += 4) {
-    const pages = await Promise.all(batches.slice(index, index + 4).map((batch) => rpc("eth_getLogs", [{
-      fromBlock: hex(from),
-      toBlock: hex(to),
-      address: batch,
-      topics: [TRANSFER_TOPIC, null, [DEAD_TOPIC, ZERO_TOPIC]],
-    }])))
-    for (const page of pages) logs.push(...(page as Parameters<typeof parseTransferLog>[0][]))
+  for (const topic of [DEAD_TOPIC, ZERO_TOPIC]) {
+    for (let index = 0; index < batches.length; index += 4) {
+      const pages = await Promise.all(batches.slice(index, index + 4).map((batch) => rpc("eth_getLogs", [{
+        fromBlock: hex(from),
+        toBlock: hex(to),
+        address: batch,
+        topics: [TRANSFER_TOPIC, null, topic],
+      }])))
+      for (const page of pages) logs.push(...(page as Parameters<typeof parseTransferLog>[0][]))
+    }
   }
   return logs
 }
